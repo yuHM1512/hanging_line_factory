@@ -47,7 +47,10 @@ IF EXISTS (SELECT 1 FROM sys.columns
 GO
 
 -- (5) VIEW: mẹ + SLKH(sum con) + child count
-CREATE OR ALTER VIEW app.vDemandRoot AS
+IF OBJECT_ID('app.vDemandRoot', 'V') IS NOT NULL
+    DROP VIEW app.vDemandRoot;
+GO
+CREATE VIEW app.vDemandRoot AS
 SELECT
     dr.NhuCauMe,
     dr.StyleNo,

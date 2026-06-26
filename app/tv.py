@@ -260,7 +260,7 @@ def _scan_count_for_cluster(
     # An toàn: dùng MAX per SeqNo rồi MIN (vì SP qua hết các seq)
     sql = f"""
         SELECT SeqNo, COUNT(*) AS Qty
-        FROM {MES_DB}.dbo.tRecentWork rw
+        FROM {{MES_DB}}.dbo.tRecentWork rw
         WHERE rw.MONo = ? AND rw.SeqNo IN ({placeholders}) {where_date}
         GROUP BY SeqNo
     """
@@ -404,8 +404,8 @@ def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
         f"""
         SELECT ISNULL(SUM(rw.Qty), 0) AS Qty,
                ISNULL(SUM(rw.DefectiveQty), 0) AS DefQty
-        FROM {MES_DB}.dbo.tRecentWork rw
-        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        FROM {{MES_DB}}.dbo.tRecentWork rw
+        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE {where}
         """,
         params,
@@ -931,8 +931,8 @@ def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
     rows = db.query(
         f"""
         SELECT ISNULL(SUM(rw.Qty), 0) AS Q
-        FROM {MES_DB}.dbo.tRecentWork rw
-        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        FROM {{MES_DB}}.dbo.tRecentWork rw
+        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo IN ({placeholders})
           AND rw.ShtDate BETWEEN ? AND ?
@@ -974,7 +974,7 @@ def _workers_for_me_day(
     mono_list = [r["MONo"] for r in monos]
     placeholders = ",".join(["?"] * len(mono_list))
     rows = db.query(
-        f"SELECT COUNT(DISTINCT EmpID) AS N FROM {MES_DB}.dbo.tRecentWork "
+        f"SELECT COUNT(DISTINCT EmpID) AS N FROM {{MES_DB}}.dbo.tRecentWork "
         f"WHERE MONo IN ({placeholders}) AND ShtDate = ?",
         mono_list + [the_date],
     )
@@ -1018,8 +1018,8 @@ def api_tv4(
         ph = ",".join(["?"] * len(mono_list))
         r = db.query(
             f"""SELECT MAX(rw.ShtDate) AS D
-                FROM {MES_DB}.dbo.tRecentWork rw
-                INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+                FROM {{MES_DB}}.dbo.tRecentWork rw
+                INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
                 WHERE st.StRole = 13 AND rw.IsLastSeq = 1
                   AND rw.MONo IN ({ph})""",
             mono_list,

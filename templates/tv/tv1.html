@@ -238,13 +238,20 @@
   </div>
 
   <div class="ftr">
-    <span class="l"><span class="refresh-dot"></span>Cập nhật <span id="ftr-time">—</span> · Auto refresh 5 phút</span>
+    <span class="l"><span class="refresh-dot"></span>Cập nhật <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
     <span class="r">TV-1 · Theo dõi sản lượng & nhịp độ theo giờ</span>
   </div>
 
 </div>
 </div>
 </div>
+
+<button id="btn-refresh" onclick="loadData()" title="Refresh ngay"
+  style="position:fixed;bottom:18px;right:18px;z-index:999;
+         background:rgba(15,30,60,.82);border:1px solid rgba(255,255,255,.3);
+         color:#fff;padding:8px 18px;border-radius:6px;cursor:pointer;
+         font-size:15px;font-family:inherit;letter-spacing:.03em;
+         backdrop-filter:blur(4px);">↺ Refresh</button>
 
 <script>
 const INIT_MONO = {{ init_mono | tojson }};
@@ -257,13 +264,19 @@ function fit() {
 }
 fit(); addEventListener('resize', fit);
 
-// Test mode: clock hiển thị cuối ngày (22:00) thay vì real-time
-// để giả lập view "end of day" với toàn bộ data của ngày được chọn.
 function tick() {
   const el = document.getElementById('clock');
-  if (el) el.textContent = '22:00';
+  if (!el) return;
+  const today = new Date().toISOString().slice(0, 10);
+  if (INIT_DATE === today) {
+    const now = new Date();
+    el.textContent = now.toTimeString().slice(0, 5);
+  } else {
+    el.textContent = '22:00';
+  }
 }
 tick();
+setInterval(tick, 60000);
 
 function fmtNum(n) {
   if (n == null) return '—';
@@ -272,11 +285,21 @@ function fmtNum(n) {
 function passFail(pass) { return pass ? 'fill-pass' : 'fill-fail'; }
 function passFailText(pass) { return pass ? 'c-pass' : 'c-fail'; }
 
+function _btnState(text, disabled, borderColor) {
+  const btn = document.getElementById('btn-refresh');
+  if (!btn) return;
+  btn.textContent = text;
+  btn.disabled = disabled;
+  btn.style.borderColor = borderColor;
+  btn.style.opacity = disabled ? '0.7' : '1';
+}
+
 async function loadData() {
   if (!INIT_MONO || !INIT_DATE) {
     alert('Cần ?mono=...&date=... trên URL. Mở /tv để config.');
     return;
   }
+  _btnState('⏳ Đang tải...', true, 'rgba(255,255,255,.3)');
   const url = `/tv/api/tv1?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`;
   let data;
   try {
@@ -285,10 +308,14 @@ async function loadData() {
       return r.json();
     });
   } catch (e) {
+    _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
+    setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
     alert('Lỗi load data: ' + e.message);
     return;
   }
   render(data);
+  _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
+  setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
 }
 
 function render(d) {
@@ -420,8 +447,12 @@ function render(d) {
   document.getElementById('ehd-total').innerHTML = fmtNum(d.total_po_qty) + ' <small>PCS</small>';
 }
 
+const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
+const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
+document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+
 loadData();
-setInterval(loadData, REFRESH_MS);
+setInterval(loadData, ACTIVE_REFRESH_MS);
 </script>
 </body>
 </html>

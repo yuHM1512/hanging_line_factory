@@ -519,28 +519,35 @@ _CLUSTER_GROUP_SQL = """
     Groups AS (
       SELECT HeadOdr,
              COUNT(*) AS StepCount,
-             STRING_AGG(CAST(SeqNo AS varchar(10)), '+')
-               WITHIN GROUP (ORDER BY Odr) AS SeqNoList,
-             STRING_AGG(SeqName, ' + ')
-               WITHIN GROUP (ORDER BY Odr) AS GroupLabel,
              MIN(RouteM_guid) AS RouteM_guid
       FROM Steps
       GROUP BY HeadOdr
     )
     SELECT g.HeadOdr AS RouteStepOdr,
-           g.GroupLabel,
-           g.SeqNoList,
+           STUFF((
+             SELECT ' + ' + ISNULL(s2.SeqName, '')
+             FROM Steps s2
+             WHERE s2.HeadOdr = g.HeadOdr
+             ORDER BY s2.Odr
+             FOR XML PATH(''), TYPE
+           ).value('.', 'nvarchar(max)'), 1, 3, '') AS GroupLabel,
+           STUFF((
+             SELECT '+' + CAST(s2.SeqNo AS varchar(10))
+             FROM Steps s2
+             WHERE s2.HeadOdr = g.HeadOdr
+             ORDER BY s2.Odr
+             FOR XML PATH(''), TYPE
+           ).value('.', 'nvarchar(max)'), 1, 1, '') AS SeqNoList,
            g.StepCount,
-           ISNULL((
-             SELECT STRING_AGG(CAST(st.StNo AS varchar(10)), ',')
-                    WITHIN GROUP (ORDER BY st.StNo)
+           ISNULL(STUFF((
+             SELECT ',' + CAST(st.StNo AS varchar(10))
              FROM {MES_DB}.dbo.tRouteDT dt
              JOIN {MES_DB}.dbo.tStation st ON dt.Station_guid = st.guid
              WHERE dt.RouteM_guid = g.RouteM_guid
-               AND dt.SeqNo IN (
-                 SELECT SeqNo FROM Steps WHERE HeadOdr = g.HeadOdr
-               )
-           ), '') AS StationNos
+               AND dt.SeqNo IN (SELECT SeqNo FROM Steps WHERE HeadOdr = g.HeadOdr)
+             ORDER BY st.StNo
+             FOR XML PATH(''), TYPE
+           ).value('.', 'nvarchar(max)'), 1, 1, ''), '') AS StationNos
     FROM Groups g
     ORDER BY g.HeadOdr;
 """
