@@ -27,6 +27,11 @@ QLCL_API_URL = os.environ.get("QLCL_API_URL", "http://localhost:8008")
 QLCL_API_KEY = os.environ.get("QLCL_API_KEY", "")
 # Đơn vị của app này — gắn vào prod_plan.don_vi khi push sang QLCL
 QLCL_DON_VI  = os.environ.get("QLCL_DON_VI", "XN")
+QLCL_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/126.0.0.0 Safari/537.36"
+)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -46,6 +51,25 @@ class AdminModel(BaseModel):
 
 def _actor_id(user: dict) -> str:
     return str(user.get("UserID") or "admin")
+
+
+def _qlcl_base_url() -> str:
+    base = (QLCL_API_URL or "").strip()
+    if base and not base.startswith(("http://", "https://")):
+        base = f"https://{base}"
+    return base.rstrip("/")
+
+
+def _qlcl_request(path: str, *, method: str = "GET", data: bytes | None = None) -> urllib.request.Request:
+    req = urllib.request.Request(f"{_qlcl_base_url()}{path}", data=data, method=method)
+    req.add_header("Accept", "application/json")
+    req.add_header("Accept-Language", "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7")
+    req.add_header("User-Agent", QLCL_USER_AGENT)
+    if data is not None:
+        req.add_header("Content-Type", "application/json")
+    if QLCL_API_KEY:
+        req.add_header("X-API-Key", QLCL_API_KEY)
+    return req
 
 # Chỉ hiện MONo có scan đầu tiên (MIN ShtDate) từ ngày này trở đi.
 PLAN_CANDIDATE_START_DATE = date(2026, 4, 18)
@@ -573,9 +597,7 @@ def api_plan_delete(guid: str):
 def api_dm_loai_hang_proxy():
     """Proxy lấy danh sách loại hàng từ app QLCL (dm_loai_hang.ten_loai)."""
     try:
-        url = f"{QLCL_API_URL}/api/dm/loai-hang"
-        req = urllib.request.Request(url, method="GET")
-        req.add_header("Accept", "application/json")
+        req = _qlcl_request("/api/dm/loai-hang")
         with urllib.request.urlopen(req, timeout=5) as resp:
             data = json.loads(resp.read())
         # Return only ten_loai list for dropdown
@@ -633,15 +655,7 @@ def api_sync_to_qlcl():
 
     # 2. POST sang QLCL
     body = json.dumps({"don_vi": QLCL_DON_VI, "plans": plans}).encode()
-    req = urllib.request.Request(
-        f"{QLCL_API_URL}/api/prod-plan/push-from-hl",
-        data=body,
-        method="POST",
-    )
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
-    if QLCL_API_KEY:
-        req.add_header("X-API-Key", QLCL_API_KEY)
+    req = _qlcl_request("/api/prod-plan/push-from-hl", data=body, method="POST")
 
     try:
         with urllib.request.urlopen(req, timeout=15) as resp:
