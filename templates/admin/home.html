@@ -1,33 +1,168 @@
 {% extends "admin/base.html" %}
 {% set active = 'home' %}
-{% block heading %}Bảng điều khiển quản trị{% endblock %}
-{% block subheading %}Master data cho dashboard chuyền treo.{% endblock %}
+{% block header_breadcrumb %}Tổng quan{% endblock %}
+{% block heading %}Tổng quan{% endblock %}
+{% block subheading %}Hệ thống điều phối chuyền treo{% endblock %}
 
 {% block body %}
+<div class="panel panel-accent">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">checklist</span>
+    Trình trạng thiết lập
+  </h3>
+  <div class="checklist" id="checklist">
+    <p class="muted">Đang kiểm tra...</p>
+  </div>
+</div>
+
+<div class="panel" id="qlcl-sync-panel" style="display:flex; align-items:center; gap:1rem; flex-wrap:wrap;">
+  <span class="material-symbols-outlined" style="font-size:28px; color:#3b82f6; flex-shrink:0;">sync</span>
+  <div style="flex:1; min-width:180px;">
+    <div style="font-weight:700; font-size:0.95rem; color:#0b1c30;">Đồng bộ kế hoạch sang QLCL</div>
+    <div style="font-size:0.82rem; color:#44464f;" id="qlcl-sync-status">Chưa đồng bộ trong phiên này</div>
+  </div>
+  <button class="btn btn-primary" id="btn-sync-qlcl" onclick="syncToQlcl()">
+    <span class="material-symbols-outlined" style="font-size:18px; vertical-align:-4px;">cloud_upload</span>
+    Đồng bộ ngay
+  </button>
+</div>
+
+<h3 style="margin: 0.5rem 0 0; font-family: Manrope, sans-serif; font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem; color: #0b1c30;">
+  <span class="material-symbols-outlined" style="font-size: 22px;">apps</span>
+  Truy cập nhanh
+</h3>
+
 <div class="card-grid">
   <a class="link-card" href="/admin/holiday">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">calendar_month</span>
+    </div>
     <h3>Lịch nghỉ</h3>
-    <p>Ngày lễ + ngày nghỉ riêng. Dùng để tính ngày kết thúc dự kiến.</p>
+    <p>Thiết lập thời gian dừng chuyền, ngày nghỉ lễ và bảo trì định kỳ.</p>
+    <span class="link-card-action">Quản lý <span class="material-symbols-outlined">arrow_forward</span></span>
   </a>
   <a class="link-card" href="/admin/plan">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">account_tree</span>
+    </div>
     <h3>Nhu cầu con</h3>
-    <p>Khai báo kế hoạch con: tổ, mã, ngày lên chuyền, SLKH, PO list.</p>
+    <p>Phân tách chi tiết nhu cầu sản xuất theo từng mã hàng và công đoạn.</p>
+    <span class="link-card-action">Quản lý <span class="material-symbols-outlined">arrow_forward</span></span>
   </a>
   <a class="link-card" href="/admin/demand">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">hub</span>
+    </div>
     <h3>Nhu cầu mẹ</h3>
-    <p>Đăng ký mã hàng + định mức + phân loại + lao động biên chế.</p>
+    <p>Tổng hợp dữ liệu đầu vào từ đơn hàng tổng và điều phối nguồn lực.</p>
+    <span class="link-card-action">Quản lý <span class="material-symbols-outlined">arrow_forward</span></span>
   </a>
-  <a class="link-card" href="/admin/cluster">
+  <a class="link-card link-card-navy" href="/admin/cluster">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">view_column</span>
+    </div>
     <h3>6 cụm theo dõi</h3>
-    <p>Chọn 6 trạm/cụm theo dõi cho TV-2 + công thức WIP. 1 first + 4 middle + 1 KCS.</p>
+    <p>Cấu hình các trạm kiểm soát trên đường ray của hệ thống treo.</p>
+    <span class="link-card-action">Cấu hình <span class="material-symbols-outlined">settings</span></span>
   </a>
   <a class="link-card" href="/admin/sam">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">timer</span>
+    </div>
     <h3>SAM</h3>
-    <p>Đồng bộ thời gian SAM từ Google Sheet · 1 click.</p>
+    <p>Định mức thời gian chuẩn (Standard Allowed Minutes) cho từng sản phẩm.</p>
+    <span class="link-card-action">Cài đặt <span class="material-symbols-outlined">bolt</span></span>
   </a>
   <a class="link-card" href="/admin/user">
+    <div class="link-card-icon">
+      <span class="material-symbols-outlined">group</span>
+    </div>
     <h3>Tài khoản</h3>
-    <p>Quản lý tài khoản tổ trưởng / admin. Đăng nhập bằng employee code.</p>
+    <p>Quản lý phân quyền người dùng, kỹ thuật viên và admin nhà máy.</p>
+    <span class="link-card-action">Cài đặt <span class="material-symbols-outlined">settings_account_box</span></span>
   </a>
 </div>
+{% endblock %}
+
+{% block page_scripts %}
+<style>
+  .checklist { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.65rem; }
+  .ck-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.75rem 1rem; border-radius: 0.85rem;
+    background: #eff4ff;
+    text-decoration: none; color: inherit;
+    transition: background 0.15s ease;
+  }
+  .ck-item:hover { background: #e5eeff; }
+  .ck-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: grid; place-items: center; flex: 0 0 32px;
+    font-size: 15px; font-weight: 700; line-height: 1;
+  }
+  .ck-done .ck-icon { background: #dcfce7; color: #16a34a; }
+  .ck-todo .ck-icon { background: #fef3c7; color: #d97706; }
+  .ck-err  .ck-icon { background: #ffdad6; color: #ba1a1a; }
+  .ck-label { font-weight: 600; font-size: 0.9rem; color: #0b1c30; }
+  .ck-count { font-size: 0.78rem; color: #44464f; }
+</style>
+<script>
+const ITEMS = [
+  { key: 'user',    label: 'Tài khoản',           href: '/admin/user' },
+  { key: 'holiday', label: 'Lịch nghỉ',           href: '/admin/holiday' },
+  { key: 'plan',    label: 'Nhu cầu con',         href: '/admin/plan' },
+  { key: 'demand',  label: 'Nhu cầu mẹ',          href: '/admin/demand' },
+  { key: 'cluster', label: '6 cụm theo dõi',      href: '/admin/cluster' },
+  { key: 'sam',     label: 'SAM',                  href: '/admin/sam' },
+];
+
+async function loadChecklist() {
+  try {
+    const data = await Admin.fetchJSON('/admin/api/checklist');
+    const el = document.getElementById('checklist');
+    el.innerHTML = ITEMS.map(item => {
+      const count = data[item.key] ?? -1;
+      let cls, icon, countText;
+      if (count < 0)       { cls = 'ck-err';  icon = '!';  countText = 'Lỗi'; }
+      else if (count === 0){ cls = 'ck-todo'; icon = '—';  countText = 'Chưa có dữ liệu'; }
+      else                 { cls = 'ck-done'; icon = '✓';  countText = `(${count}) bản ghi`; }
+      return `<a class="ck-item ${cls}" href="${item.href}">
+        <span class="ck-icon">${icon}</span>
+        <div>
+          <div class="ck-label">${Admin.escape(item.label)}</div>
+          <div class="ck-count">${countText}</div>
+        </div>
+      </a>`;
+    }).join('');
+  } catch (err) {
+    document.getElementById('checklist').innerHTML =
+      `<p class="muted">Không tải được: ${Admin.escape(err.message)}</p>`;
+  }
+}
+
+loadChecklist();
+
+async function syncToQlcl() {
+  const btn = document.getElementById('btn-sync-qlcl');
+  const status = document.getElementById('qlcl-sync-status');
+  btn.disabled = true;
+  btn.textContent = 'Đang đồng bộ...';
+  status.textContent = 'Đang gửi dữ liệu sang QLCL...';
+  status.style.color = '#3b82f6';
+  try {
+    const data = await Admin.fetchJSON('/admin/api/sync-to-qlcl', { method: 'POST' });
+    const { inserted = 0, updated = 0, skipped = 0, warnings = [] } = data;
+    status.textContent = `✓ Xong — thêm mới: ${inserted}, cập nhật: ${updated}, bỏ qua: ${skipped}` +
+      (warnings.length ? ` | ⚠ ${warnings.length} cảnh báo` : '');
+    status.style.color = '#16a34a';
+    if (warnings.length) console.warn('Sync warnings:', warnings);
+  } catch (err) {
+    status.textContent = `✗ Lỗi: ${Admin.escape(err.message)}`;
+    status.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
+  }
+}
+</script>
 {% endblock %}

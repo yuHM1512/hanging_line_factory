@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hanging Conveyor Admin - Tổng quan</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#44464f",
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#c3c7cb",
+                    "on-tertiary-fixed": "#00174d",
+                    "on-tertiary": "#ffffff",
+                    "surface-bright": "#f8f9ff",
+                    "surface-variant": "#d3e4fe",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-primary-fixed-variant": "#324576",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#213145",
+                    "outline": "#757780",
+                    "on-secondary-fixed": "#181c1f",
+                    "primary-fixed": "#dae2ff",
+                    "on-surface": "#0b1c30",
+                    "surface-container": "#e5eeff",
+                    "primary-container": "#001848",
+                    "on-tertiary-container": "#6480d7",
+                    "tertiary": "#000000",
+                    "tertiary-container": "#00174d",
+                    "surface-container-low": "#eff4ff",
+                    "on-secondary-fixed-variant": "#43474b",
+                    "on-background": "#0b1c30",
+                    "tertiary-fixed": "#dbe1ff",
+                    "secondary-fixed": "#e0e3e7",
+                    "primary-fixed-dim": "#b3c5fe",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#5f6367",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#b3c5fe",
+                    "tertiary-fixed-dim": "#b5c4ff",
+                    "secondary": "#5b5f62",
+                    "surface-tint": "#4a5d8f",
+                    "surface-container-high": "#dce9ff",
+                    "on-primary-fixed": "#001848",
+                    "on-tertiary-fixed-variant": "#214195",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#7082b7",
+                    "secondary-container": "#dde0e4",
+                    "primary": "#000000",
+                    "surface": "#f8f9ff",
+                    "on-primary": "#ffffff",
+                    "surface-dim": "#cbdbf5",
+                    "outline-variant": "#c5c6d0",
+                    "on-secondary": "#ffffff",
+                    "background": "#f8f9ff",
+                    "inverse-on-surface": "#eaf1ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "2xl": "1.25rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid-columns": "12",
+                    "gutter": "24px",
+                    "stack-gap": "16px",
+                    "container-padding": "32px",
+                    "sidebar-width": "280px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Manrope"],
+                    "headline-md": ["Manrope"],
+                    "label-numeric": ["JetBrains Mono"],
+                    "title-sm": ["Manrope"],
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg": ["56px", {"lineHeight": "64px", "letterSpacing": "-0.02em", "fontWeight": "800"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-numeric": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #f8f9ff;
+            color: #0b1c30;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        .glass-header {
+            background: rgba(248, 249, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .tonal-card {
+            background-color: #ffffff;
+            box-shadow: 0 4px 20px -2px rgba(0, 24, 72, 0.04), 0 2px 8px -2px rgba(0, 24, 72, 0.02);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .tonal-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px -4px rgba(0, 24, 72, 0.08);
+        }
+        .navy-gradient-bg {
+            background: linear-gradient(135deg, #001848 0%, #324576 100%);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #dde0e4;
+            border-radius: 10px;
+        }
+        /* No-Line Rule: Removing borders where they were used for separation */
+        .no-border { border: none !important; }
+    </style>
+</head>
+<body class="flex min-h-screen">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] flex flex-col py-10 px-8 bg-surface-container-lowest z-50">
+<div class="mb-12 flex items-center gap-4">
+<div class="w-12 h-12 rounded-2xl navy-gradient-bg flex items-center justify-center shadow-lg">
+<span class="material-symbols-outlined text-white text-2xl" style="font-variation-settings: 'FILL' 1;">conveyor_belt</span>
+</div>
+<div>
+<h1 class="font-headline-md text-xl font-extrabold text-primary tracking-tight">Hanging Conveyor</h1>
+<p class="font-label-caps text-[10px] text-on-primary-container/60 uppercase tracking-widest">Admin Control</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1 custom-scrollbar overflow-y-auto">
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl transition-all text-on-primary-fixed bg-surface-container-high font-semibold" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">dashboard</span>
+<span class="font-body-md">Tổng quan</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">calendar_today</span>
+<span class="font-body-md">Lịch nghỉ</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">subdirectory_arrow_right</span>
+<span class="font-body-md">Nhu cầu con</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">account_tree</span>
+<span class="font-body-md">Nhu cầu mẹ</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">reorder</span>
+<span class="font-body-md">6 cụm</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span class="font-body-md">SAM</span>
+</a>
+<a class="flex items-center gap-4 py-3.5 px-5 rounded-2xl text-secondary hover:bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-body-md">Tài khoản</span>
+</a>
+</nav>
+<div class="mt-auto pt-8">
+<div class="flex items-center gap-4 p-4 rounded-2xl bg-surface-container-low">
+<div class="w-11 h-11 rounded-full overflow-hidden bg-secondary-container">
+<img class="w-full h-full object-cover" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAflc84WsoJyj0c4SUDViQ9mtCpuwXsOR5pm1erWGWMPo6gjN6ht2Orn4bk3hgnfcEQ4kqQFYmCB7665ruU-wnVUd2D5sUqmm_UBEI2Zvlrrf2uRI9KF9SvU5on796mWGq-0MrkmqTxNDAru0SU9AoXhqf6bxdIX8lxtTTUNi0SXAqDYBndBj0qi7C6WGSovJv4_-HU8sTUXnvjOGCqqfJ_e-tx6TkltxVEyjmpnBiV3Ei1wagQp3Qk0g"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-sm font-bold text-on-surface truncate">Nguyễn Văn A</p>
+<p class="font-label-caps text-[10px] text-secondary">SYSTEM ADMIN</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 ml-[280px]">
+<!-- TopAppBar with Glassmorphism -->
+<header class="sticky top-0 z-40 glass-header flex justify-between items-center w-full px-12 h-24 no-border">
+<div class="flex flex-col">
+<h2 class="font-display-lg text-display-lg text-primary leading-none">Tổng quan</h2>
+<p class="font-body-sm text-secondary mt-1">Hệ thống điều phối chuyền treo</p>
+</div>
+<div class="flex items-center gap-8">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary/60">search</span>
+<input class="bg-surface-container-low border-none rounded-2xl py-3 pl-12 pr-6 w-80 focus:ring-2 focus:ring-on-primary-fixed/20 transition-all font-body-sm text-on-surface placeholder:text-secondary/40" placeholder="Tìm kiếm tài liệu, mã hàng..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="w-12 h-12 flex items-center justify-center hover:bg-surface-container-high rounded-2xl transition-all">
+<span class="material-symbols-outlined text-on-surface">notifications</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center hover:bg-surface-container-high rounded-2xl transition-all">
+<span class="material-symbols-outlined text-on-surface">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<div class="px-12 py-10">
+<!-- SETUP CHECKLIST PANEL -->
+<section class="mb-16">
+<div class="bg-white rounded-3xl p-10 tonal-card no-border">
+<div class="flex items-center justify-between mb-10">
+<div class="flex items-center gap-4">
+<div class="w-1.5 h-8 navy-gradient-bg rounded-full"></div>
+<h3 class="font-title-sm text-xl text-primary">Trình trạng thiết lập</h3>
+</div>
+<span class="font-label-caps text-[11px] bg-primary/5 px-4 py-2 rounded-full text-on-primary-fixed font-bold tracking-wider">THIẾT LẬP HỆ THỐNG</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Items using tonal layering instead of borders -->
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-on-surface">Tài khoản</p>
+<p class="font-label-numeric text-secondary text-sm">(3) mục đã cấu hình</p>
+</div>
+</div>
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-on-surface">Lịch nghỉ</p>
+<p class="font-label-numeric text-secondary text-sm">(12) ngày thiết lập</p>
+</div>
+</div>
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-on-surface">Nhu cầu con</p>
+<p class="font-label-numeric text-secondary text-sm">(5) dữ liệu sẵn sàng</p>
+</div>
+</div>
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-surface-container-lowest shadow-sm hover:shadow-md transition-shadow">
+<div class="w-12 h-12 rounded-xl bg-green-50 flex items-center justify-center text-green-600">
+<span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-on-surface">Nhu cầu mẹ</p>
+<p class="font-label-numeric text-secondary text-sm">(2) nhóm kết nối</p>
+</div>
+</div>
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-orange-50/50">
+<div class="w-12 h-12 rounded-xl bg-orange-100/50 flex items-center justify-center text-orange-600">
+<span class="material-symbols-outlined text-2xl">pending</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-orange-950">6 cụm theo dõi</p>
+<p class="font-label-caps text-[10px] text-orange-700/70 italic uppercase">Chưa có dữ liệu</p>
+</div>
+</div>
+<div class="flex items-center gap-5 p-5 rounded-2xl bg-orange-50/50">
+<div class="w-12 h-12 rounded-xl bg-orange-100/50 flex items-center justify-center text-orange-600">
+<span class="material-symbols-outlined text-2xl">pending</span>
+</div>
+<div>
+<p class="font-body-md font-bold text-orange-950">SAM</p>
+<p class="font-label-caps text-[10px] text-orange-700/70 italic uppercase">Chưa có dữ liệu</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- QUICK LINKS GRID -->
+<section>
+<div class="flex items-center gap-3 mb-8 px-2">
+<span class="material-symbols-outlined text-on-primary-fixed text-2xl">grid_view</span>
+<h3 class="font-title-sm text-2xl font-bold text-primary">Truy cập nhanh</h3>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+<!-- Card: Lịch nghỉ -->
+<div class="tonal-card bg-white p-8 rounded-[32px] relative overflow-hidden group no-border">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-surface-container-high rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-3xl text-on-primary-fixed">calendar_today</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-primary">Lịch nghỉ</h4>
+<p class="font-body-md text-secondary mb-8 leading-relaxed opacity-80">Thiết lập thời gian dừng chuyền, ngày nghỉ lễ và bảo trì định kỳ cho hệ thống.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-on-primary-fixed font-black tracking-widest group/btn" href="#">
+                            QUẢN LÝ <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">arrow_right_alt</span>
+</a>
+</div>
+</div>
+<!-- Card: Nhu cầu con -->
+<div class="tonal-card bg-white p-8 rounded-[32px] relative overflow-hidden group no-border">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-surface-container-high rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-3xl text-on-primary-fixed">subdirectory_arrow_right</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-primary">Nhu cầu con</h4>
+<p class="font-body-md text-secondary mb-8 leading-relaxed opacity-80">Phân tách chi tiết nhu cầu sản xuất theo từng mã hàng và công đoạn cụ thể.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-on-primary-fixed font-black tracking-widest group/btn" href="#">
+                            QUẢN LÝ <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">arrow_right_alt</span>
+</a>
+</div>
+</div>
+<!-- Card: Nhu cầu mẹ -->
+<div class="tonal-card bg-white p-8 rounded-[32px] relative overflow-hidden group no-border">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-surface-container-high rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-3xl text-on-primary-fixed">account_tree</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-primary">Nhu cầu mẹ</h4>
+<p class="font-body-md text-secondary mb-8 leading-relaxed opacity-80">Tổng hợp dữ liệu đầu vào từ đơn hàng tổng và điều phối nguồn lực chuyền treo.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-on-primary-fixed font-black tracking-widest group/btn" href="#">
+                            QUẢN LÝ <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">arrow_right_alt</span>
+</a>
+</div>
+</div>
+<!-- Card: 6 cụm theo dõi (Navy Gradient) -->
+<div class="navy-gradient-bg p-8 rounded-[32px] relative overflow-hidden group no-border shadow-2xl">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-white/5 rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center mb-8 backdrop-blur-sm">
+<span class="material-symbols-outlined text-3xl text-white">reorder</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-white">6 cụm theo dõi</h4>
+<p class="font-body-md text-white/70 mb-8 leading-relaxed">Cấu hình các trạm kiểm soát (Sensors) trên đường ray của hệ thống treo.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-white font-black tracking-widest group/btn" href="#">
+                            CẤU HÌNH <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">settings</span>
+</a>
+</div>
+</div>
+<!-- Card: SAM -->
+<div class="tonal-card bg-white p-8 rounded-[32px] relative overflow-hidden group no-border">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-surface-container-high rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-3xl text-on-primary-fixed">analytics</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-primary">SAM</h4>
+<p class="font-body-md text-secondary mb-8 leading-relaxed opacity-80">Định mức thời gian chuẩn (Standard Allowed Minutes) cho từng sản phẩm.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-on-primary-fixed font-black tracking-widest group/btn" href="#">
+                            CÀI ĐẶT <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">bolt</span>
+</a>
+</div>
+</div>
+<!-- Card: Tài khoản -->
+<div class="tonal-card bg-white p-8 rounded-[32px] relative overflow-hidden group no-border">
+<div class="absolute -top-10 -right-10 w-40 h-40 bg-surface-container-high rounded-full transition-transform duration-500 group-hover:scale-110"></div>
+<div class="relative z-10">
+<div class="w-14 h-14 rounded-2xl bg-surface-container-low flex items-center justify-center mb-8">
+<span class="material-symbols-outlined text-3xl text-on-primary-fixed">person</span>
+</div>
+<h4 class="font-headline-md text-2xl font-extrabold mb-3 text-primary">Tài khoản</h4>
+<p class="font-body-md text-secondary mb-8 leading-relaxed opacity-80">Quản lý phân quyền người dùng, kỹ thuật viên và admin nhà máy.</p>
+<a class="inline-flex items-center gap-3 font-label-caps text-[11px] text-on-primary-fixed font-black tracking-widest group/btn" href="#">
+                            CÀI ĐẶT <span class="material-symbols-outlined text-lg transition-transform group-hover/btn:translate-x-2">admin_panel_settings</span>
+</a>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Decorative Factory Background Layer -->
+<div class="fixed bottom-0 right-0 -z-10 opacity-[0.03] pointer-events-none p-12 select-none">
+<span class="material-symbols-outlined text-[480px]" style="font-variation-settings: 'wght' 100;">factory</span>
+</div>
+</main>
+<script>
+    // Micro-interactions for cards
+    document.querySelectorAll('.tonal-card').forEach(card => {
+        card.addEventListener('mousedown', () => {
+            card.style.transform = 'scale(0.985)';
+        });
+        card.addEventListener('mouseup', () => {
+            card.style.transform = 'translateY(-2px)';
+        });
+        card.addEventListener('mouseleave', () => {
+            card.style.transform = 'translateY(0px)';
+        });
+    });
+</script>
+</body></html>

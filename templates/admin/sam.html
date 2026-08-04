@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'sam' %}
+{% block header_breadcrumb %}SAM{% endblock %}
 {% block heading %}SAM theo mã hàng{% endblock %}
 {% block subheading %}Đồng bộ SAM (phút/SP) từ Google Sheet · cột <code>SAM_OWE</code> · factory <strong>MARCH 29</strong>.{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title">Đồng bộ từ Google Sheet</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">sync</span>
+    Đồng bộ từ Google Sheet
+  </h3>
   <p class="muted">URL: <code>SAM/SOT Config · MARCH 29 (Me Nhu + Duy Trung)</code></p>
   <div class="row-flex">
     <button class="btn btn-primary" id="btn-sync">Đồng bộ ngay</button>
@@ -14,7 +18,10 @@
 </div>
 
 <div class="panel">
-  <h3 class="panel-title">Danh sách SAM</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">timer</span>
+    Danh sách SAM
+  </h3>
   <div class="row-flex">
     <input type="text" id="filter-sam" placeholder="🔍 Lọc theo StyleNo" class="search-input" />
     <span class="muted small" id="sam-count"></span>
@@ -57,12 +64,14 @@ function render(rows) {
     return `
     <tr>
       <td><strong>${Admin.escape(r.StyleNo)}</strong></td>
-      <td>${r.SAM}</td>
+      <td class="num">${r.SAM}</td>
       <td>${tgt}</td>
       <td class="muted small">${Admin.escape(r.Source || '')}</td>
       <td class="muted">${r.UpdatedAt || ''}</td>
       <td class="col-action">
-        <button class="btn btn-danger btn-sm" data-del="${Admin.escape(r.StyleNo)}">Xoá</button>
+        <button class="btn-icon btn-icon-danger" data-del="${Admin.escape(r.StyleNo)}" title="Xoá">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
       </td>
     </tr>
   `;}).join('');
@@ -107,7 +116,7 @@ document.querySelector('#tbl-sam').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-del]');
   if (!btn) return;
   const k = btn.dataset.del;
-  if (!confirm(`Xoá SAM của mã "${k}"?`)) return;
+  if (!await Admin.confirmDelete(`Xoá SAM của mã "${k}"?`)) return;
   try {
     await Admin.fetchJSON(`${API}/${encodeURIComponent(k)}`, { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');

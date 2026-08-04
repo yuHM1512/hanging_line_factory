@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hanging Conveyor - SAM Management</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;family=Roboto+Mono:wght@700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#44464f",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c3c7cb",
+                        "on-tertiary-fixed": "#00174d",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#f8f9ff",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#324576",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#213145",
+                        "outline": "#757780",
+                        "on-secondary-fixed": "#181c1f",
+                        "primary-fixed": "#dae2ff",
+                        "on-surface": "#0b1c30",
+                        "surface-container": "#e5eeff",
+                        "primary-container": "#001848",
+                        "on-tertiary-container": "#6480d7",
+                        "tertiary": "#000000",
+                        "tertiary-container": "#00174d",
+                        "surface-container-low": "#eff4ff",
+                        "on-secondary-fixed-variant": "#43474b",
+                        "on-background": "#0b1c30",
+                        "tertiary-fixed": "#dbe1ff",
+                        "secondary-fixed": "#e0e3e7",
+                        "primary-fixed-dim": "#b3c5fe",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#5f6367",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#b3c5fe",
+                        "tertiary-fixed-dim": "#b5c4ff",
+                        "secondary": "#5b5f62",
+                        "surface-tint": "#4a5d8f",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001848",
+                        "on-tertiary-fixed-variant": "#214195",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#7082b7",
+                        "secondary-container": "#dde0e4",
+                        "primary": "#000000",
+                        "surface": "#f8f9ff",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#cbdbf5",
+                        "outline-variant": "#c5c6d0",
+                        "on-secondary": "#ffffff",
+                        "background": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "grid-columns": "12",
+                        "gutter": "24px",
+                        "stack-gap": "16px",
+                        "container-padding": "32px",
+                        "sidebar-width": "280px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Manrope"],
+                        "headline-md": ["Manrope"],
+                        "label-numeric": ["JetBrains Mono"],
+                        "title-sm": ["Manrope"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-numeric": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pill-row td:first-child { border-radius: 12px 0 0 12px; }
+        .pill-row td:last-child { border-radius: 0 12px 12px 0; }
+        .ambient-card { box-shadow: 0 18px 48px rgba(21, 28, 40, 0.04); }
+        .navy-gradient { background: linear-gradient(135deg, #0b1c30 0%, #324576 100%); }
+        .no-line-table tr { border-bottom: none !important; }
+        .glass-header {
+            background: rgba(248, 249, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+    </style>
+</head>
+<body class="bg-[#F4F7FB] text-on-background font-body-md min-h-screen">
+<!-- Side Navigation Bar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-white flex flex-col py-8 px-6 z-50">
+<div class="mb-10 px-2">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">Hanging Conveyor</h1>
+<p class="font-label-caps text-label-caps text-secondary opacity-70 uppercase tracking-widest">Admin Setup</p>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">dashboard</span>
+<span class="font-body-md font-medium">Tổng quan</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">calendar_today</span>
+<span class="font-body-md font-medium">Lịch nghỉ</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">subdirectory_arrow_right</span>
+<span class="font-body-md font-medium">Nhu cầu con</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">account_tree</span>
+<span class="font-body-md font-medium">Nhu cầu mẹ</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">reorder</span>
+<span class="font-body-md font-medium">6 cụm</span>
+</a>
+<!-- SAM Tab - ACTIVE -->
+<a class="flex items-center gap-3 px-4 py-3 text-primary font-bold bg-surface-container-high rounded-xl transition-all" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">analytics</span>
+<span class="font-body-md">SAM</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 text-secondary hover:bg-surface-container-low transition-all duration-200 rounded-xl group" href="#">
+<span class="material-symbols-outlined text-secondary group-hover:text-primary">person</span>
+<span class="font-body-md font-medium">Tài khoản</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-surface-variant flex items-center gap-3 px-2">
+<div class="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-white font-bold">NV</div>
+<div>
+<p class="font-body-sm font-semibold text-on-surface">Nguyễn Văn A</p>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px] text-secondary">admin_panel_settings</span>
+<span class="text-[12px] text-secondary uppercase font-bold tracking-wider">Admin</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Top App Bar -->
+<header class="flex justify-between items-center w-full pl-[312px] pr-8 h-20 glass-header fixed top-0 left-0 z-40">
+<h2 class="font-title-sm text-title-sm text-on-surface">SAM Management</h2>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container-low border-none rounded-full w-64 focus:ring-2 focus:ring-primary text-body-sm transition-all" placeholder="Tìm kiếm Style No..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-secondary hover:bg-surface-container-high rounded-full transition-all">
+<span class="material-symbols-outlined">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:bg-surface-container-high rounded-full transition-all">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="ml-[280px] pt-24 px-8 pb-12">
+<!-- Top Section: Sync Controls -->
+<section class="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8">
+<div class="md:col-span-8 bg-white ambient-card rounded-[1.5rem] p-8 flex flex-col justify-between">
+<div>
+<h3 class="font-label-caps text-label-caps text-secondary mb-6 uppercase tracking-widest font-bold">Workflow Đồng bộ hóa</h3>
+<div class="flex items-center gap-4 flex-wrap">
+<div class="flex-1 min-w-[300px] relative">
+<input class="w-full bg-surface-container-low border-none rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-primary-fixed text-body-md" placeholder="Nhập StyleNo để kiểm tra..." type="text"/>
+</div>
+<button class="navy-gradient text-white px-8 py-3.5 rounded-xl flex items-center gap-2 font-semibold hover:opacity-90 transition-all group shadow-lg shadow-primary/10" onclick="syncData()">
+<span class="material-symbols-outlined group-hover:rotate-180 transition-transform duration-700">sync</span>
+<span>Đồng bộ Google Sheet</span>
+</button>
+</div>
+</div>
+<div class="mt-8 flex items-center gap-2 text-secondary text-body-sm bg-surface-container-low w-fit px-4 py-2 rounded-full">
+<span class="material-symbols-outlined text-[18px]">history</span>
+<span>Lần sync gần nhất: <span class="font-semibold text-on-surface">30/07/2026 14:22</span></span>
+</div>
+</div>
+<div class="md:col-span-4 bg-white ambient-card rounded-[1.5rem] p-8">
+<h3 class="font-label-caps text-label-caps text-secondary mb-6 uppercase tracking-widest font-bold">Trạng thái Nguồn</h3>
+<div class="space-y-3">
+<div class="flex justify-between items-center p-4 bg-surface-container-low rounded-2xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+<span class="material-symbols-outlined text-green-700 text-[24px]">description</span>
+</div>
+<span class="text-body-md font-semibold text-on-surface">Google Sheet API</span>
+</div>
+<span class="text-[11px] bg-green-100 text-green-800 px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider">Hoạt động</span>
+</div>
+<div class="flex justify-between items-center p-4 bg-surface-container-low rounded-2xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center">
+<span class="material-symbols-outlined text-blue-700 text-[24px]">edit_note</span>
+</div>
+<span class="text-body-md font-semibold text-on-surface">Cập nhật thủ công</span>
+</div>
+<span class="text-[11px] bg-blue-100 text-blue-800 px-2.5 py-1 rounded-lg font-bold uppercase tracking-wider">Sẵn sàng</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Bottom Section: SAM Table -->
+<section class="bg-white ambient-card rounded-[1.5rem] overflow-hidden">
+<div class="px-8 py-6 flex justify-between items-center bg-surface-container-lowest">
+<h3 class="font-title-sm text-title-sm text-on-surface">Danh sách Standard Allowed Minutes (SAM)</h3>
+<div class="flex gap-3">
+<button class="w-10 h-10 flex items-center justify-center hover:bg-surface-container-high rounded-xl transition-all text-secondary">
+<span class="material-symbols-outlined">filter_list</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center hover:bg-surface-container-high rounded-xl transition-all text-secondary">
+<span class="material-symbols-outlined">download</span>
+</button>
+</div>
+</div>
+<div class="p-2 overflow-x-auto">
+<table class="w-full border-collapse no-line-table">
+<thead>
+<tr class="text-left text-secondary font-label-caps text-label-caps uppercase tracking-widest">
+<th class="px-8 py-5">Mã hàng</th>
+<th class="px-8 py-5">SAM (Phút)</th>
+<th class="px-8 py-5">Nguồn</th>
+<th class="px-8 py-5">Ngày cập nhật</th>
+<th class="px-8 py-5 text-right">Hành động</th>
+</tr>
+</thead>
+<tbody id="samTableBody">
+<!-- Table Rows with tonal layering instead of borders -->
+<tr class="pill-row hover:bg-surface-container-low transition-colors group">
+<td class="px-8 py-5 font-semibold text-on-surface">STY-88293-A</td>
+<td class="px-8 py-5">
+<div class="sam-cell-view flex items-center gap-2">
+<span class="font-['Roboto_Mono'] text-lg text-primary font-bold">14.50</span>
+</div>
+<div class="sam-cell-edit hidden flex items-center gap-2">
+<input class="w-24 bg-white border-2 border-primary-fixed rounded-lg px-2 py-1.5 font-['Roboto_Mono'] text-sm focus:ring-0" type="text" value="14.50"/>
+<button class="text-green-600 hover:text-green-800" onclick="saveEdit(this)"><span class="material-symbols-outlined text-[20px]">check_circle</span></button>
+<button class="text-error hover:text-red-800" onclick="cancelEdit(this)"><span class="material-symbols-outlined text-[20px]">cancel</span></button>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="bg-primary-fixed/50 text-on-primary-fixed px-3 py-1 rounded-full text-[12px] font-bold">Google Sheet</span>
+</td>
+<td class="px-8 py-5 text-body-sm text-secondary">30/07/2026</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-white rounded-lg text-secondary hover:text-primary transition-all shadow-sm" onclick="toggleEdit(this)">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded-lg text-secondary hover:text-error transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="pill-row hover:bg-surface-container-low transition-colors group">
+<td class="px-8 py-5 font-semibold text-on-surface">JKT-22019-B</td>
+<td class="px-8 py-5">
+<div class="sam-cell-view flex items-center gap-2">
+<span class="font-['Roboto_Mono'] text-lg text-primary font-bold">08.25</span>
+</div>
+<div class="sam-cell-edit hidden flex items-center gap-2">
+<input class="w-24 bg-white border-2 border-primary-fixed rounded-lg px-2 py-1.5 font-['Roboto_Mono'] text-sm focus:ring-0" type="text" value="08.25"/>
+<button class="text-green-600 hover:text-green-800" onclick="saveEdit(this)"><span class="material-symbols-outlined text-[20px]">check_circle</span></button>
+<button class="text-error hover:text-red-800" onclick="cancelEdit(this)"><span class="material-symbols-outlined text-[20px]">cancel</span></button>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-[12px] font-bold">Thủ công</span>
+</td>
+<td class="px-8 py-5 text-body-sm text-secondary">28/07/2026</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-white rounded-lg text-secondary hover:text-primary transition-all shadow-sm" onclick="toggleEdit(this)">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded-lg text-secondary hover:text-error transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="pill-row hover:bg-surface-container-low transition-colors group">
+<td class="px-8 py-5 font-semibold text-on-surface">PAN-44332-M</td>
+<td class="px-8 py-5">
+<div class="sam-cell-view flex items-center gap-2">
+<span class="font-['Roboto_Mono'] text-lg text-primary font-bold">22.00</span>
+</div>
+<div class="sam-cell-edit hidden flex items-center gap-2">
+<input class="w-24 bg-white border-2 border-primary-fixed rounded-lg px-2 py-1.5 font-['Roboto_Mono'] text-sm focus:ring-0" type="text" value="22.00"/>
+<button class="text-green-600 hover:text-green-800" onclick="saveEdit(this)"><span class="material-symbols-outlined text-[20px]">check_circle</span></button>
+<button class="text-error hover:text-red-800" onclick="cancelEdit(this)"><span class="material-symbols-outlined text-[20px]">cancel</span></button>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="bg-primary-fixed/50 text-on-primary-fixed px-3 py-1 rounded-full text-[12px] font-bold">Google Sheet</span>
+</td>
+<td class="px-8 py-5 text-body-sm text-secondary">25/07/2026</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-white rounded-lg text-secondary hover:text-primary transition-all shadow-sm" onclick="toggleEdit(this)">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded-lg text-secondary hover:text-error transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+<tr class="pill-row hover:bg-surface-container-low transition-colors group">
+<td class="px-8 py-5 font-semibold text-on-surface">VET-11005-X</td>
+<td class="px-8 py-5">
+<div class="sam-cell-view flex items-center gap-2">
+<span class="font-['Roboto_Mono'] text-lg text-primary font-bold">11.15</span>
+</div>
+<div class="sam-cell-edit hidden flex items-center gap-2">
+<input class="w-24 bg-white border-2 border-primary-fixed rounded-lg px-2 py-1.5 font-['Roboto_Mono'] text-sm focus:ring-0" type="text" value="11.15"/>
+<button class="text-green-600 hover:text-green-800" onclick="saveEdit(this)"><span class="material-symbols-outlined text-[20px]">check_circle</span></button>
+<button class="text-error hover:text-red-800" onclick="cancelEdit(this)"><span class="material-symbols-outlined text-[20px]">cancel</span></button>
+</div>
+</td>
+<td class="px-8 py-5">
+<span class="bg-primary-fixed/50 text-on-primary-fixed px-3 py-1 rounded-full text-[12px] font-bold">Google Sheet</span>
+</td>
+<td class="px-8 py-5 text-body-sm text-secondary">24/07/2026</td>
+<td class="px-8 py-5 text-right">
+<div class="flex justify-end gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
+<button class="p-2 hover:bg-white rounded-lg text-secondary hover:text-primary transition-all shadow-sm" onclick="toggleEdit(this)">
+<span class="material-symbols-outlined text-[20px]">edit</span>
+</button>
+<button class="p-2 hover:bg-error/10 rounded-lg text-secondary hover:text-error transition-all shadow-sm">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="px-8 py-6 bg-surface-container-lowest flex justify-between items-center">
+<p class="text-body-sm text-secondary font-medium">Hiển thị 1 - 4 của 128 kết quả</p>
+<div class="flex gap-2">
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-high transition-all text-secondary"><span class="material-symbols-outlined">chevron_left</span></button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl bg-primary text-white font-bold shadow-md shadow-primary/20">1</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-high transition-all text-secondary font-semibold">2</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-high transition-all text-secondary font-semibold">3</button>
+<button class="w-10 h-10 flex items-center justify-center rounded-xl hover:bg-surface-container-high transition-all text-secondary"><span class="material-symbols-outlined">chevron_right</span></button>
+</div>
+</div>
+</section>
+</main>
+<script>
+    function toggleEdit(btn) {
+        const row = btn.closest('tr');
+        const viewDiv = row.querySelector('.sam-cell-view');
+        const editDiv = row.querySelector('.sam-cell-edit');
+        
+        viewDiv.classList.add('hidden');
+        editDiv.classList.remove('hidden');
+        editDiv.querySelector('input').focus();
+    }
+
+    function saveEdit(btn) {
+        const row = btn.closest('tr');
+        const viewDiv = row.querySelector('.sam-cell-view');
+        const editDiv = row.querySelector('.sam-cell-edit');
+        const input = editDiv.querySelector('input');
+        const span = viewDiv.querySelector('span');
+
+        span.innerText = input.value;
+        viewDiv.classList.remove('hidden');
+        editDiv.classList.add('hidden');
+        
+        row.classList.add('bg-green-50');
+        setTimeout(() => row.classList.remove('bg-green-50'), 1500);
+    }
+
+    function cancelEdit(btn) {
+        const row = btn.closest('tr');
+        const viewDiv = row.querySelector('.sam-cell-view');
+        const editDiv = row.querySelector('.sam-cell-edit');
+        const input = editDiv.querySelector('input');
+        const span = viewDiv.querySelector('span');
+
+        input.value = span.innerText;
+        viewDiv.classList.remove('hidden');
+        editDiv.classList.add('hidden');
+    }
+
+    function syncData() {
+        const btn = event.currentTarget;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span><span>Đang đồng bộ...</span>';
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+
+        setTimeout(() => {
+            btn.innerHTML = '<span class="material-symbols-outlined">done_all</span><span>Hoàn tất!</span>';
+            btn.style.background = 'linear-gradient(135deg, #166534 0%, #15803d 100%)';
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHtml;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+                btn.style.background = '';
+            }, 2000);
+        }, 2500);
+    }
+</script>
+</body></html>

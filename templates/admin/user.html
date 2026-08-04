@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'user' %}
+{% block header_breadcrumb %}Tài khoản{% endblock %}
 {% block heading %}Tài khoản{% endblock %}
 {% block subheading %}Tổ trưởng đăng nhập bằng employee code để nhập lỗi / máy hỏng / kiểm lại. <strong>Dept</strong> = số tổ phụ trách (1, 6…).{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title" id="form-title">Thêm tài khoản</h3>
+  <h3 class="panel-title" id="form-title">
+    <span class="material-symbols-outlined">person_add</span>
+    Thêm tài khoản
+  </h3>
   <form id="form-user" class="row-form">
     <input type="hidden" name="_mode" value="create" />
     <label class="field">
@@ -37,7 +41,10 @@
 </div>
 
 <div class="panel">
-  <h3 class="panel-title">Danh sách</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">group</span>
+    Danh sách
+  </h3>
   <table class="data-table" id="tbl-user">
     <thead>
       <tr>
@@ -102,11 +109,17 @@ async function load() {
       <td>${Admin.escape(u.DisplayName || '')}</td>
       <td>${Admin.escape(u.Unit || '')}</td>
       <td>${u.Dept ?? ''}</td>
-      <td>${u.Role === 'admin' ? '<strong>Admin</strong>' : 'Tổ trưởng'}</td>
+      <td>${u.Role === 'admin'
+        ? '<span class="role-badge admin">Admin</span>'
+        : '<span class="role-badge lead">Tổ trưởng</span>'}</td>
       <td class="muted">${u.CreatedAt || ''}</td>
       <td class="col-action">
-        <button class="btn btn-sm" data-edit='${JSON.stringify(u).replace(/'/g, "&#39;")}'>Sửa</button>
-        ${u.UserID === 'admin' ? '' : `<button class="btn btn-danger btn-sm" data-del="${Admin.escape(u.UserID)}">Xoá</button>`}
+        <button class="btn-icon" data-edit='${JSON.stringify(u).replace(/'/g, "&#39;")}' title="Sửa">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+        ${u.UserID === 'admin' ? '' : `<button class="btn-icon btn-icon-danger" data-del="${Admin.escape(u.UserID)}" title="Xoá">
+          <span class="material-symbols-outlined">delete</span>
+        </button>`}
       </td>
     </tr>
   `).join('');
@@ -156,7 +169,7 @@ document.querySelector('#tbl-user').addEventListener('click', async (e) => {
   const delBtn = e.target.closest('[data-del]');
   if (!delBtn) return;
   const uid = delBtn.dataset.del;
-  if (!confirm(`Xoá tài khoản ${uid}?`)) return;
+  if (!await Admin.confirmDelete(`Xoá tài khoản ${uid}?`)) return;
   try {
     await Admin.fetchJSON(`${API}/${encodeURIComponent(uid)}`, { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');

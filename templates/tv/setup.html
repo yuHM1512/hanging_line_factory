@@ -186,7 +186,7 @@
   <section class="tv-hero">
     <div class="eyebrow">TV Setup</div>
     <h1>Cấu hình màn hình xưởng</h1>
-    <p>Chọn kế hoạch + ngày xem, preview 3 màn (TV-1/2/4), bật xoay vòng tự động trên TV.</p>
+    <p>Chọn kế hoạch + ngày xem, preview 4 màn (TV-1/2/3/4), bật xoay vòng tự động trên TV.</p>
   </section>
 
   <section class="control-grid">
@@ -215,11 +215,11 @@
         </label>
         <button class="btn btn-primary" id="btn-rotate">▶ Bắt đầu</button>
       </div>
-      <div class="hint">Mở fullscreen (F11) → bấm "Bắt đầu" để xoay 3 TV theo interval đã đặt.</div>
+      <div class="hint">Mở fullscreen (F11) → bấm "Bắt đầu" để xoay 4 TV theo interval đã đặt.</div>
       <div class="quick-row">
         <button class="btn-soft" onclick="openOne(1)">Mở TV-1</button>
         <button class="btn-soft" onclick="openOne(2)">Mở TV-2</button>
-        <button class="btn-soft" onclick="openOne(3)" style="display:none">Mở TV-3</button>
+        <button class="btn-soft" onclick="openOne(3)">Mở TV-3</button>
         <button class="btn-soft" onclick="openOne(4)">Mở TV-4</button>
       </div>
     </div>
@@ -256,17 +256,17 @@
       </div>
     </div>
 
-    <div class="preview-card" data-tv="3" style="display:none">
+    <div class="preview-card" data-tv="3">
       <div class="pc-head">
         <div>
-          <div class="ct">Chất lượng &amp; máy hỏng</div>
-          <div class="ce">Endline quality &amp; breakdown</div>
+          <div class="ct">Dashboard QC Chất lượng</div>
+          <div class="ce">Defect rate · Phân tích lỗi · QLCL</div>
         </div>
         <span class="tv-badge">TV-3</span>
       </div>
       <div class="pc-preview"><div class="empty">Chọn kế hoạch + ngày để preview</div></div>
       <div class="pc-foot">
-        <span>Lỗi · Top dạng · Máy dừng</span>
+        <span>Tỉ lệ lỗi theo giờ · Donut bộ phận · Top 3 · Cảnh báo</span>
         <a class="open-link" href="#" target="_blank">Mở toàn màn →</a>
       </div>
     </div>
@@ -308,6 +308,7 @@ const STORAGE_KEY = 'tv_setup_v1';
 const TV_LIST = [
   { id: 1, name: 'TV-1 · Sản lượng & nhịp độ' },
   { id: 2, name: 'TV-2 · Năng suất cụm' },
+  { id: 3, name: 'TV-3 · Dashboard QC Chất lượng' },
   { id: 4, name: 'TV-4 · Tiến độ kế hoạch' },
 ];
 let cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');

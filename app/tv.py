@@ -11,15 +11,36 @@ Data endpoints under /api/tv/*.
 from __future__ import annotations
 
 import math
+import os
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.templating import Jinja2Templates
 
 from . import db
 from .admin import compute_end_date, get_holidays, parse_mono
+
+# URL của QLCL app (cùng máy, port 8008)
+QLCL_API_URL = os.getenv("QLCL_API_URL", "http://localhost:8008")
+QLCL_TIMEOUT = 5.0  # seconds — TV không được chờ lâu
+
+
+def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
+    """Gọi QLCL /api/tv3/qc-data, trả về dict. Nếu lỗi → trả về {"found": False}."""
+    try:
+        resp = httpx.get(
+            f"{QLCL_API_URL}/api/tv3/qc-data",
+            params={"mono": mono, "date": str(the_date)},
+            timeout=QLCL_TIMEOUT,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception:
+        # QLCL unavailable → TV-3 vẫn hiển thị MES data, defect section trống
+        return {"found": False}
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -733,7 +754,7 @@ def api_tv2(
 
 
 # ============================================================
-# TV-3 endpoint — Chất lượng cuối chuyền & Máy hỏng
+# TV-3 endpoint — QC chất lượng cuối chuyền (nguồn: QLCL PostgreSQL)
 # ============================================================
 @router.get("/api/tv3")
 def api_tv3(
@@ -741,25 +762,20 @@ def api_tv3(
     the_date: date = Query(..., alias="date"),
 ):
     plan = _resolve_plan_full(mono)
-    holidays = get_holidays()
-    first_hang = plan["FirstHangDate"]
+    # FirstHangDate có thể là datetime.date, datetime.datetime, hoặc None
+    first_hang_raw = plan["FirstHangDate"]
+    if hasattr(first_hang_raw, "date"):          # datetime.datetime → date
+        first_hang = first_hang_raw.date()
+    else:
+        first_hang = first_hang_raw              # datetime.date hoặc None
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
 
-    # WIP — reuse từ TV-1 (cụm 'first' → KCS)
-    cum_kcs = _output_kcs(mono, first_hang, the_date)
+    # ── MES: Tổng kiểm KCS (golden formula) ─────────────────────────
     today_kcs = _output_kcs(mono, the_date, the_date)
-    wip = 0
-    first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
-    if first_cluster:
-        in_qty = _scan_count_for_cluster(mono, first_cluster["RouteStepOdr"], first_hang, the_date)
-        wip = max(in_qty - cum_kcs["Qty"], 0)
+    kcs_qty   = today_kcs["Qty"]   # số SP qua KCS hôm nay
 
-    # ===== Defect log aggregates =====
-    plan_guid = plan["PlanMaster_guid"]
-
-    # Slot HIỆN TẠI = slot của scan KCS GẦN NHẤT trong ngày (chuyền treo).
-    # KHÔNG dùng tDefectLog.Slot vì đó là input thủ công của tổ trưởng.
+    # Xác định slot hiện tại từ scan KCS gần nhất
     recent_scan_row = db.query(
         """
         SELECT MAX(rw.BeginTime) AS BT
@@ -772,146 +788,68 @@ def api_tv3(
     )
     last_scan_bt = recent_scan_row[0]["BT"] if recent_scan_row else None
     current_slot = _slot_from_time(last_scan_bt)
-    SLOT_LABELS_VI = {
-        1: "Mốc 1 · 7:30 → 9:30",
-        2: "Mốc 2 · 9:30 → 11:30",
-        3: "Mốc 3 · 12:30 → 14:30",
-        4: "Mốc 4 · 14:30 → 16:30",
-        5: "Mốc 5 · Sau 16:30",
-    }
-    current_slot_label = SLOT_LABELS_VI.get(current_slot) if current_slot else None
 
-    # ── Số lượng lỗi LẤY TỪ CHUYỀN TREO (KCS golden DefectiveQty) ──
-    # Mốc hiện tại = bucket theo BeginTime tương ứng slot tổ trưởng đang nhập
-    # Lũy kế ngày = SUM(DefectiveQty) cả ngày (= today_kcs["Def"])
-    hourly_def = _kcs_defective_hourly(mono, the_date) if current_slot else {}
-    defect_slot = hourly_def.get(current_slot, 0) if current_slot else 0
-    defect_day = int(today_kcs["Def"])
+    # ── QLCL: Defect data từ QC PostgreSQL ──────────────────────────
+    # Gọi HTTP tới QLCL app cùng máy; timeout 5s, fallback gracefully
+    qc = _fetch_qlcl_tv3(mono, the_date)
+    qc_found = qc.get("found", False)
 
-    # Reinspect
-    ri = db.query(
-        "SELECT FixedQty FROM app.tReinspectDaily "
-        "WHERE PlanMaster_guid = ? AND ShtDate = ?",
-        (plan_guid, the_date),
-    )
-    fixed_day = int(ri[0]["FixedQty"]) if ri else 0
-
-    # Tỷ lệ kiểm lại = đã sửa / lỗi KCS-detected
-    kcs_defect = today_kcs["Def"]
-    if kcs_defect > 0:
-        reinspect_pct = round(fixed_day / kcs_defect * 100, 1)
+    # KPI lỗi: ưu tiên QLCL nếu có, fallback về MES DefectiveQty
+    if qc_found:
+        total_kiem = qc.get("total_kiem", 0) or kcs_qty  # QC có thể kiểm nhiều hơn
+        total_loi  = qc.get("total_loi",  0)
+        ty_le_loi  = qc.get("ty_le_loi",  0.0)
     else:
-        reinspect_pct = 100.0
+        # Fallback: dùng DefectiveQty từ MES KCS
+        total_kiem = kcs_qty
+        total_loi  = int(today_kcs["Def"])
+        ty_le_loi  = round(total_loi / total_kiem * 100, 1) if total_kiem else 0.0
 
-    # ===== Defect detail table (mốc gần nhất) — gộp theo DefectCode =====
-    defect_groups: list[dict] = []
-    if True:
-        raw = db.query(
-            """
-            SELECT dl.DefectCode, dc.DefectName, dl.StationLabel,
-                   SUM(dl.Qty) AS Qty
-            FROM app.tDefectLog dl
-            JOIN app.tDefectCatalog dc ON dl.DefectCode = dc.DefectCode
-            WHERE dl.PlanMaster_guid = ? AND dl.ShtDate = ?
-            GROUP BY dl.DefectCode, dc.DefectName, dl.StationLabel
-            ORDER BY SUM(dl.Qty) DESC, dl.DefectCode, dl.StationLabel
-            """,
-            (plan_guid, the_date),
-        )
-        by_code: dict[str, dict] = {}
-        for r in raw:
-            code = r["DefectCode"]
-            entry = by_code.setdefault(code, {
-                "DefectCode": code,
-                "DefectName": r["DefectName"],
-                "Stations": [],
-                "TotalQty": 0,
-            })
-            entry["Stations"].append({
-                "Label": r["StationLabel"], "Qty": int(r["Qty"]),
-            })
-            entry["TotalQty"] += int(r["Qty"])
-        # Sort theo tổng SL giảm dần, lấy 6 dạng đầu
-        defect_groups = sorted(by_code.values(),
-                               key=lambda x: -x["TotalQty"])[:6]
+    # Determine defect KPI status
+    defect_target = 5.0  # %
+    defect_status = "pass" if ty_le_loi <= defect_target else "fail"
 
-    # Top defect (group by code, top 3)
-    top_defects = db.query(
-        """
-        SELECT TOP 3 dl.DefectCode, dc.DefectName, SUM(dl.Qty) AS Qty
-        FROM app.tDefectLog dl
-        JOIN app.tDefectCatalog dc ON dl.DefectCode = dc.DefectCode
-        WHERE dl.PlanMaster_guid = ? AND dl.ShtDate = ?
-        GROUP BY dl.DefectCode, dc.DefectName
-        ORDER BY SUM(dl.Qty) DESC
-        """,
-        (plan_guid, the_date),
-    )
-    top_max = max([t["Qty"] for t in top_defects], default=0)
+    # Số cảnh báo hàng loạt
+    canh_bao_list = qc.get("canh_bao", []) if qc_found else []
 
-    # ===== Machine breakdown =====
-    brks = db.query(
-        """
-        SELECT CAST(b.Breakdown_guid AS varchar(50)) AS Breakdown_guid,
-               mc.MachineName, b.DownMinutes, b.Reason, b.Slot
-        FROM app.tMachineBreakdown b
-        JOIN app.tMachineCatalog mc ON b.MachineID = mc.MachineID
-        WHERE b.PlanMaster_guid = ? AND b.ShtDate = ?
-        ORDER BY b.Slot, b.LoggedAt
-        """,
-        (plan_guid, the_date),
-    )
-    downtime_min = sum(int(b["DownMinutes"]) for b in brks)
-
-    # Footer figures
-    kcs_today_qty = today_kcs["Qty"]
-    pass_today = max(kcs_today_qty - kcs_defect, 0)
-    defect_rate = round(kcs_defect / kcs_today_qty * 100, 1) if kcs_today_qty else 0.0
-
-    ma_don_kh = plan["SoDonHang"].lstrip("#")
+    # Null-safe: SoDonHang và FirstHangDate có thể NULL trên một số plan
+    ma_don_kh = (plan["SoDonHang"] or "").lstrip("#")
 
     return {
         "header": {
-            "Tổ": plan["LineNoOut"],
-            "MaDonKH": ma_don_kh,
-            "MONo": mono,
-            "StyleNo": plan["StyleNo"],
-            "Customer": plan["Customer"],
-            "NhuCauMe": plan["NhuCauMe"],
-            "FirstHangDate": first_hang.isoformat(),
-            "Workers": workers,
-            "WIP": wip,
+            "To":             plan["LineNoOut"] or "—",
+            "MaDonKH":        ma_don_kh,
+            "MONo":           mono,
+            "StyleNo":        plan["StyleNo"] or "",
+            "Customer":       plan["Customer"] or "",
+            "LoaiHang":       plan.get("PhanLoaiDH") or "",
+            "FirstHangDate":  first_hang.isoformat() if first_hang else None,
+            "Workers":        workers,
         },
         "kpi": {
-            "ReinspectPct": reinspect_pct,
-            "DefectSlot": defect_slot,
-            "CurrentSlot": current_slot,
-            "CurrentSlotLabel": current_slot_label,
-            "FixedDay": fixed_day,
-            "DefectDay": defect_day,
-            "DefectThreshold": 5,
+            # Tổng kiểm: QC nguồn (output QC nhập liệu)
+            "TongKiem":      total_kiem,
+            "TongLoi":       total_loi,
+            "TyLeLoi":       ty_le_loi,
+            "DefectTarget":  defect_target,
+            "DefectStatus":  defect_status,
+            "CanhBaoCount":  len(canh_bao_list),
+            "CurrentSlot":   current_slot,
+            # MES KCS để crosscheck
+            "MES_KCS_Qty":   kcs_qty,
         },
-        "defects": defect_groups,
-        "top_defects": [
-            {"DefectCode": r["DefectCode"], "DefectName": r["DefectName"],
-             "Qty": int(r["Qty"]),
-             "BarPct": round(int(r["Qty"]) / top_max * 100) if top_max else 0}
-            for r in top_defects
-        ],
-        "breakdowns": [
-            {"Breakdown_guid": b["Breakdown_guid"], "MachineName": b["MachineName"],
-             "DownMinutes": int(b["DownMinutes"]), "Reason": b["Reason"],
-             "Slot": b["Slot"]}
-            for b in brks
-        ],
-        "breakdown_count": len(brks),
-        "downtime_min": downtime_min,
-        "kcs": {
-            "Qty": kcs_today_qty,
-            "Pass": pass_today,
-            "Defect": kcs_defect,
-            "DefectRate": defect_rate,
-        },
+        # Biểu đồ lỗi theo giờ — từ QLCL slots; fallback rỗng
+        "slots": qc.get("slots", []) if qc_found else [],
+        # Phân bổ bộ phận (donut)
+        "bo_phan": qc.get("bo_phan", []) if qc_found else [],
+        # Top 3 mã lỗi (column chart)
+        "top3": qc.get("top3", []) if qc_found else [],
+        # Combo table
+        "combo": qc.get("combo", []) if qc_found else [],
+        # Cảnh báo hàng loạt
+        "canh_bao": canh_bao_list,
+        # Meta
+        "qc_source": "qlcl" if qc_found else "mes_fallback",
     }
 
 

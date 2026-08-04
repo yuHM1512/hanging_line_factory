@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'holiday' %}
+{% block header_breadcrumb %}Lịch nghỉ{% endblock %}
 {% block heading %}Lịch nghỉ{% endblock %}
-{% block subheading %}Ngày lễ + nghỉ riêng (không bao gồm Chủ nhật — đã được loại tự động khi tính ngày kết thúc).{% endblock %}
+{% block subheading %}Ngày lễ + ngày nghỉ riêng của tổ. Dùng để tính ngày kết thúc kế hoạch dự kiến.{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title">Thêm ngày nghỉ</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">add_circle</span>
+    Thêm ngày nghỉ mới
+  </h3>
   <form id="form-add" class="row-form">
     <label class="field">
       <span class="field-label">Ngày</span>
@@ -20,7 +24,10 @@
 </div>
 
 <div class="panel">
-  <h3 class="panel-title">Danh sách</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">list_alt</span>
+    Danh sách ngày nghỉ
+  </h3>
   <table class="data-table" id="tbl-holiday">
     <thead>
       <tr>
@@ -57,7 +64,9 @@ async function load() {
       <td>${Admin.escape(r.CreatedBy || '')}</td>
       <td class="muted">${r.CreatedAt || ''}</td>
       <td class="col-action">
-        <button class="btn btn-danger btn-sm" data-del="${r.HolidayDate}">Xoá</button>
+        <button class="btn-icon btn-icon-danger" data-del="${r.HolidayDate}" title="Xoá">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
       </td>
     </tr>
   `).join('');
@@ -84,7 +93,7 @@ document.querySelector('#tbl-holiday').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-del]');
   if (!btn) return;
   const d = btn.dataset.del;
-  if (!confirm(`Xoá ngày ${d}?`)) return;
+  if (!await Admin.confirmDelete(`Xoá ngày ${d}?`)) return;
   try {
     await Admin.fetchJSON(`${API}/${d}`, { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');

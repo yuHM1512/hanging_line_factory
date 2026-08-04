@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TV-3 · Dashboard QC Chất lượng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand-900:#1a3358;--brand-800:#1e4270;--brand-700:#1d5fa4;--brand-600:#2673bf;--brand-ink:#1d5fa4;
+    --canvas:#eef2f7;--surface:#fff;
+    --divider:#e2e8f0;
+    --pass-solid:#16a34a;--pass-soft:#dcfce7;--pass-ink:#15803d;
+    --fail-solid:#dc2626;--fail-soft:#fee2e2;--fail-ink:#b91c1c;
+    --warn-solid:#d97706;--warn-soft:#fef3c7;--warn-ink:#b45309;
+    --ink:#0f172a;--ink-2:#475569;--ink-3:#94a3b8;
+    --font-sans:'Inter',system-ui,sans-serif;
+    --font-mono:'Roboto Mono',monospace;
+    --r-md:8px;--r-lg:12px;--r-pill:9999px;
+    --sh-1:0 1px 4px rgba(0,0,0,.07);--sh-2:0 4px 20px rgba(0,0,0,.13);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:var(--font-sans);background:#0d1b2e;overflow:hidden;}
+  .sw{width:100vw;height:100vh;position:relative;}
+  .stage{width:1920px;height:1080px;position:absolute;transform-origin:top left;}
+  .si{background:var(--canvas);display:flex;flex-direction:column;gap:12px;padding:16px;width:1920px;height:1080px;}
+
+  .hdr{background:linear-gradient(120deg,var(--brand-900) 0%,var(--brand-700) 62%,var(--brand-600) 100%);
+    border-radius:var(--r-lg);box-shadow:var(--sh-2);color:#fff;
+    display:grid;grid-template-columns:auto 1px 1fr auto;align-items:center;
+    gap:24px;padding:16px 24px;min-height:104px;flex-shrink:0;}
+  .hdr-line{display:flex;flex-direction:column;gap:2px;padding-right:8px;}
+  .hdr-line .lk{font-size:11px;letter-spacing:.12em;opacity:.7;text-transform:uppercase;}
+  .hdr-line .lv{font-family:var(--font-mono);font-weight:700;font-size:40px;line-height:1;}
+  .hdr-line .style{margin-top:2px;font-size:13px;font-weight:600;color:#BBF7D0;}
+  .hdr-div{width:1px;height:64px;background:rgba(255,255,255,.18);}
+  .hdr-fields{display:flex;justify-content:space-between;gap:24px;align-items:center;}
+  .fld{display:flex;flex-direction:column;gap:5px;}
+  .fld .k{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.62);}
+  .fld .v{font-size:21px;font-weight:700;line-height:1;}
+  .fld .v.mono{font-family:var(--font-mono);}
+  .fld .v.demand{font-size:16px;color:#C7DBFA;font-family:var(--font-mono);}
+  .hdr-clock{text-align:right;display:flex;flex-direction:column;gap:4px;padding-left:24px;border-left:1px solid rgba(255,255,255,.18);}
+  .hdr-clock .date{font-size:13px;color:rgba(255,255,255,.7);letter-spacing:.04em;}
+  .hdr-clock .time{font-family:var(--font-mono);font-weight:700;font-size:38px;line-height:1;}
+
+  .card{background:var(--surface);border:1px solid var(--divider);border-radius:var(--r-md);box-shadow:var(--sh-1);display:flex;flex-direction:column;overflow:hidden;}
+  .pt{background:linear-gradient(120deg,var(--brand-800),var(--brand-600));color:#fff;
+    padding:10px 20px;font-size:15px;font-weight:700;letter-spacing:.02em;
+    display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .pt.danger{background:linear-gradient(120deg,#9b2c2c,var(--fail-solid));}
+  .pt-en{font-size:11px;font-weight:500;opacity:.75;letter-spacing:.02em;}
+
+  .chip{font-size:10px;font-weight:700;padding:3px 9px;border-radius:var(--r-pill);letter-spacing:.04em;display:inline-block;white-space:nowrap;}
+  .c-neutral{background:#e2e8f0;color:var(--ink-2);}
+  .c-pass{background:var(--pass-soft);color:var(--pass-ink);}
+  .c-fail{background:var(--fail-soft);color:var(--fail-ink);}
+  .c-warn{background:var(--warn-soft);color:var(--warn-ink);}
+
+  .ftr{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:var(--ink-2);padding:2px 8px;flex-shrink:0;}
+  .ftr .l{display:flex;align-items:center;gap:8px;}
+  .ftr .r{font-weight:600;color:var(--brand-ink);letter-spacing:.02em;}
+  @keyframes rdot{0%,100%{opacity:1}50%{opacity:.3}}
+  .rdot{width:7px;height:7px;border-radius:50%;background:var(--pass-solid);display:inline-block;animation:rdot 2s infinite;}
+
+  .pbar-wrap{flex:1;background:#e2e8f0;border-radius:var(--r-pill);height:11px;overflow:hidden;}
+  .pbar{height:100%;border-radius:var(--r-pill);background:linear-gradient(90deg,var(--fail-solid),#f87171);}
+  .pbar.pos{background:linear-gradient(90deg,var(--brand-700),var(--brand-600));}
+</style>
+</head>
+<body>
+<div class="sw">
+  <div class="stage" id="stage">
+    <div class="si">
+
+      <!-- HEADER -->
+      <div class="hdr">
+        <div class="hdr-line">
+          <span class="lk">Tổ</span>
+          <span class="lv" id="h-line">LINE 4</span>
+          <span class="style">Style SH-2026-07 · 42 LĐ</span>
+        </div>
+        <div class="hdr-div"></div>
+        <div class="hdr-fields">
+          <div class="fld"><span class="k">Số đơn hàng</span><span class="v demand">307236SS26-02</span></div>
+          <div class="fld"><span class="k">K.Hàng / Customer</span><span class="v">COLUMBIA SPORTSWEAR</span></div>
+          <div class="fld"><span class="k">Loại hàng</span><span class="v">Áo vest</span></div>
+          <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono">42</span></div>
+        </div>
+        <div class="hdr-clock">
+          <span class="date" id="h-date">—</span>
+          <span class="time" id="clock">—</span>
+        </div>
+      </div>
+
+      <!-- BODY -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;min-height:0;">
+
+        <!-- KPI ROW -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;height:134px;">
+
+          <div class="card" style="padding:14px 20px;border-left:4px solid var(--brand-700);justify-content:space-between;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink-2);">Tổng kiểm</div>
+                <div style="font-size:11px;color:var(--ink-3);">Total inspected · Trạm 6</div>
+              </div>
+              <span class="chip c-neutral">NGÀY</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:52px;font-weight:700;line-height:1;color:var(--ink);">487</div>
+            <div style="font-size:11px;color:var(--ink-3);">MES scan tự động · StRole=13</div>
+          </div>
+
+          <div class="card" style="padding:14px 20px;border-left:4px solid var(--fail-solid);justify-content:space-between;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink-2);">Tổng lỗi</div>
+                <div style="font-size:11px;color:var(--ink-3);">Total defects · QC Failed</div>
+              </div>
+              <span class="chip c-fail">QC QLCL</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:52px;font-weight:700;line-height:1;color:var(--fail-solid);">18</div>
+            <div style="font-size:11px;color:var(--ink-3);">qc_output_sp_log · status = Failed</div>
+          </div>
+
+          <div class="card" style="padding:14px 20px;border-left:4px solid var(--pass-solid);justify-content:space-between;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink-2);">Tỉ lệ lỗi</div>
+                <div style="font-size:11px;color:var(--ink-3);">Defect rate vs target</div>
+              </div>
+              <span class="chip c-pass">ĐẠT MỤC TIÊU</span>
+            </div>
+            <div style="display:flex;align-items:baseline;gap:10px;">
+              <div style="font-family:var(--font-mono);font-size:52px;font-weight:700;line-height:1;color:var(--pass-solid);">3.7%</div>
+              <div style="font-size:16px;color:var(--ink-3);font-family:var(--font-mono);">/ 5.0%</div>
+            </div>
+            <div style="font-size:11px;color:var(--ink-3);">Dưới target 1.3% · dm_loai_hang_target: Áo vest</div>
+          </div>
+
+          <div class="card" style="padding:14px 20px;border-left:4px solid var(--warn-solid);justify-content:space-between;">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div>
+                <div style="font-size:13px;font-weight:600;color:var(--ink-2);">Cảnh báo hàng loạt</div>
+                <div style="font-size:11px;color:var(--ink-3);">Consecutive defect alerts</div>
+              </div>
+              <span class="chip c-warn">CẢNH BÁO</span>
+            </div>
+            <div style="font-family:var(--font-mono);font-size:52px;font-weight:700;line-height:1;color:var(--warn-solid);">2</div>
+            <div style="font-size:11px;color:var(--ink-3);">3 sản phẩm liên tiếp cùng lỗi · qc_defect_multi</div>
+          </div>
+
+        </div>
+
+        <!-- MAIN AREA -->
+        <div style="flex:1;display:grid;grid-template-columns:7fr 5fr;gap:12px;min-height:0;">
+
+          <!-- LEFT: Hourly Chart -->
+          <div class="card">
+            <div class="pt">
+              <span>Tỉ lệ lỗi theo giờ</span>
+              <span class="pt-en">Hourly Defect Rate</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;padding:16px 20px 12px;gap:10px;min-height:0;">
+              <div style="flex:1;display:flex;gap:8px;min-height:0;">
+                <div style="width:30px;flex-shrink:0;display:flex;flex-direction:column;justify-content:space-between;padding-bottom:2px;">
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--ink-3);text-align:right;line-height:1;">10%</span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--ink-3);text-align:right;line-height:1;">8%</span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--warn-ink);text-align:right;font-weight:700;line-height:1;">6%</span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--ink-3);text-align:right;line-height:1;">4%</span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--ink-3);text-align:right;line-height:1;">2%</span>
+                  <span style="font-size:10px;font-family:var(--font-mono);color:var(--ink-3);text-align:right;line-height:1;">0%</span>
+                </div>
+                <div style="flex:1;position:relative;min-height:0;border-bottom:1px solid var(--divider);">
+                  <div style="position:absolute;inset:0;pointer-events:none;">
+                    <div style="position:absolute;top:0;left:0;right:0;border-top:1px dashed rgba(0,0,0,.07);"></div>
+                    <div style="position:absolute;top:20%;left:0;right:0;border-top:1px dashed rgba(0,0,0,.07);"></div>
+                    <div style="position:absolute;top:40%;left:0;right:0;border-top:1px dashed rgba(0,0,0,.07);"></div>
+                    <div style="position:absolute;top:60%;left:0;right:0;border-top:1px dashed rgba(0,0,0,.07);"></div>
+                    <div style="position:absolute;top:80%;left:0;right:0;border-top:1px dashed rgba(0,0,0,.07);"></div>
+                  </div>
+                  <div style="position:absolute;left:0;right:0;top:50%;pointer-events:none;z-index:5;">
+                    <div style="border-top:2px dashed var(--warn-solid);position:relative;">
+                      <span style="position:absolute;right:4px;top:-11px;font-size:10px;font-weight:700;color:var(--warn-ink);background:var(--warn-soft);padding:2px 8px;border-radius:var(--r-pill);white-space:nowrap;">▶ Target 5.0%</span>
+                    </div>
+                  </div>
+                  <div style="position:absolute;inset:0;display:flex;align-items:flex-end;gap:16px;padding:0 12px;">
+                    <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center;">
+                      <div style="position:absolute;bottom:calc(33% + 10px);font-size:10px;color:var(--ink-3);font-family:var(--font-mono);white-space:nowrap;text-align:center;">120 sp</div>
+                      <div style="width:76px;height:33%;background:linear-gradient(to top,#15803d,#4ade80);border-radius:5px 5px 0 0;position:relative;">
+                        <span style="position:absolute;top:6px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:#fff;font-family:var(--font-mono);">3.3%</span>
+                      </div>
+                    </div>
+                    <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center;">
+                      <div style="position:absolute;bottom:calc(71% + 10px);font-size:10px;color:var(--fail-ink);font-family:var(--font-mono);white-space:nowrap;font-weight:700;">98 sp ⚠</div>
+                      <div style="width:76px;height:71%;background:linear-gradient(to top,#9b1c1c,#f87171);border-radius:5px 5px 0 0;position:relative;box-shadow:0 0 18px rgba(220,38,38,.45);">
+                        <span style="position:absolute;top:6px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:#fff;font-family:var(--font-mono);">7.1%</span>
+                      </div>
+                    </div>
+                    <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center;">
+                      <div style="position:absolute;bottom:calc(35% + 10px);font-size:10px;color:var(--ink-3);font-family:var(--font-mono);white-space:nowrap;text-align:center;">115 sp</div>
+                      <div style="width:76px;height:35%;background:linear-gradient(to top,#15803d,#4ade80);border-radius:5px 5px 0 0;position:relative;">
+                        <span style="position:absolute;top:6px;left:0;right:0;text-align:center;font-size:13px;font-weight:700;color:#fff;font-family:var(--font-mono);">3.5%</span>
+                      </div>
+                    </div>
+                    <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center;">
+                      <div style="position:absolute;bottom:calc(18% + 10px);font-size:10px;color:var(--ink-3);font-family:var(--font-mono);white-space:nowrap;text-align:center;">110 sp</div>
+                      <div style="width:76px;height:18%;background:linear-gradient(to top,#15803d,#4ade80);border-radius:5px 5px 0 0;position:relative;">
+                        <span style="position:absolute;top:5px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;color:#fff;font-family:var(--font-mono);">1.8%</span>
+                      </div>
+                    </div>
+                    <div style="flex:1;height:100%;position:relative;display:flex;align-items:flex-end;justify-content:center;">
+                      <div style="position:absolute;bottom:calc(23% + 10px);font-size:10px;color:var(--ink-3);font-family:var(--font-mono);white-space:nowrap;text-align:center;">44 sp</div>
+                      <div style="width:76px;height:23%;background:linear-gradient(to top,#1e6b3d,#6ee7b7);border-radius:5px 5px 0 0;position:relative;opacity:.6;border:1.5px dashed #15803d;border-bottom:none;">
+                        <span style="position:absolute;top:5px;left:0;right:0;text-align:center;font-size:11px;font-weight:700;color:#065f46;font-family:var(--font-mono);">2.3%</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:16px;padding-left:38px;">
+                <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-2);">7:30 – 9:30</div>
+                <div style="flex:1;text-align:center;font-size:12px;font-weight:700;color:var(--fail-ink);background:var(--fail-soft);padding:3px 0;border-radius:5px;">9:30 – 11:30</div>
+                <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-2);">12:30 – 14:30</div>
+                <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-2);">14:30 – 16:30</div>
+                <div style="flex:1;text-align:center;font-size:12px;font-weight:600;color:var(--ink-3);">Sau 16:30 ▸</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:28px;border-top:1px solid var(--divider);padding-top:10px;flex-shrink:0;">
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;">Tổng kiểm</span>
+                  <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--ink);">487</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;">Tổng lỗi</span>
+                  <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--fail-solid);">18</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;">Target</span>
+                  <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--warn-solid);">5.0%</span>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:2px;">
+                  <span style="font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;">Tỉ lệ lỗi ngày</span>
+                  <span style="font-family:var(--font-mono);font-size:20px;font-weight:700;color:var(--pass-solid);">3.7%</span>
+                </div>
+                <div style="width:1px;height:36px;background:var(--divider);flex-shrink:0;"></div>
+                <div style="display:flex;flex-direction:column;gap:4px;flex:1;">
+                  <span style="font-size:10px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.06em;">Cảnh báo hàng loạt · qc_defect_multi</span>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <span style="font-size:11px;font-weight:600;background:var(--warn-soft);color:var(--warn-ink);border:1px solid #fcd34d;padding:3px 10px;border-radius:var(--r-pill);">10:45 · Thân trước / Đường may / Bỏ mũi</span>
+                    <span style="font-size:11px;font-weight:600;background:var(--warn-soft);color:var(--warn-ink);border:1px solid #fcd34d;padding:3px 10px;border-radius:var(--r-pill);">13:12 · Tay / Nẹp / Nhăn vải</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Pareto -->
+          <div class="card">
+            <div class="pt danger">
+              <span>Phân tích lỗi</span>
+              <span class="pt-en">Defect Analysis · Pareto</span>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;min-height:0;">
+              <div style="flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:10px;min-height:0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);display:flex;align-items:center;gap:8px;">
+                  Top 5 mã lỗi · Error types
+                  <span style="flex:1;height:1px;background:var(--divider);display:inline-block;"></span>
+                  <span style="font-weight:400;color:var(--ink-3);text-transform:none;letter-spacing:0;">18 lỗi tổng</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Bỏ mũi</span>
+                  <div class="pbar-wrap"><div class="pbar" style="width:100%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--fail-ink);width:22px;text-align:right;flex-shrink:0;">7</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">38.9%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Nhăn vải</span>
+                  <div class="pbar-wrap"><div class="pbar" style="width:71.4%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--fail-ink);width:22px;text-align:right;flex-shrink:0;">5</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">27.8%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Lệch đường may</span>
+                  <div class="pbar-wrap"><div class="pbar" style="width:42.9%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--fail-ink);width:22px;text-align:right;flex-shrink:0;">3</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">16.7%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">Hở đường may</span>
+                  <div class="pbar-wrap"><div class="pbar" style="width:28.6%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--fail-ink);width:22px;text-align:right;flex-shrink:0;">2</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">11.1%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink-2);width:148px;flex-shrink:0;">Bavia</span>
+                  <div class="pbar-wrap"><div class="pbar" style="width:14.3%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--ink-2);width:22px;text-align:right;flex-shrink:0;">1</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">5.6%</span>
+                </div>
+              </div>
+              <div style="height:1px;background:var(--divider);flex-shrink:0;margin:0 20px;"></div>
+              <div style="flex:1;padding:14px 20px;display:flex;flex-direction:column;gap:10px;min-height:0;">
+                <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);display:flex;align-items:center;gap:8px;">
+                  Top 5 bộ phận · Body parts
+                  <span style="flex:1;height:1px;background:var(--divider);display:inline-block;"></span>
+                  <span style="font-weight:400;color:var(--ink-3);text-transform:none;letter-spacing:0;">dm_bo_phan</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Thân trước</span>
+                  <div class="pbar-wrap"><div class="pbar pos" style="width:100%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--brand-ink);width:22px;text-align:right;flex-shrink:0;">8</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">44.4%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Tay</span>
+                  <div class="pbar-wrap"><div class="pbar pos" style="width:62.5%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--brand-ink);width:22px;text-align:right;flex-shrink:0;">5</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">27.8%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Cổ</span>
+                  <div class="pbar-wrap"><div class="pbar pos" style="width:37.5%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--brand-ink);width:22px;text-align:right;flex-shrink:0;">3</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">16.7%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink);width:148px;flex-shrink:0;">Thân sau</span>
+                  <div class="pbar-wrap"><div class="pbar pos" style="width:25%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--brand-ink);width:22px;text-align:right;flex-shrink:0;">2</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">11.1%</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;">
+                  <span style="font-size:14px;font-weight:600;color:var(--ink-2);width:148px;flex-shrink:0;">Nẹp / Túi</span>
+                  <div class="pbar-wrap"><div class="pbar pos" style="width:12.5%;"></div></div>
+                  <span style="font-family:var(--font-mono);font-size:14px;font-weight:700;color:var(--ink-2);width:22px;text-align:right;flex-shrink:0;">1</span>
+                  <span style="font-size:11px;color:var(--ink-3);width:42px;text-align:right;flex-shrink:0;">5.6%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="ftr">
+        <span class="l"><span class="rdot"></span>Cập nhật <span id="ftr-time">—</span> · Auto refresh 1 phút</span>
+        <span class="r">TV-3 · Dashboard QC — Tỉ lệ lỗi &amp; Phân tích · QLCL PostgreSQL</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  function fit() {
+    var s = document.getElementById('stage');
+    if (!s) return;
+    var scale = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    var ox = (window.innerWidth - 1920 * scale) / 2;
+    var oy = (window.innerHeight - 1080 * scale) / 2;
+    s.style.transform = 'scale(' + scale + ')';
+    s.style.left = ox + 'px';
+    s.style.top = oy + 'px';
+  }
+
+  function tick() {
+    var now = new Date();
+    var pad = function(n) { return String(n).padStart(2, '0'); };
+    var days = ['Chủ Nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy'];
+    var clock = document.getElementById('clock');
+    if (clock) clock.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
+    var hDate = document.getElementById('h-date');
+    if (hDate) hDate.textContent = days[now.getDay()] + ', ' + pad(now.getDate()) + '/' + pad(now.getMonth()+1) + '/' + now.getFullYear();
+    var ftrTime = document.getElementById('ftr-time');
+    if (ftrTime) ftrTime.textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+  }
+
+  var raf;
+  window.addEventListener('resize', function() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(fit);
+  });
+
+  fit();
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
+</body>
+</html>

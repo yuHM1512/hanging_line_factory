@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'cluster' %}
+{% block header_breadcrumb %}6 cụm{% endblock %}
 {% block heading %}6 cụm theo dõi sản lượng{% endblock %}
 {% block subheading %}Mỗi Nhu cầu mẹ chọn 6 cụm/công đoạn dọc tuyến — 1 đầu vào + 4 giữa + 1 KCS cuối. Phải theo thứ tự sản xuất (Odr tăng dần).{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title">Danh sách Nhu cầu mẹ</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">list_alt</span>
+    Danh sách Nhu cầu mẹ
+  </h3>
   <table class="data-table" id="tbl-mums">
     <thead>
       <tr>
@@ -23,7 +27,10 @@
 </div>
 
 <div class="panel" id="config-panel" hidden>
-  <h3 class="panel-title" id="config-title">Cấu hình cụm</h3>
+  <h3 class="panel-title" id="config-title">
+    <span class="material-symbols-outlined">view_column</span>
+    Cấu hình cụm
+  </h3>
   <p class="muted small" id="config-info"></p>
 
   <div class="cluster-grid">
@@ -138,8 +145,9 @@ function renderMums(rows) {
         <td>Tổ ${r.LineNoOut}</td>
         <td>${pill}</td>
         <td class="col-action">
-          <button class="btn btn-primary btn-sm"
-                  data-config="${Admin.escape(r.NhuCauMe)}">Cấu hình</button>
+          <button class="btn-icon" data-config="${Admin.escape(r.NhuCauMe)}" title="Cấu hình">
+            <span class="material-symbols-outlined">settings</span>
+          </button>
         </td>
       </tr>`;
   }).join('');

@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'plan' %}
+{% block header_breadcrumb %}Nhu cầu con{% endblock %}
 {% block heading %}Nhu cầu con (Kế hoạch con){% endblock %}
 {% block subheading %}Khai báo từng kế hoạch con trước khi sản xuất. Tổ + Mã + Số đơn hàng auto-parse từ MONo. Chỉ hiện MONo bắt đầu chạy từ 18/04/2026 trở đi và đã có sản lượng ra chuyền (StRole=13, IsLastSeq=1).{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title">Chọn MONo để khai báo</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">search</span>
+    Chọn MONo để khai báo
+  </h3>
   <div class="row-flex">
     <button class="btn btn-tertiary" id="btn-refresh-cands">Tải lại</button>
   </div>
@@ -26,7 +30,10 @@
 </div>
 
 <div class="panel" id="form-panel" hidden>
-  <h3 class="panel-title">Khai báo Nhu cầu con</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">add_circle</span>
+    Khai báo Nhu cầu con
+  </h3>
   <form id="form-plan" class="grid-form">
     <input type="hidden" name="MONo" />
     <input type="hidden" name="SoDonHang" />
@@ -66,6 +73,13 @@
       <input type="text" name="Customer" placeholder="VD: DECATHLON" />
     </label>
     <label class="field">
+      <span class="field-label">Loại hàng (sản phẩm)</span>
+      <select name="LoaiHang" id="sel-loai-hang">
+        <option value="">— chưa chọn —</option>
+        <!-- Dynamic: loaded from QLCL /api/dm/loai-hang -->
+      </select>
+    </label>
+    <label class="field">
       <span class="field-label">Nhu cầu mẹ (gắn nếu đã có)</span>
       <select name="NhuCauMe">
         <option value="">— chưa gắn —</option>
@@ -74,6 +88,16 @@
 
     <div class="full-row">
       <h4 style="margin: 0.5rem 0; font-family: Manrope; font-size: 1rem;">Thông tin EHD (PO list)</h4>
+      <div class="po-bulk-box">
+        <label class="field">
+          <span class="field-label">Paste PO hàng loạt</span>
+          <textarea id="po-bulk-text" rows="5" placeholder="4524132920 - 2420: 7-May-26&#10;5501607765 - 20: 20-Apr-26"></textarea>
+        </label>
+        <div class="po-bulk-actions">
+          <button type="button" class="btn btn-tertiary btn-sm" id="btn-import-po">Nhập từ paste</button>
+          <button type="button" class="btn btn-tertiary btn-sm" id="btn-clear-po-paste">Xoá nội dung</button>
+        </div>
+      </div>
       <table class="data-table" id="tbl-po">
         <thead>
           <tr>
@@ -112,7 +136,10 @@
 </div>
 
 <div class="panel">
-  <h3 class="panel-title">Đã khai báo</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">check_circle</span>
+    Đã khai báo
+  </h3>
   <table class="data-table" id="tbl-plans">
     <thead>
       <tr>
@@ -120,6 +147,7 @@
         <th>Mã</th>
         <th>Tổ</th>
         <th>Khách</th>
+        <th>Loại hàng</th>
         <th>Ngày bắt đầu</th>
         <th>Kết thúc DK</th>
         <th>SLKH</th>
@@ -178,17 +206,18 @@ function renderCands(rows) {
   `).join('');
 }
 
-async function loadCands() {
+async function loadCands(forceRefresh = false) {
   const tbody = document.querySelector('#tbl-cands tbody');
   tbody.innerHTML = '<tr><td colspan="5" class="muted">Đang tải...</td></tr>';
-  const rows = await Admin.fetchJSON(`${API}/candidates`);
+  const suffix = forceRefresh ? '?refresh=1' : '';
+  const rows = await Admin.fetchJSON(`${API}/candidates${suffix}`);
   renderCands(rows);
 }
 
 function renderPlans(rows) {
   const tbody = document.querySelector('#tbl-plans tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="11" class="muted">Chưa có Nhu cầu con.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12" class="muted">Chưa có Nhu cầu con.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => {
@@ -202,6 +231,7 @@ function renderPlans(rows) {
         <td>${Admin.escape(r.StyleNo)}</td>
         <td>Tổ ${r.LineNoOut}</td>
         <td>${Admin.escape(r.Customer || '')}</td>
+        <td>${r.LoaiHang ? Admin.escape(r.LoaiHang) : '<span class="muted">—</span>'}</td>
         <td>${r.FirstHangDate}</td>
         <td>${r.EndDateExpected || '<span class="muted">—</span>'}</td>
         <td>${r.SLKH.toLocaleString('vi-VN')}</td>
@@ -209,8 +239,12 @@ function renderPlans(rows) {
         <td>${r.POCount} (${r.POQtySum.toLocaleString('vi-VN')})</td>
         <td>${meBadge}</td>
         <td class="col-action">
-          <button class="btn btn-tertiary btn-sm" data-edit="${r.PlanMaster_guid}">Sửa</button>
-          <button class="btn btn-danger btn-sm" data-del="${r.PlanMaster_guid}">Xoá</button>
+          <button class="btn-icon" data-edit="${r.PlanMaster_guid}" title="Sửa">
+            <span class="material-symbols-outlined">edit</span>
+          </button>
+          <button class="btn-icon btn-icon-danger" data-del="${r.PlanMaster_guid}" title="Xoá">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
         </td>
       </tr>`;
   }).join('');
@@ -243,7 +277,72 @@ function renderPOs() {
   }).join('');
 }
 
-document.querySelector('#btn-refresh-cands').addEventListener('click', loadCands);
+function parsePODate(rawDate) {
+  const text = rawDate.trim();
+  const iso = text.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (iso) {
+    const [, y, m, d] = iso;
+    return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+  }
+
+  const named = text.match(/^(\d{1,2})[-/ ]([A-Za-z]{3,})[-/ ](\d{2}|\d{4})$/);
+  if (!named) return null;
+
+  const monthMap = {
+    jan: 1, january: 1,
+    feb: 2, february: 2,
+    mar: 3, march: 3,
+    apr: 4, april: 4,
+    may: 5,
+    jun: 6, june: 6,
+    jul: 7, july: 7,
+    aug: 8, august: 8,
+    sep: 9, sept: 9, september: 9,
+    oct: 10, october: 10,
+    nov: 11, november: 11,
+    dec: 12, december: 12,
+  };
+  const day = Number(named[1]);
+  const month = monthMap[named[2].toLowerCase()];
+  const yearText = named[3];
+  const year = yearText.length === 2 ? 2000 + Number(yearText) : Number(yearText);
+  if (!month || day < 1 || day > 31) return null;
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+function parsePOBulkText(text) {
+  const rows = [];
+  const errors = [];
+  const seen = new Set(pendingPOs.map(po => po.PONo));
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+
+  for (const [idx, line] of lines.entries()) {
+    const match = line.match(/^(.+?)\s*-\s*([\d,.]+)\s*:\s*(.+)$/);
+    if (!match) {
+      errors.push(`Dòng ${idx + 1}: sai format`);
+      continue;
+    }
+
+    const pono = match[1].trim();
+    const qty = Number(match[2].replace(/[,.]/g, ''));
+    const shipDate = parsePODate(match[3]);
+    if (!pono || !Number.isInteger(qty) || qty <= 0 || !shipDate) {
+      errors.push(`Dòng ${idx + 1}: dữ liệu không hợp lệ`);
+      continue;
+    }
+    if (seen.has(pono)) {
+      errors.push(`Dòng ${idx + 1}: PO ${pono} đã có`);
+      continue;
+    }
+
+    seen.add(pono);
+    rows.push({ PONo: pono, Qty: qty, ShipDate: shipDate, Notes: null });
+  }
+
+  return { rows, errors };
+}
+
+document.querySelector('#btn-refresh-cands').addEventListener('click', () => loadCands(true));
 
 async function openCreate(r) {
   editingGuid = null;
@@ -280,6 +379,7 @@ async function openEdit(guid) {
   f.SLKH.value = p.SLKH;
   f.DailyAim.value = p.DailyAim || '';
   f.Customer.value = p.Customer || '';
+  f.LoaiHang.value = p.LoaiHang || '';
   f.Notes.value = p.Notes || '';
   // EDIT mode: PO list = PO đã lưu (server-side). Add/delete dùng API riêng.
   pendingPOs = (p.POs || []).map(po => ({
@@ -346,6 +446,48 @@ document.querySelector('#btn-add-po').addEventListener('click', async () => {
   renderPOs();
 });
 
+document.querySelector('#btn-clear-po-paste').addEventListener('click', () => {
+  document.querySelector('#po-bulk-text').value = '';
+});
+
+document.querySelector('#btn-import-po').addEventListener('click', async () => {
+  const textarea = document.querySelector('#po-bulk-text');
+  const { rows, errors } = parsePOBulkText(textarea.value);
+  if (errors.length) {
+    Admin.toast(`Không nhập được: ${errors.slice(0, 3).join('; ')}${errors.length > 3 ? '...' : ''}`, 'error');
+    return;
+  }
+  if (!rows.length) {
+    Admin.toast('Chưa có dòng PO để nhập.', 'error');
+    return;
+  }
+
+  if (editingGuid) {
+    try {
+      for (const po of rows) {
+        await Admin.fetchJSON(`${API}/${editingGuid}/po`, {
+          method: 'POST', body: JSON.stringify(po),
+        });
+      }
+      const fresh = await Admin.fetchJSON(`${API}/${editingGuid}`);
+      pendingPOs = (fresh.POs || []).map(p => ({
+        PlanPO_guid: p.PlanPO_guid,
+        PONo: p.PONo, Qty: p.Qty, ShipDate: p.ShipDate, Notes: p.Notes,
+        saved: true,
+      }));
+    } catch (err) {
+      Admin.toast(err.message, 'error');
+      return;
+    }
+  } else {
+    pendingPOs.push(...rows);
+  }
+
+  textarea.value = '';
+  renderPOs();
+  Admin.toast(`Đã nhập ${rows.length} PO.`, 'ok');
+});
+
 document.querySelector('#po-rows').addEventListener('click', async (e) => {
   const btn = e.target.closest('[data-rmpo]');
   if (!btn) return;
@@ -353,7 +495,7 @@ document.querySelector('#po-rows').addEventListener('click', async (e) => {
   const po = pendingPOs[idx];
   // Nếu PO đã lưu DB → gọi API xoá luôn
   if (po.saved && po.PlanPO_guid) {
-    if (!confirm(`Xoá PO "${po.PONo}" khỏi DB?`)) return;
+    if (!await Admin.confirmDelete(`Xoá PO "${po.PONo}" khỏi DB?`)) return;
     try {
       await Admin.fetchJSON(`/admin/api/po/${po.PlanPO_guid}`, { method: 'DELETE' });
       Admin.toast('Đã xoá PO khỏi DB.', 'ok');
@@ -368,6 +510,7 @@ document.querySelector('#po-rows').addEventListener('click', async (e) => {
 
 document.querySelector('#form-plan').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!Admin.validateForm(e.target)) return;
   const fd = new FormData(e.target);
   const baseBody = {
     LineNo: parseInt(fd.get('LineNo')),
@@ -376,6 +519,7 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
     DailyAim: fd.get('DailyAim') ? parseInt(fd.get('DailyAim')) : null,
     Customer: fd.get('Customer') || null,
     NhuCauMe: fd.get('NhuCauMe') || null,
+    LoaiHang: fd.get('LoaiHang') || null,
     Notes: fd.get('Notes') || null,
   };
   try {
@@ -416,7 +560,7 @@ document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
   }
   const delBtn = e.target.closest('[data-del]');
   if (!delBtn) return;
-  if (!confirm('Xoá kế hoạch này? PO list cũng sẽ xoá theo.')) return;
+  if (!await Admin.confirmDelete('Xoá kế hoạch này? PO list cũng sẽ xoá theo.')) return;
   try {
     await Admin.fetchJSON(`${API}/${delBtn.dataset.del}`, { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');
@@ -427,7 +571,28 @@ document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
   }
 });
 
+// Load danh mục loại hàng từ QLCL (proxy)
+async function loadLoaiHang() {
+  const sel = document.getElementById('sel-loai-hang');
+  try {
+    const resp = await fetch('/admin/api/dm-loai-hang');
+    const data = await resp.json();
+    const rows = data.rows || [];
+    // Keep first option (placeholder), remove the rest
+    while (sel.options.length > 1) sel.remove(1);
+    rows.forEach(r => {
+      const opt = document.createElement('option');
+      opt.value = r.ten_loai;
+      opt.textContent = r.ten_loai;
+      sel.appendChild(opt);
+    });
+  } catch (err) {
+    console.warn('Không tải được danh mục loại hàng từ QLCL:', err);
+  }
+}
+
 renderPOs();
+loadLoaiHang();
 loadCands();
 loadPlans();
 </script>

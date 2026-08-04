@@ -103,6 +103,18 @@
     color: var(--ink); line-height: 1.2;
     white-space: normal; overflow-wrap: anywhere; word-break: break-word;
   }
+
+  /* Error overlay — auto-dismiss, non-blocking */
+  .err-overlay {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 9999;
+    background: rgba(239,68,68,.92); color: #fff;
+    padding: 18px 32px; font-size: 20px; font-weight: 700;
+    text-align: center; letter-spacing: .02em;
+    transform: translateY(-100%); opacity: 0;
+    transition: transform .3s ease, opacity .3s ease;
+    pointer-events: none;
+  }
+  .err-overlay.show { transform: translateY(0); opacity: 1; }
 </style>
 </head>
 <body class="tv">
@@ -126,7 +138,7 @@
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
-      <span class="time" id="clock">22:00</span>
+      <span class="time" id="clock">--:--</span>
     </div>
   </div>
 
@@ -152,6 +164,8 @@
 </div>
 </div>
 
+<div class="err-overlay" id="err-overlay"></div>
+
 <button id="btn-refresh" onclick="loadData()" title="Refresh ngay"
   style="position:fixed;bottom:18px;right:18px;z-index:999;
          background:rgba(15,30,60,.82);border:1px solid rgba(255,255,255,.3);
@@ -173,16 +187,21 @@ fit(); addEventListener('resize', fit);
 function tick() {
   const el = document.getElementById('clock');
   if (!el) return;
-  const today = new Date().toISOString().slice(0, 10);
-  if (INIT_DATE === today) {
-    const now = new Date();
-    el.textContent = now.toTimeString().slice(0, 5);
-  } else {
-    el.textContent = '22:00';
-  }
+  const now = new Date();
+  el.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
 }
 tick();
-setInterval(tick, 60000);
+setInterval(tick, 15000);
+
+let _errTimer = null;
+function showError(msg) {
+  const el = document.getElementById('err-overlay');
+  if (!el) return;
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+  clearTimeout(_errTimer);
+  _errTimer = setTimeout(() => el.classList.remove('show'), 8000);
+}
 
 function fmtNum(n) {
   if (n == null) return '—';
@@ -205,7 +224,7 @@ function _btnState(text, disabled, borderColor) {
 
 async function loadData() {
   if (!INIT_MONO || !INIT_DATE) {
-    alert('Can ?mono=...&date=... tren URL. Mo /tv de config.');
+    showError('Cần ?mono=...&date=... trên URL. Mở /tv để config.');
     return;
   }
   _btnState('⏳ Đang tải...', true, 'rgba(255,255,255,.3)');
@@ -219,7 +238,7 @@ async function loadData() {
   } catch (e) {
     _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
     setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
-    alert('Loi load data: ' + e.message);
+    showError('Lỗi load data: ' + e.message);
     return;
   }
   render(data);

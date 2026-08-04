@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Hanging Conveyor - Nhu cầu con</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#44464f",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c3c7cb",
+                        "on-tertiary-fixed": "#00174d",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#f8f9ff",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#324576",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#213145",
+                        "outline": "#757780",
+                        "on-secondary-fixed": "#181c1f",
+                        "primary-fixed": "#dae2ff",
+                        "on-surface": "#0b1c30",
+                        "surface-container": "#e5eeff",
+                        "primary-container": "#001848",
+                        "on-tertiary-container": "#6480d7",
+                        "tertiary": "#000000",
+                        "tertiary-container": "#00174d",
+                        "surface-container-low": "#eff4ff",
+                        "on-secondary-fixed-variant": "#43474b",
+                        "on-background": "#0b1c30",
+                        "tertiary-fixed": "#dbe1ff",
+                        "secondary-fixed": "#e0e3e7",
+                        "primary-fixed-dim": "#b3c5fe",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#5f6367",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#b3c5fe",
+                        "tertiary-fixed-dim": "#b5c4ff",
+                        "secondary": "#5b5f62",
+                        "surface-tint": "#4a5d8f",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001848",
+                        "on-tertiary-fixed-variant": "#214195",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#7082b7",
+                        "secondary-container": "#dde0e4",
+                        "primary": "#000000",
+                        "surface": "#f8f9ff",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#cbdbf5",
+                        "outline-variant": "#c5c6d0",
+                        "on-secondary": "#ffffff",
+                        "background": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "grid-columns": "12",
+                        "gutter": "24px",
+                        "stack-gap": "16px",
+                        "container-padding": "32px",
+                        "sidebar-width": "280px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Manrope"],
+                        "headline-md": ["Manrope"],
+                        "label-numeric": ["JetBrains Mono"],
+                        "title-sm": ["Manrope"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"]
+                    },
+                    "fontSize": {
+                        "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                        "label-numeric": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                        "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        body { background-color: #f8f9ff; }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #dce9ff; border-radius: 10px; }
+        .glass-header { backdrop-filter: blur(12px); background-color: rgba(248, 249, 255, 0.8); }
+        .glass-modal { backdrop-filter: blur(8px); background-color: rgba(11, 28, 48, 0.1); }
+        /* No-Line rule: removing borders in favor of tonal backgrounds */
+        input, select, textarea { border: none !important; }
+        input:focus, select:focus { outline: none !important; box-shadow: none !important; }
+    </style>
+</head>
+<body class="font-body-md text-on-surface">
+<!-- Sidebar Navigation -->
+<aside class="fixed left-0 top-0 h-full w-[280px] flex flex-col py-10 px-8 bg-surface-container-lowest dark:bg-inverse-surface z-50">
+<div class="mb-12">
+<h1 class="font-display-lg text-display-lg text-primary tracking-tight">Hanging Conveyor</h1>
+<p class="font-label-caps text-label-caps text-secondary/60 mt-1 uppercase">Admin Editorial</p>
+</div>
+<nav class="flex-grow space-y-1 overflow-y-auto custom-scrollbar">
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="dashboard">dashboard</span>
+<span class="font-body-md font-medium">Tổng quan</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="calendar_today">calendar_today</span>
+<span class="font-body-md font-medium">Lịch nghỉ</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-primary font-bold bg-surface-container-low relative after:absolute after:right-2 after:w-1.5 after:h-1.5 after:bg-primary after:rounded-full" href="#">
+<span class="material-symbols-outlined" data-icon="subdirectory_arrow_right">subdirectory_arrow_right</span>
+<span class="font-body-md">Nhu cầu con</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="account_tree">account_tree</span>
+<span class="font-body-md font-medium">Nhu cầu mẹ</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="reorder">reorder</span>
+<span class="font-body-md font-medium">6 cụm</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="analytics">analytics</span>
+<span class="font-body-md font-medium">SAM</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 text-secondary hover:bg-surface-container-low hover:text-primary" href="#">
+<span class="material-symbols-outlined opacity-70" data-icon="person">person</span>
+<span class="font-body-md font-medium">Tài khoản</span>
+</a>
+</nav>
+<div class="mt-auto pt-8 flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container font-display-lg text-[18px]">A</div>
+<div>
+<p class="font-body-md font-bold tracking-tight text-on-surface">Nguyễn Văn A</p>
+<div class="flex items-center gap-1.5 text-secondary">
+<span class="material-symbols-outlined text-[14px]" data-icon="admin_panel_settings">admin_panel_settings</span>
+<span class="text-[10px] font-label-caps tracking-[0.1em]">ADMIN</span>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-[280px] min-h-screen">
+<!-- Top App Bar with Glassmorphism -->
+<header class="flex justify-between items-center w-full px-12 h-24 glass-header sticky top-0 z-40">
+<h2 class="font-display-lg text-[22px] text-on-surface tracking-tight">Nhu cầu con <span class="text-secondary/40 font-normal ml-2">(Kế hoạch con)</span></h2>
+<div class="flex items-center gap-8">
+<div class="relative group">
+<input class="bg-surface-container-low rounded-full py-3 pl-12 pr-6 w-80 text-body-sm transition-all focus:bg-surface-container group-hover:bg-surface-container" placeholder="Tìm kiếm nhanh..." type="text"/>
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-secondary/60 text-[20px]" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="w-12 h-12 flex items-center justify-center rounded-full hover:bg-surface-container transition-all">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<div class="px-12 py-10 max-w-[1400px] mx-auto space-y-12">
+<!-- PANEL 1: Chọn MONo -->
+<section class="bg-surface-container-lowest rounded-[2rem] p-10 shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<h3 class="font-headline-md text-headline-md text-primary flex items-center gap-3">
+<span class="w-1.5 h-6 bg-primary-container rounded-full"></span>
+                        Chọn MONo để khai báo
+                    </h3>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full border-separate border-spacing-y-3">
+<thead>
+<tr class="text-left text-secondary/60 font-label-caps text-label-caps uppercase tracking-[0.1em]">
+<th class="px-6 py-2">MONo</th>
+<th class="px-6 py-2">Số đơn hàng</th>
+<th class="px-6 py-2">Mã hàng</th>
+<th class="px-6 py-2">Tổ</th>
+<th class="px-6 py-2 text-right">Thao tác</th>
+</tr>
+</thead>
+<tbody>
+<tr class="bg-surface-container-low/50 transition-all hover:bg-surface-container group">
+<td class="px-6 py-5 font-label-numeric rounded-l-2xl text-on-surface">MO-2026-0451-BL</td>
+<td class="px-6 py-5 text-secondary">PO-99201</td>
+<td class="px-6 py-5 text-secondary">JACKET-W24-002</td>
+<td class="px-6 py-5 text-secondary">Tổ 08</td>
+<td class="px-6 py-5 text-right rounded-r-2xl">
+<button class="bg-primary-container text-on-primary-container px-6 py-2 rounded-xl font-body-sm font-semibold hover:opacity-80 transition-all active:scale-95">Chọn</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low/50 transition-all hover:bg-surface-container group">
+<td class="px-6 py-5 font-label-numeric rounded-l-2xl text-on-surface">MO-2026-0452-BL</td>
+<td class="px-6 py-5 text-secondary">PO-99205</td>
+<td class="px-6 py-5 text-secondary">PANTS-S25-010</td>
+<td class="px-6 py-5 text-secondary">Tổ 12</td>
+<td class="px-6 py-5 text-right rounded-r-2xl">
+<button class="bg-primary-container text-on-primary-container px-6 py-2 rounded-xl font-body-sm font-semibold hover:opacity-80 transition-all active:scale-95">Chọn</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- PANEL 2: Grid Form -->
+<section class="bg-surface-container-lowest rounded-[2rem] p-10 shadow-sm relative overflow-hidden">
+<div class="absolute left-0 top-0 bottom-0 w-2 bg-primary-container"></div>
+<div class="mb-10">
+<h3 class="font-headline-md text-headline-md text-primary">Thông tin khai báo</h3>
+<p class="text-secondary/60 text-body-sm mt-1">Vui lòng kiểm tra kỹ các thông số trước khi lưu hệ thống.</p>
+</div>
+<form class="space-y-12">
+<div class="grid grid-cols-1 md:grid-cols-3 gap-10">
+<div class="space-y-3">
+<label class="font-label-caps text-label-caps text-secondary/70 uppercase tracking-wider">MONo</label>
+<input class="w-full bg-surface-container-low rounded-2xl p-4 text-body-md font-semibold text-primary/40" readonly="" type="text" value="MO-2026-0451-BL"/>
+</div>
+<div class="space-y-3">
+<label class="font-label-caps text-label-caps text-secondary/70 uppercase tracking-wider">Tổ thực hiện</label>
+<div class="relative">
+<select class="w-full bg-surface-container-low rounded-2xl p-4 text-body-md appearance-none">
+<option>Tổ 08</option>
+<option>Tổ 09</option>
+<option>Tổ 10</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-secondary/60" data-icon="expand_more">expand_more</span>
+</div>
+</div>
+<div class="space-y-3">
+<label class="font-label-caps text-label-caps text-secondary/70 uppercase tracking-wider">Ngày lên chuyền</label>
+<input class="w-full bg-surface-container-low rounded-2xl p-4 text-body-md" type="date"/>
+</div>
+<div class="space-y-3">
+<label class="font-label-caps text-label-caps text-secondary/70 uppercase tracking-wider">Số lượng kế hoạch (SLKH)</label>
+<input class="w-full bg-surface-container-low rounded-2xl p-4 text-body-md" placeholder="2,500" type="number"/>
+</div>
+<div class="space-y-3 md:col-span-2">
+<label class="font-label-caps text-label-caps text-secondary/70 uppercase tracking-wider">Khách hàng (Customer)</label>
+<input class="w-full bg-surface-container-low rounded-2xl p-4 text-body-md" type="text" value="G-Star RAW Manufacturing Co."/>
+</div>
+</div>
+<!-- PO List Sub-section -->
+<div class="space-y-6">
+<div class="flex items-center justify-between pb-4">
+<h4 class="font-title-sm text-title-sm uppercase tracking-[0.15em] text-primary/80">PO List Detail</h4>
+<button class="flex items-center gap-2 text-primary hover:opacity-70 transition-all font-bold text-body-sm" type="button">
+<span class="material-symbols-outlined text-[20px]" data-icon="add_circle">add_circle</span>
+                                Thêm dòng
+                            </button>
+</div>
+<div class="space-y-4">
+<div class="flex items-center gap-6 bg-surface-container-low/40 p-4 rounded-[1.5rem]">
+<div class="flex-grow grid grid-cols-3 gap-6">
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" placeholder="PO Number" type="text"/>
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" placeholder="Size/Color" type="text"/>
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" placeholder="Quantity" type="number"/>
+</div>
+<button class="text-error hover:bg-error-container p-3 rounded-full transition-all" type="button">
+<span class="material-symbols-outlined" data-icon="delete_outline">delete_outline</span>
+</button>
+</div>
+<div class="flex items-center gap-6 bg-surface-container-low/40 p-4 rounded-[1.5rem]">
+<div class="flex-grow grid grid-cols-3 gap-6">
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" type="text" value="PO-99201-A"/>
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" type="text" value="M/Black"/>
+<input class="bg-surface-container-lowest rounded-xl p-3 text-body-sm shadow-sm" type="number" value="1250"/>
+</div>
+<button class="text-error hover:bg-error-container p-3 rounded-full transition-all" type="button">
+<span class="material-symbols-outlined" data-icon="delete_outline">delete_outline</span>
+</button>
+</div>
+</div>
+</div>
+<div class="flex justify-end gap-6 pt-6">
+<button class="px-10 py-4 rounded-2xl bg-surface-container-low text-secondary font-bold hover:bg-surface-container transition-all" type="button">Huỷ</button>
+<button class="px-12 py-4 rounded-2xl bg-gradient-to-r from-[#001848] to-[#1e3a8a] text-white font-bold shadow-xl shadow-primary-container/20 hover:scale-[1.02] active:scale-95 transition-all" type="submit">Lưu kế hoạch</button>
+</div>
+</form>
+</section>
+<!-- PANEL 3: Đã khai báo -->
+<section class="bg-surface-container-lowest rounded-[2rem] p-10 shadow-sm">
+<div class="flex items-center justify-between mb-8">
+<h3 class="font-headline-md text-headline-md text-primary">Kế hoạch đã khai báo</h3>
+<div class="flex items-center gap-2.5 bg-green-50 text-green-700 px-4 py-1.5 rounded-full text-[11px] font-bold tracking-widest uppercase">
+<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        Hệ thống đang chạy
+                    </div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full border-separate border-spacing-y-3">
+<thead>
+<tr class="text-left text-secondary/60 font-label-caps text-label-caps uppercase tracking-[0.1em]">
+<th class="px-6 py-2">MONo</th>
+<th class="px-6 py-2">Ngày lên chuyền</th>
+<th class="px-6 py-2">SLKH</th>
+<th class="px-6 py-2">Trạng thái</th>
+<th class="px-6 py-2 text-right">Hành động</th>
+</tr>
+</thead>
+<tbody>
+<tr class="bg-surface-container-low/50 transition-all hover:bg-surface-container group">
+<td class="px-6 py-5 font-label-numeric rounded-l-2xl text-on-surface">MO-2026-0012-KH</td>
+<td class="px-6 py-5 text-secondary">24/10/2026</td>
+<td class="px-6 py-5 font-label-numeric text-on-surface">15,000</td>
+<td class="px-6 py-5">
+<span class="bg-surface-container-highest text-on-surface-variant px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider">Chờ sản xuất</span>
+</td>
+<td class="px-6 py-5 text-right rounded-r-2xl space-x-4">
+<button class="text-on-primary-fixed-variant hover:text-primary font-bold text-body-sm transition-colors">Sửa</button>
+<button class="text-error hover:text-red-700 font-bold text-body-sm transition-colors" onclick="openDeleteModal()">Xoá</button>
+</td>
+</tr>
+<tr class="bg-surface-container-low/50 transition-all hover:bg-surface-container group">
+<td class="px-6 py-5 font-label-numeric rounded-l-2xl text-on-surface">MO-2026-0015-KH</td>
+<td class="px-6 py-5 text-secondary">25/10/2026</td>
+<td class="px-6 py-5 font-label-numeric text-on-surface">8,200</td>
+<td class="px-6 py-5">
+<span class="bg-green-100 text-green-800 px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-wider">Đang chạy</span>
+</td>
+<td class="px-6 py-5 text-right rounded-r-2xl space-x-4">
+<button class="text-on-primary-fixed-variant hover:text-primary font-bold text-body-sm transition-colors">Sửa</button>
+<button class="text-error hover:text-red-700 font-bold text-body-sm transition-colors" onclick="openDeleteModal()">Xoá</button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+</div>
+</main>
+<!-- Delete Modal -->
+<div class="fixed inset-0 z-[100] flex items-center justify-center hidden" id="deleteModal">
+<div class="absolute inset-0 glass-modal" onclick="closeDeleteModal()"></div>
+<div class="relative bg-surface-container-lowest rounded-[2.5rem] p-12 max-w-lg w-full shadow-2xl scale-95 transition-transform duration-300" id="modalContent">
+<div class="w-20 h-20 bg-error-container text-error rounded-full flex items-center justify-center mx-auto mb-8">
+<span class="material-symbols-outlined text-[40px]" data-icon="warning">warning</span>
+</div>
+<h4 class="text-center font-display-lg text-[28px] mb-4 text-on-surface tracking-tight">Xác nhận xoá?</h4>
+<p class="text-center text-secondary text-body-md mb-10 leading-relaxed">Hành động này không thể hoàn tác. Mọi dữ liệu liên quan đến kế hoạch này sẽ bị gỡ bỏ khỏi hệ thống chuyền treo.</p>
+<div class="flex gap-4">
+<button class="flex-1 py-4 rounded-2xl bg-surface-container-low text-secondary font-bold hover:bg-surface-container transition-all" onclick="closeDeleteModal()">Hủy</button>
+<button class="flex-1 py-4 rounded-2xl bg-error text-white font-bold hover:bg-red-700 shadow-lg shadow-error/20 transition-all">Xác nhận Xoá</button>
+</div>
+</div>
+</div>
+<script>
+        function openDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            const content = document.getElementById('modalContent');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                content.classList.remove('scale-95');
+                content.classList.add('scale-100');
+            }, 10);
+        }
+
+        function closeDeleteModal() {
+            const modal = document.getElementById('deleteModal');
+            const content = document.getElementById('modalContent');
+            content.classList.remove('scale-100');
+            content.classList.add('scale-95');
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 200);
+        }
+
+        document.querySelectorAll('button').forEach(btn => {
+            btn.addEventListener('mousedown', () => btn.classList.add('scale-95'));
+            btn.addEventListener('mouseup', () => btn.classList.remove('scale-95'));
+            btn.addEventListener('mouseleave', () => btn.classList.remove('scale-95'));
+        });
+    </script>
+</body></html>

@@ -2,97 +2,298 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>TV-3 · Chất lượng cuối chuyền & Máy hỏng</title>
+<title>TV-3 · Dashboard QC Chất lượng</title>
 <link rel="stylesheet" href="/static/css/tv/shared.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  /* Header overrides — đồng bộ TV-1/2 */
-  .hdr-line .lk { font-size: 12px; letter-spacing: .12em; opacity: .75; font-weight: 600; }
-  .hdr-line .lv { font-size: 44px; }
-  .hdr-line .style { font-size: 15px; margin-top: 3px; }
-  .fld .k { font-size: 12px; letter-spacing: .05em; color: rgba(255,255,255,.7); font-weight: 600; }
-  .fld .v { font-size: 26px; }
-  .fld .v.demand { font-size: 22px; color: #DDE7F8; }
-  .hdr-clock .date { font-size: 14px; color: rgba(255,255,255,.78); font-weight: 500; }
-  .hdr-fields { gap: var(--s-5); }
+/* ══ Layout wrapper ══════════════════════════════════════════════════════ */
+.si {
+  height: 1080px;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-10);
+  gap: var(--s-5);
+  background: var(--canvas);
+}
 
-  .body { flex: 1; min-height: 0; display: grid; grid-template-rows: auto 1fr; gap: var(--s-5); }
+/* ══ HEADER ══════════════════════════════════════════════════════════════ */
+.hdr {
+  background: linear-gradient(120deg, var(--brand-900) 0%, var(--brand-700) 62%, var(--brand-600) 100%);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  color: #fff;
+  display: grid;
+  grid-template-columns: auto 1px 1fr auto;
+  align-items: center;
+  gap: var(--s-6);
+  padding: var(--s-4) var(--s-6);
+  flex-shrink: 0;
+  height: 100px;
+}
+.hdr-line { display: flex; flex-direction: column; gap: 2px; }
+.hdr-line .lk { font-size: 11px; letter-spacing: .12em; opacity: .7; text-transform: uppercase; }
+.hdr-line .lv { font-family: var(--font-mono); font-weight: 700; font-size: 38px; line-height: 1; }
+.hdr-line .style { margin-top: 2px; font-size: 13px; font-weight: 600; color: #BBF7D0; }
+.hdr-div { width: 1px; height: 64px; background: rgba(255,255,255,.18); }
+.hdr-fields { display: flex; justify-content: space-between; gap: var(--s-6); align-items: center; }
+.fld { display: flex; flex-direction: column; gap: 4px; }
+.fld .k { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.6); }
+.fld .v { font-size: 20px; font-weight: 700; line-height: 1; }
+.fld .v.mono { font-family: var(--font-mono); }
+.fld .v.small { font-size: 15px; color: #C7DBFA; }
+.hdr-clock { text-align: right; display: flex; flex-direction: column; gap: 4px; padding-left: var(--s-4); border-left: 1px solid rgba(255,255,255,.18); }
+.hdr-clock .date { font-size: 13px; color: rgba(255,255,255,.7); }
+.hdr-clock .time { font-family: var(--font-mono); font-weight: 700; font-size: 38px; line-height: 1; }
 
-  /* ── KPI row ─────────────────────────────────────── */
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--s-5); }
-  .kp { display: flex; flex-direction: column; padding: var(--s-4) var(--s-5); gap: var(--s-2); }
-  .kp .k-head { display: flex; flex-direction: column; gap: 1px; }
-  .kp .k-k { font-size: var(--fs-label); font-weight: 700; color: var(--brand-ink); line-height: 1.15; }
-  .kp .k-en { font-size: var(--fs-micro); color: var(--ink-3); }
-  .kp .k-mid { flex: 1; display: flex; align-items: center; gap: var(--s-4); }
-  .kp .k-big { font-family: var(--font-mono); font-weight: 700; font-size: 52px; line-height: .9; }
-  .kp .k-chip { align-self: center; }
-  .c-pass { color: var(--pass-ink); }
-  .c-fail { color: var(--fail-ink); }
-  .pct-chip { font-size: var(--fs-micro); font-weight: 700; padding: 4px 10px; border-radius: var(--r-pill); text-transform: uppercase; letter-spacing: .04em; }
-  .fill-pass { background: var(--pass-soft); color: var(--pass-ink); }
-  .fill-fail { background: var(--fail-soft); color: var(--fail-ink); }
+/* ══ KPI ROW ══════════════════════════════════════════════════════════════ */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s-5);
+  flex-shrink: 0;
+  height: 132px;
+}
+.kp { display: flex; flex-direction: column; justify-content: space-between; padding: var(--s-4) var(--s-5); }
+.kp-head .k  { font-size: 14px; font-weight: 700; color: var(--brand-ink); }
+.kp-head .en { font-size: 10px; color: var(--ink-3); margin-top: 2px; }
+.kp-mid { display: flex; align-items: center; gap: var(--s-4); }
+.kp-big { font-family: var(--font-mono); font-weight: 700; font-size: 48px; line-height: 1; }
+.kp-meta { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.kp-sub { font-size: 10px; color: var(--ink-3); }
 
-  /* ── Main ────────────────────────────────────────── */
-  .main { display: grid; grid-template-columns: 7fr 5fr; gap: var(--s-5); min-height: 0; }
-  .qcard, .bcard { display: flex; flex-direction: column; min-height: 0; }
-  .q-body { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; }
-  .q-foot { display: flex; gap: var(--s-10); padding: var(--s-4) var(--s-6); border-top: 1px solid var(--divider); background: var(--surface-2); }
-  .q-foot .qf { display: flex; flex-direction: column; gap: 3px; }
-  .q-foot .qf .l { font-size: var(--fs-micro); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
-  .q-foot .qf .v { font-family: var(--font-mono); font-weight: 700; font-size: 22px; color: var(--ink); }
-  .q-foot .qf .v.pass { color: var(--pass-ink); }
-  .q-foot .qf .v.fail { color: var(--fail-ink); }
+/* ══ MAIN GRID ══════════════════════════════════════════════════════════ */
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); }
 
-  /* Defect table */
-  .dwrap { display: flex; flex-direction: column; min-height: 0; }
-  .dtbl { width: 100%; border-collapse: collapse; }
-  .dtbl th { background: var(--brand-700); color: #fff; padding: var(--s-3) var(--s-3); font-size: var(--fs-label); font-weight: 600; text-align: center; }
-  .dtbl th .en { display: block; font-weight: 400; font-size: 10px; opacity: .8; margin-top: 1px; }
-  .dtbl td { padding: var(--s-4) var(--s-3); border-bottom: 1px solid var(--divider); font-size: var(--fs-body); text-align: center; vertical-align: middle; }
-  .dtbl td.code { font-family: var(--font-mono); font-weight: 700; text-align: left; color: var(--fail-ink); padding-left: var(--s-5); vertical-align: middle; line-height: 1.3; }
-  .dtbl td.code .ct { display: inline-block; font-size: 11px; color: var(--ink-3); margin-top: 4px; letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
-  .dtbl td.qty { background: var(--fail-solid); color: #fff; font-family: var(--font-mono); font-weight: 700; font-size: 26px; }
-  .dtbl tr.grp-start td { border-top: 2px solid var(--brand-700); }
-  .dtbl tr.grp-mid td.code { border-top: none; }
-  .dtbl td.cap { font-size: 14px; color: var(--ink-2); text-align: left; line-height: 1.32; max-width: 240px; }
+/* ══ CHIP ══════════════════════════════════════════════════════════════ */
+.chip {
+  display: inline-block; font-size: 10px; font-weight: 700;
+  padding: 3px 10px; border-radius: var(--r-pill); letter-spacing: .03em; white-space: nowrap;
+}
+.chip.pass { background: var(--pass-soft); color: var(--pass-ink); }
+.chip.fail { background: var(--fail-soft); color: var(--fail-ink); }
+.chip.warn { background: var(--warn-soft); color: var(--warn-ink); }
+.chip.neu  { background: var(--divider); color: var(--ink-2); }
 
-  /* Top defects mini chart */
-  .top3 { border-left: 1px solid var(--divider); padding: var(--s-4) var(--s-5); display: flex; flex-direction: column; min-height: 0; }
-  .top3-t { text-align: center; font-size: var(--fs-label); font-weight: 700; color: var(--brand-ink); text-transform: uppercase; letter-spacing: .04em; margin-bottom: var(--s-4); }
-  .mbars { flex: 1; display: flex; align-items: flex-end; justify-content: space-evenly; gap: var(--s-5); padding: 0 var(--s-2) var(--s-3); }
-  .mbw { width: 92px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: var(--s-3); align-self: stretch; }
-  .mbar { width: 100%; min-height: 28px; border-radius: 10px 10px 0 0; display: flex; justify-content: center; padding-top: var(--s-3); color: #fff; font-family: var(--font-mono); font-weight: 700; font-size: 26px; box-shadow: var(--sh-2); }
-  .mbar.tone-red { background: linear-gradient(180deg, #E05252, #C53939); }
-  .mbar.tone-yellow { background: linear-gradient(180deg, #F4C84E, #D8A929); color: #6B4300; }
-  .mbar.tone-orange { background: linear-gradient(180deg, #F39B45, #EA7C22); }
-  .mbl { font-size: 18px; text-align: center; color: var(--ink-2); font-weight: 800; line-height: 1; font-family: var(--font-mono); min-height: 20px; }
+/* ══ LEFT — Hourly bar chart ═══════════════════════════════════════════ */
+.left-body {
+  flex: 1; min-height: 0; display: flex; flex-direction: column;
+  padding: var(--s-4) var(--s-5) var(--s-3); gap: var(--s-3);
+}
+.bar-area { flex: 1; min-height: 0; display: flex; gap: var(--s-2); }
+.y-axis {
+  width: 36px; flex-shrink: 0; display: flex; flex-direction: column;
+  justify-content: space-between; padding-bottom: 28px;
+}
+.y-axis span { font-size: 10px; font-family: var(--font-mono); color: var(--ink-3); text-align: right; }
+.y-axis span.tgt { color: var(--warn-ink); font-weight: 700; }
+.bars-wrap { flex: 1; position: relative; min-height: 0; border-bottom: 1px solid var(--divider); }
+.gridline { position: absolute; left: 0; right: 0; border-top: 1px dashed rgba(0,0,0,.07); }
+.target-line { position: absolute; left: 0; right: 0; border-top: 2px dashed var(--warn-solid); z-index: 5; }
+.target-badge {
+  position: absolute; right: 6px; top: -14px;
+  font-size: 10px; font-weight: 700; color: var(--warn-ink);
+  background: var(--warn-soft); padding: 2px 8px; border-radius: var(--r-pill);
+}
+.bars-inner {
+  position: absolute; inset: 0; display: flex;
+  align-items: flex-end; gap: 12px; padding: 0 10px;
+}
+.slot-col {
+  flex: 1; height: 100%; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-end; position: relative;
+}
+.slot-sp {
+  position: absolute; font-size: 10px; font-family: var(--font-mono); color: var(--ink-3);
+}
+.slot-sp.fail { color: var(--fail-ink); font-weight: 700; }
+.bar { width: 100%; max-width: 80px; border-radius: 8px 8px 0 0; display: flex; justify-content: center; align-items: flex-start; padding-top: 7px; }
+.bar.pass { background: linear-gradient(to top, #14693F, #59C78C); }
+.bar.fail { background: linear-gradient(to top, #7A1A1A, #D74C4C); box-shadow: 0 0 22px rgba(215,76,76,.3); }
+.bar.pass.cur { background: linear-gradient(to top, #1a7d4c, #7EDBA6); opacity: .8; border: 2px dashed #14693F; border-bottom: none; }
+.bar.fail.cur  { opacity: .8; border: 2px dashed #8B1C1C; border-bottom: none; }
+.bar.empty { background: var(--divider); opacity: .4; }
+.bar-val { font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: #fff; }
+.x-labels { display: flex; gap: 12px; padding-left: 46px; }
+.x-lbl { flex: 1; text-align: center; font-size: 11px; font-weight: 600; color: var(--ink-2); padding: 3px 0; }
+.x-lbl.fail { color: var(--fail-ink); background: var(--fail-soft); border-radius: 4px; }
+.x-lbl.cur  { color: var(--brand-ink); font-weight: 700; }
+.bottom-row {
+  display: flex; align-items: flex-start; gap: var(--s-6); flex-shrink: 0;
+  padding-top: var(--s-2); border-top: 1px solid var(--divider);
+}
+.summary { display: flex; gap: var(--s-5); align-items: center; flex-shrink: 0; }
+.sb { display: flex; flex-direction: column; gap: 2px; }
+.sb .l { font-size: 10px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.sb .v { font-family: var(--font-mono); font-size: 20px; font-weight: 700; }
+.sb .v.pass { color: var(--pass-ink); }
+.sb .v.fail { color: var(--fail-ink); }
+.sb .v.warn { color: var(--warn-ink); }
+.sb-div { width: 1px; height: 30px; background: var(--divider); }
+.alert-area { flex: 1; display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
+.al {
+  font-size: 11px; font-weight: 600;
+  background: var(--warn-soft); color: var(--warn-ink);
+  border: 1px solid #EFD6A0; padding: 3px 10px; border-radius: var(--r-pill);
+}
+.al-lbl { font-size: 11px; font-weight: 700; color: var(--warn-ink); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
 
-  /* Breakdown panel */
-  .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--s-4); padding: var(--s-8); text-align: center; }
-  .empty-ic { width: 110px; height: 110px; border-radius: 50%; background: var(--pass-soft); border: 3px solid var(--pass-solid); color: var(--pass-ink); display: flex; align-items: center; justify-content: center; font-size: 58px; font-weight: 700; }
-  .empty-t { color: var(--pass-ink); font-size: 26px; font-weight: 700; }
-  .empty-s { color: var(--ink-3); font-size: var(--fs-body); }
-  .blist { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .brow { display: grid; grid-template-columns: 1fr auto; gap: var(--s-3); padding: var(--s-3) var(--s-5); border-bottom: 1px solid var(--divider); }
-  .brow:nth-child(odd) { background: var(--surface-2); }
-  .brow .m-name { font-weight: 700; color: var(--ink); font-size: var(--fs-body); }
-  .brow .m-reason { font-size: var(--fs-label); color: var(--ink-2); margin-top: 2px; line-height: 1.35; }
-  .brow .m-min { font-family: var(--font-mono); font-weight: 700; font-size: 22px; color: var(--fail-ink); align-self: center; }
-  .b-foot { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--divider); }
-  .b-cell { padding: var(--s-4) var(--s-5); text-align: center; }
-  .b-cell + .b-cell { border-left: 1px solid var(--divider); }
-  .b-cell .l { font-size: var(--fs-micro); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
-  .b-cell .v { font-family: var(--font-mono); font-weight: 700; font-size: 30px; color: var(--pass-ink); margin-top: 3px; }
-  .b-cell .v.warn { color: var(--fail-ink); }
+/* ══ RIGHT — Phân tích lỗi ═══════════════════════════════════════════ */
+.right-body { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.analysis-top {
+  display: flex; flex-shrink: 0; height: 338px;
+  border-bottom: 2px solid var(--divider);
+}
+
+/* Donut half */
+.donut-half {
+  flex: 1; display: flex; flex-direction: column;
+  padding: var(--s-3) var(--s-4); border-right: 1px solid var(--divider); overflow: hidden;
+}
+.sec-title {
+  font-size: 11px; font-weight: 700; color: var(--ink-3);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: var(--s-3); flex-shrink: 0;
+}
+.donut-row { flex: 1; min-height: 0; display: flex; align-items: center; gap: var(--s-4); }
+.donut-svg-wrap { position: relative; flex-shrink: 0; }
+.donut-svg-wrap svg { display: block; }
+.donut-center {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; pointer-events: none;
+}
+.dc-n { font-family: var(--font-mono); font-weight: 700; font-size: 34px; line-height: 1; color: var(--ink); }
+.dc-l { font-size: 9px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+.donut-legend {
+  display: flex; flex-direction: column; justify-content: center;
+  gap: 9px; flex: 1; min-width: 0;
+}
+.dl { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.dl-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.dl-name { font-size: 13px; font-weight: 600; color: var(--ink-2); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl.active .dl-name { color: var(--brand-ink); font-weight: 700; }
+
+/* Top3 half */
+.top3-half { flex: 1; display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.filter-row {
+  display: flex; align-items: center; gap: var(--s-2); flex-wrap: wrap;
+  padding: var(--s-2) var(--s-4); background: var(--surface-2);
+  border-bottom: 1px solid var(--divider); flex-shrink: 0;
+}
+.f-lbl { font-size: 10px; font-weight: 700; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; white-space: nowrap; }
+.fc {
+  font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill);
+  border: 1.5px solid var(--divider); background: var(--surface); color: var(--ink-2);
+  cursor: pointer; transition: all .15s; white-space: nowrap;
+}
+.fc:hover   { background: var(--brand-soft); border-color: var(--brand-500); color: var(--brand-ink); }
+.fc.active  { background: var(--brand-700); border-color: var(--brand-700); color: #fff; font-weight: 700; }
+.top3-area {
+  flex: 1; min-height: 0; padding: var(--s-3) var(--s-4) var(--s-4);
+  display: flex; flex-direction: column;
+}
+.top3-title {
+  font-size: 12px; font-weight: 700; color: var(--brand-ink);
+  text-transform: uppercase; letter-spacing: .05em; flex-shrink: 0; margin-bottom: var(--s-3);
+}
+.top3-bars { flex: 1; min-height: 0; display: flex; align-items: flex-end; justify-content: space-around; gap: var(--s-4); }
+.t3col {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; flex: 1; max-width: 110px; align-self: stretch; justify-content: flex-end;
+}
+.t3bar {
+  width: 100%; border-radius: 10px 10px 0 0;
+  display: flex; justify-content: center; align-items: flex-start;
+  padding-top: var(--s-2); color: #fff;
+  font-family: var(--font-mono); font-weight: 700; font-size: 24px;
+}
+.t3bar.r  { background: linear-gradient(180deg, #E05252, #C53939); }
+.t3bar.y  { background: linear-gradient(180deg, #F4C84E, #D8A929); color: #6B4300; }
+.t3bar.o  { background: linear-gradient(180deg, #F39B45, #EA7C22); }
+.t3bar.empty { background: var(--surface-2); border: 1.5px dashed var(--divider); color: var(--ink-3); font-size: 14px; }
+.t3code { font-size: 13px; font-family: var(--font-mono); font-weight: 700; color: var(--brand-ink); }
+.t3name { font-size: 11px; color: var(--ink-2); font-weight: 600; text-align: center; line-height: 1.3; max-width: 110px; }
+
+/* Combo table */
+.combo-wrap { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.combo-hdr  { display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 44px; flex-shrink: 0; }
+.combo-hdr span {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--ink-3); padding: var(--s-2) var(--s-3);
+  background: var(--surface-2); border-bottom: 2px solid var(--divider);
+  border-top: 1px solid var(--divider);
+}
+.combo-hdr .r { text-align: right; }
+.combo-body { overflow-y: auto; display: flex; flex-direction: column; max-height: 190px; }
+.combo-body::-webkit-scrollbar       { width: 5px; }
+.combo-body::-webkit-scrollbar-track { background: var(--surface-2); }
+.combo-body::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 3px; }
+.crow {
+  display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 44px;
+  border-bottom: 1px solid var(--divider); align-items: center; flex-shrink: 0;
+}
+.crow:nth-child(even) { background: var(--surface-2); }
+.crow span   { font-size: 13px; padding: 7px var(--s-3); line-height: 1.3; }
+.crow .bp    { font-weight: 700; color: var(--brand-ink); }
+.crow .ct    { color: var(--ink-2); }
+.crow .loi-cell  { color: var(--fail-ink); font-weight: 600; }
+.crow .loi-code  { font-family: var(--font-mono); font-weight: 700; color: var(--brand-ink); margin-right: 4px; }
+.crow .n    { font-family: var(--font-mono); font-weight: 700; font-size: 14px; color: var(--fail-solid); text-align: right; padding-right: var(--s-4); }
+
+/* ══ FOOTER ══════════════════════════════════════════════════════════════ */
+.ftr {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; color: var(--ink-2); padding: 2px var(--s-2); flex-shrink: 0;
+}
+.ftr .l  { display: flex; align-items: center; gap: var(--s-2); }
+.ftr .r  { font-weight: 600; color: var(--brand-ink); }
+.rdot {
+  display: inline-block; width: 9px; height: 9px;
+  background: var(--pass-solid); border-radius: 50%;
+  animation: pulse 2.4s ease-out infinite;
+}
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(89,199,140,.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(89,199,140,0); }
+  100% { box-shadow: 0 0 0 0 rgba(89,199,140,0); }
+}
+
+/* ══ OVERLAYS ════════════════════════════════════════════════════════════ */
+/* "Mất kết nối" overlay */
+.dc-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(20,35,59,.88); z-index: 999;
+  flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--s-5); color: #fff;
+}
+.dc-overlay.show { display: flex; }
+.dc-icon  { font-size: 56px; }
+.dc-msg   { font-size: 28px; font-weight: 700; }
+.dc-sub   { font-size: 18px; opacity: .7; }
+
+/* Source badge in panel title */
+.src-badge {
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: var(--r-pill);
+  background: rgba(255,255,255,.15); margin-left: var(--s-2);
+}
+.no-data-msg {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  font-size: 15px; color: var(--ink-3); font-style: italic;
+}
 </style>
 </head>
 <body class="tv">
+
+<!-- Mất kết nối overlay -->
+<div class="dc-overlay" id="dc-overlay">
+  <div class="dc-icon">⚠</div>
+  <div class="dc-msg">Mất kết nối dữ liệu</div>
+  <div class="dc-sub" id="dc-sub">Đang thử lại...</div>
+</div>
+
 <div class="stage-wrap">
 <div class="stage" id="stage">
-<div class="stage-inner">
+<div class="si">
 
-  <!-- HEADER -->
+  <!-- ── HEADER ── -->
   <div class="hdr">
     <div class="hdr-line">
       <span class="lk">Tổ</span>
@@ -101,11 +302,11 @@
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Số đơn hàng</span><span class="v demand mono" id="h-demand">—</span></div>
-      <div class="fld"><span class="k">K.Hàng / Customer</span><span class="v" id="h-customer">—</span></div>
-      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-firstday">—</span></div>
-      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-workers2">—</span></div>
-      <div class="fld"><span class="k">Hàng tồn / WIP</span><span class="v mono" id="h-wip">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng</span><span class="v small mono" id="h-don">—</span></div>
+      <div class="fld"><span class="k">Khách hàng</span><span class="v" id="h-kh">—</span></div>
+      <div class="fld"><span class="k">Loại hàng</span><span class="v" id="h-loai">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền</span><span class="v mono" id="h-first">—</span></div>
+      <div class="fld"><span class="k">Lao động</span><span class="v mono" id="h-ld">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -113,269 +314,499 @@
     </div>
   </div>
 
-  <!-- BODY -->
-  <div class="body">
-
-    <!-- KPI row -->
-    <div class="kpis">
-      <div class="card kp">
-        <div class="k-head"><div class="k-k">Tỉ lệ kiểm lại đạt</div><div class="k-en">Re-inspect pass rate (cumulative day)</div></div>
-        <div class="k-mid"><span class="k-big" id="kpi-reinspect-num">—</span><span class="k-chip pct-chip" id="kpi-reinspect-chip">—</span></div>
-      </div>
-      <div class="card kp">
-        <div class="k-head"><div class="k-k">Lỗi mốc hiện tại</div><div class="k-en" id="kpi-slot-en">Defects in current slot</div></div>
-        <div class="k-mid"><span class="k-big" id="kpi-2h-num">—</span><span class="k-chip pct-chip" id="kpi-2h-chip">—</span></div>
-      </div>
-      <div class="card kp">
-        <div class="k-head"><div class="k-k">Đã sửa (ngày)</div><div class="k-en">Re-inspect fixed (today)</div></div>
-        <div class="k-mid"><span class="k-big" id="kpi-fixed-num">—</span><span class="k-chip pct-chip fill-pass">SỬA</span></div>
-      </div>
-      <div class="card kp">
-        <div class="k-head"><div class="k-k">Tổng lỗi – Lũy kế ngày</div><div class="k-en">Total defects (cumulative)</div></div>
-        <div class="k-mid"><span class="k-big" id="kpi-day-num">—</span><span class="k-chip pct-chip" id="kpi-day-chip">—</span></div>
+  <!-- ── KPI ROW ── -->
+  <div class="kpis">
+    <div class="card kp">
+      <div class="kp-head"><div class="k">Tổng kiểm (QC)</div><div class="en">Total inspected · QLCL hôm nay</div></div>
+      <div class="kp-mid">
+        <span class="kp-big" id="kpi-kiem">—</span>
+        <div class="kp-meta"><span class="chip neu">QC nhập liệu</span></div>
       </div>
     </div>
-
-    <!-- Main -->
-    <div class="main">
-      <!-- Quality -->
-      <div class="card qcard">
-        <div class="panel-title">Chất lượng cuối chuyền <span class="pt-en" id="quality-pt-en">Endline Quality · lỗi & vị trí</span></div>
-        <div class="q-body">
-          <div class="dwrap">
-            <table class="dtbl">
-              <thead>
-                <tr>
-                  <th style="width:42%;">Loại lỗi<span class="en">Type of defect</span></th>
-                  <th>Vị trí<span class="en">Station</span></th>
-                  <th>SL<span class="en">Number</span></th>
-                </tr>
-              </thead>
-              <tbody id="defect-body">
-                <tr><td colspan="3" class="muted" style="padding:2rem;">Chưa có lỗi.</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="top3">
-            <div class="top3-t">Top dạng lỗi<br>(lũy kế ngày)</div>
-            <div class="mbars" id="top-bars"></div>
-          </div>
-        </div>
-        <div class="q-foot">
-          <div class="qf"><span class="l">Đã kiểm cuối chuyền (ngày)</span><span class="v" id="kcs-qty">—</span></div>
-          <div class="qf"><span class="l">Đạt</span><span class="v pass" id="kcs-pass">—</span></div>
-          <div class="qf"><span class="l">Lỗi</span><span class="v fail" id="kcs-defect">—</span></div>
-          <div class="qf" style="margin-left:auto;"><span class="l">Tỷ lệ lỗi · Defect rate</span><span class="v" id="kcs-rate">—</span></div>
+    <div class="card kp">
+      <div class="kp-head"><div class="k">Tổng lỗi (SP)</div><div class="en">Defective garments · QLCL hôm nay</div></div>
+      <div class="kp-mid">
+        <span class="kp-big" id="kpi-loi" style="color:var(--fail-solid)">—</span>
+        <div class="kp-meta"><span class="chip fail">LỖI</span></div>
+      </div>
+    </div>
+    <div class="card kp">
+      <div class="kp-head"><div class="k">Tỉ lệ lỗi</div><div class="en">Defect rate vs target</div></div>
+      <div class="kp-mid">
+        <span class="kp-big" id="kpi-ty-le">—</span>
+        <div class="kp-meta">
+          <span class="chip pass" id="kpi-status-chip">—</span>
+          <span class="kp-sub">Target <span id="kpi-target">5.0%</span></span>
         </div>
       </div>
-
-      <!-- Breakdown -->
-      <div class="card bcard">
-        <div class="panel-title danger">Máy hỏng <span class="pt-en">Machine breakdown</span></div>
-        <div id="brk-area" class="empty">
-          <div class="empty-ic">✓</div>
-          <div class="empty-t">Không có sự cố máy</div>
-          <div class="empty-s">No machine breakdown reported today</div>
-        </div>
-        <div class="b-foot">
-          <div class="b-cell"><div class="l">Số sự cố hôm nay</div><div class="v" id="brk-count">0</div></div>
-          <div class="b-cell"><div class="l">Thời gian dừng máy</div><div class="v" id="brk-mins">0′</div></div>
-        </div>
+    </div>
+    <div class="card kp">
+      <div class="kp-head"><div class="k">Cảnh báo hàng loạt</div><div class="en">≥3 sản phẩm liên tiếp cùng loại lỗi</div></div>
+      <div class="kp-mid">
+        <span class="kp-big" id="kpi-canh-bao" style="color:var(--warn-solid)">—</span>
+        <div class="kp-meta"><span class="chip warn" id="kpi-canh-bao-chip">—</span><span class="kp-sub">≥3 SP liên tiếp cùng lỗi</span></div>
       </div>
     </div>
   </div>
 
-  <!-- FOOTER -->
+  <!-- ── MAIN ── -->
+  <div class="main">
+
+    <!-- LEFT: Tỉ lệ lỗi theo giờ -->
+    <div class="card" style="display:flex;flex-direction:column;">
+      <div class="panel-title">
+        Tỉ lệ lỗi theo mốc giờ
+        <span class="pt-en">Tỉ lệ lỗi từng mốc · luỹ kế ngày</span>
+      </div>
+      <div class="left-body">
+        <div class="bar-area">
+          <div class="y-axis">
+            <span>10%</span><span>8%</span>
+            <span class="tgt" id="y-tgt-lbl">5%▶</span>
+            <span>4%</span><span>2%</span><span>0%</span>
+          </div>
+          <div class="bars-wrap">
+            <div class="gridline" style="top:0%"></div>
+            <div class="gridline" style="top:20%"></div>
+            <div class="gridline" style="top:40%"></div>
+            <div class="gridline" style="top:60%"></div>
+            <div class="gridline" style="top:80%"></div>
+            <div class="target-line" style="top:50%" id="target-line">
+              <span class="target-badge" id="target-badge">▶ Target 5.0%</span>
+            </div>
+            <div class="bars-inner" id="bars-inner"></div>
+          </div>
+        </div>
+        <div class="x-labels" id="x-labels"></div>
+        <div class="bottom-row">
+          <div class="summary">
+            <div class="sb"><span class="l">Kiểm</span><span class="v" id="sb-kiem">—</span></div>
+            <div class="sb-div"></div>
+            <div class="sb"><span class="l">Lỗi</span><span class="v fail" id="sb-loi">—</span></div>
+            <div class="sb-div"></div>
+            <div class="sb"><span class="l">Target</span><span class="v warn" id="sb-target">5.0%</span></div>
+            <div class="sb-div"></div>
+            <div class="sb"><span class="l">Tỉ lệ ngày</span><span class="v" id="sb-rate">—</span></div>
+          </div>
+          <div class="alert-area" id="alert-area">
+            <span class="al-lbl">⚠ Hàng loạt:</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Phân tích lỗi -->
+    <div class="card" style="display:flex;flex-direction:column;">
+      <div class="panel-title danger">
+        Phân tích lỗi <span class="src-badge" id="src-badge"></span>
+        <span class="pt-en">Phân bổ theo bộ phận · Top 3 · Chi tiết</span>
+      </div>
+      <div class="right-body">
+
+        <!-- Top half: donut + top3 -->
+        <div class="analysis-top">
+
+          <!-- Donut: bộ phận -->
+          <div class="donut-half">
+            <div class="sec-title">Phân bổ lỗi theo bộ phận</div>
+            <div class="donut-row">
+              <div class="donut-svg-wrap">
+                <svg id="donut-svg" width="210" height="210" viewBox="0 0 210 210"></svg>
+                <div class="donut-center">
+                  <span class="dc-n" id="donut-total">—</span>
+                  <span class="dc-l">Tổng lỗi</span>
+                </div>
+              </div>
+              <div class="donut-legend" id="donut-legend"></div>
+            </div>
+          </div>
+
+          <!-- Top 3 + filter chips -->
+          <div class="top3-half">
+            <div class="filter-row" id="filter-row">
+              <span class="f-lbl">Lọc bộ phận:</span>
+            </div>
+            <div class="top3-area">
+              <div class="top3-title">Top 3 dạng lỗi · <span id="top3-lbl" style="font-weight:500;color:var(--ink-3);text-transform:none;letter-spacing:0;">tất cả bộ phận</span></div>
+              <div class="top3-bars" id="top3-bars"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Combo table: bp + ct + ma_loi -->
+        <div class="combo-wrap">
+          <div class="combo-hdr">
+            <span>Bộ phận</span>
+            <span>Chi tiết</span>
+            <span>Mã · Loại lỗi</span>
+            <span class="r">SL</span>
+          </div>
+          <div class="combo-body" id="combo-body"></div>
+        </div>
+
+      </div><!-- /right-body -->
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- ── FOOTER ── -->
   <div class="ftr">
-    <span class="l"><span class="refresh-dot"></span>Cập nhật <span id="ftr-time">—</span> · Auto refresh 1 phút</span>
-    <span class="r">TV-3 · Chất lượng cuối chuyền & Máy hỏng</span>
+    <span class="l">
+      <span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span>
+      · Tự động làm mới mỗi 5 phút
+    </span>
+    <span class="r">TV-3 · Chất lượng sản phẩm cuối chuyền</span>
   </div>
 
-</div>
-</div>
-</div>
+</div><!-- /si -->
+</div><!-- /stage -->
+</div><!-- /stage-wrap -->
 
 <script>
+/* ═══════════════════════════════════════════════════════════════════════
+   TV-3 — Data init từ Jinja2
+═══════════════════════════════════════════════════════════════════════ */
 const INIT_MONO = {{ init_mono | tojson }};
 const INIT_DATE = {{ init_date | tojson }};
-const REFRESH_MS = 60 * 1000;
+const REFRESH_MS = 5 * 60 * 1000;   // 5 phút
+const BAR_MAX    = 10;               // Y-axis max %
+const BP_COLORS  = ['#21437E','#2B6CB0','#3C68AE','#4A90D9','#7BAEE8','#A9C8F5','#C7DBFA'];
+const TONES      = ['r', 'y', 'o'];
 
+/* ── State ── */
+let activeFilter = null;
+let lastBoPhan   = [];
+let lastCombo    = [];
+let lastTop3     = [];
+
+/* ══ Helpers ══════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const pad = n => String(n).padStart(2, '0');
+
+/* ── Scaling ── */
 function fit() {
-  const s = document.getElementById('stage');
+  const s = $('stage');
   s.style.transform = 'scale(' + Math.min(innerWidth / 1920, innerHeight / 1080) + ')';
 }
 fit(); addEventListener('resize', fit);
 
+/* ── Clock ── */
 function tick() {
   const d = new Date();
-  const el = document.getElementById('clock');
-  if (el) el.textContent = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  $('clock').textContent  = pad(d.getHours()) + ':' + pad(d.getMinutes());
+  $('h-date').textContent = days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
+  $('ftr-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
 }
-tick(); setInterval(tick, 15000);
+tick(); setInterval(tick, 1000);
 
-function fmtNum(n) { if (n == null) return '—'; return Number(n).toLocaleString('vi-VN'); }
-
+/* ══ Fetch ════════════════════════════════════════════════════════════ */
 async function loadData() {
-  if (!INIT_MONO || !INIT_DATE) {
-    alert('Cần ?mono=...&date=... trên URL. Mở /tv để config.');
-    return;
-  }
-  const url = `/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`;
-  let data;
+  if (!INIT_MONO || !INIT_DATE) return;
   try {
-    data = await fetch(url).then(r => {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.json();
-    });
-  } catch (e) {
-    alert('Lỗi load data: ' + e.message);
+    const resp = await fetch(`/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    $('dc-overlay').classList.remove('show');
+    render(data);
+  } catch(e) {
+    $('dc-overlay').classList.add('show');
+    $('dc-sub').textContent = 'Lỗi: ' + e.message + ' · Thử lại sau 30 giây';
+    setTimeout(loadData, 30000);
+  }
+}
+
+/* ══ Render ═══════════════════════════════════════════════════════════ */
+function render(d) {
+  renderHeader(d.header || {});
+  renderKPI(d.kpi || {});
+  renderBars(d.slots || [], d.kpi || {});
+  renderAlerts(d.canh_bao || []);
+  lastBoPhan = d.bo_phan || [];
+  lastCombo  = d.combo   || [];
+  lastTop3   = d.top3    || [];
+  activeFilter = null;
+  renderDonut(lastBoPhan, (d.kpi || {}).TongLoi);
+  renderFilters(lastBoPhan);
+  renderTop3(lastTop3);
+  renderCombo(null);
+
+  /* Source badge */
+  const isQlcl = d.qc_source === 'qlcl';
+  const badge  = $('src-badge');
+  badge.textContent = isQlcl ? 'Dữ liệu QC' : 'Dữ liệu MES';
+  badge.style.background = isQlcl ? 'rgba(89,199,140,.25)' : 'rgba(224,165,59,.3)';
+}
+
+/* ── Header ── */
+function renderHeader(h) {
+  $('h-line').textContent    = h.To        || '—';
+  $('h-style').textContent   = h.StyleNo   || '—';
+  $('h-workers').textContent = h.Workers != null ? h.Workers : '—';
+  $('h-don').textContent     = h.MaDonKH   || '—';
+  $('h-kh').textContent      = h.Customer  || '—';
+  $('h-loai').textContent    = h.LoaiHang  || '—';
+  $('h-ld').textContent      = h.Workers != null ? h.Workers : '—';
+  if (h.FirstHangDate) {
+    const [y, m, dd] = h.FirstHangDate.split('-');
+    $('h-first').textContent = `${dd}/${m}/${y}`;
+  }
+}
+
+/* ── KPI cards ── */
+function renderKPI(k) {
+  const isPass = k.DefectStatus === 'pass';
+
+  $('kpi-kiem').textContent = k.TongKiem != null ? k.TongKiem : '—';
+  $('kpi-loi').textContent  = k.TongLoi  != null ? k.TongLoi  : '—';
+
+  const rateEl = $('kpi-ty-le');
+  rateEl.textContent = k.TyLeLoi != null ? k.TyLeLoi + '%' : '—';
+  rateEl.style.color = isPass ? 'var(--pass-ink)' : 'var(--fail-ink)';
+
+  const chip = $('kpi-status-chip');
+  chip.textContent = isPass ? 'ĐẠT MỤC TIÊU' : 'DƯỚI TARGET';
+  chip.className   = 'chip ' + (isPass ? 'pass' : 'fail');
+
+  $('kpi-target').textContent = (k.DefectTarget ?? 5.0) + '%';
+
+  const n = k.CanhBaoCount ?? 0;
+  $('kpi-canh-bao').textContent = n;
+  $('kpi-canh-bao-chip').textContent = n > 0 ? 'CẢNH BÁO' : 'BÌNH THƯỜNG';
+  $('kpi-canh-bao-chip').className   = 'chip ' + (n > 0 ? 'warn' : 'pass');
+
+  /* KCS summary bar */
+  $('sb-kiem').textContent   = k.TongKiem != null ? k.TongKiem : '—';
+  $('sb-loi').textContent    = k.TongLoi  != null ? k.TongLoi  : '—';
+  $('sb-target').textContent = (k.DefectTarget ?? 5.0) + '%';
+  const sbRate = $('sb-rate');
+  sbRate.textContent = k.TyLeLoi != null ? k.TyLeLoi + '%' : '—';
+  sbRate.className   = 'v ' + (isPass ? 'pass' : 'fail');
+
+  /* Donut center */
+  $('donut-total').textContent = k.TongLoi != null ? k.TongLoi : '—';
+}
+
+/* ── Hourly bar chart ── */
+function renderBars(slots, kpi) {
+  const tgt     = kpi.DefectTarget ?? 5.0;
+  const curSlot = kpi.CurrentSlot  ?? null;
+
+  /* Target line position (% from top): tgt/BAR_MAX of axis height */
+  $('target-line').style.top  = ((1 - tgt / BAR_MAX) * 100) + '%';
+  $('target-badge').textContent = '▶ Target ' + tgt + '%';
+
+  const bi = $('bars-inner');
+  const xl = $('x-labels');
+  bi.innerHTML = xl.innerHTML = '';
+
+  if (!slots.length) {
+    bi.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu QC hôm nay</div>';
     return;
   }
-  render(data);
-}
 
-function render(d) {
-  // Header
-  const h = d.header;
-  document.getElementById('h-line').textContent = 'Tổ ' + h['Tổ'];
-  document.getElementById('h-style').textContent = h.StyleNo || '—';
-  document.getElementById('h-workers').textContent = h.Workers || '—';
-  document.getElementById('h-workers2').textContent = h.Workers || '—';
-  document.getElementById('h-demand').textContent = h.MaDonKH || '—';
-  document.getElementById('h-customer').textContent = h.Customer || '—';
-  document.getElementById('h-firstday').textContent = h.FirstHangDate ? h.FirstHangDate.substring(5) : '—';
-  document.getElementById('h-wip').textContent = fmtNum(h.WIP);
+  for (const s of slots) {
+    const isCur   = s.slot === curSlot;
+    const isFail  = s.pct > tgt;
+    const hPct    = Math.min((s.pct / BAR_MAX) * 100, 100);
+    const hasData = s.kiem > 0;
 
-  const day = new Date(INIT_DATE);
-  const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-  document.getElementById('h-date').textContent =
-    days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
-  document.getElementById('ftr-time').textContent =
-    new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+    const barCls = hasData
+      ? ((isFail ? 'fail' : 'pass') + (isCur ? ' cur' : ''))
+      : 'empty';
 
-  // KPI
-  const k = d.kpi;
-  const reElNum = document.getElementById('kpi-reinspect-num');
-  const reElChip = document.getElementById('kpi-reinspect-chip');
-  reElNum.textContent = k.ReinspectPct + '%';
-  const reOK = k.ReinspectPct >= 80;
-  reElNum.className = 'k-big ' + (reOK ? 'c-pass' : 'c-fail');
-  reElChip.className = 'k-chip pct-chip ' + (reOK ? 'fill-pass' : 'fill-fail');
-  reElChip.textContent = reOK ? 'ĐẠT' : 'CHƯA';
-
-  const num2h = document.getElementById('kpi-2h-num');
-  const chip2h = document.getElementById('kpi-2h-chip');
-  num2h.textContent = fmtNum(k.DefectSlot);
-  const okSlot = k.DefectSlot === 0;
-  num2h.className = 'k-big ' + (okSlot ? 'c-pass' : 'c-fail');
-  chip2h.className = 'k-chip pct-chip ' + (okSlot ? 'fill-pass' : 'fill-fail');
-  chip2h.textContent = okSlot ? 'OK' : 'LỖI';
-  document.getElementById('kpi-slot-en').textContent =
-    k.CurrentSlotLabel || 'No slot data yet';
-  document.getElementById('quality-pt-en').textContent =
-    k.CurrentSlotLabel
-      ? `Endline Quality · ${k.CurrentSlotLabel}`
-      : 'Endline Quality · chưa có dữ liệu mốc nào';
-
-  document.getElementById('quality-pt-en').textContent = 'Endline Quality · cumulative day';
-  document.getElementById('kpi-fixed-num').textContent = fmtNum(k.FixedDay);
-  document.getElementById('kpi-fixed-num').className = 'k-big c-pass';
-
-  const numDay = document.getElementById('kpi-day-num');
-  const chipDay = document.getElementById('kpi-day-chip');
-  numDay.textContent = fmtNum(k.DefectDay);
-  const okDay = k.DefectDay === 0;
-  numDay.className = 'k-big ' + (okDay ? 'c-pass' : 'c-fail');
-  chipDay.className = 'k-chip pct-chip ' + (okDay ? 'fill-pass' : 'fill-fail');
-  chipDay.textContent = okDay ? 'OK' : 'LỖI';
-
-  // Defect table — group theo DefectCode (rowspan)
-  const dbody = document.getElementById('defect-body');
-  if (!d.defects.length) {
-    dbody.innerHTML = '<tr><td colspan="3" style="padding:2rem;color:var(--ink-3);">Chưa có lỗi nào.</td></tr>';
-  } else {
-    let html = '';
-    for (const g of d.defects) {
-      const n = g.Stations.length;
-      g.Stations.forEach((s, i) => {
-        const rowCls = i === 0 ? 'grp-start' : 'grp-mid';
-        html += `<tr class="${rowCls}">`;
-        if (i === 0) {
-          html += `<td class="code" rowspan="${n}">${escape(g.DefectCode)}. ${escape(g.DefectName)}<br><span class="ct">${n} trạm · Tổng ${g.TotalQty}</span></td>`;
-        }
-        html += `<td class="cap">${escape(s.Label)}</td>`;
-        html += `<td class="qty">${fmtNum(s.Qty)}</td>`;
-        html += '</tr>';
-      });
+    const col = document.createElement('div');
+    col.className = 'slot-col';
+    if (hasData) {
+      col.innerHTML =
+        `<span class="slot-sp${isFail?' fail':''}" style="bottom:calc(${hPct}% + 12px);">${s.kiem} sp</span>
+         <div class="bar ${barCls}" style="height:${Math.max(hPct, 2)}%;">
+           <span class="bar-val">${s.pct}%</span>
+         </div>`;
+    } else {
+      col.innerHTML = `<div class="bar empty" style="height:5%;"></div>`;
     }
-    dbody.innerHTML = html;
-  }
+    bi.appendChild(col);
 
-  // Top defect bars
-  const tb = document.getElementById('top-bars');
-  if (!d.top_defects.length) {
-    tb.innerHTML = '<div style="color:var(--ink-3);font-size:13px;align-self:center;">Chưa có lỗi.</div>';
-  } else {
-    const topTones = ['tone-red', 'tone-yellow', 'tone-orange'];
-    let lastQty = null;
-    let toneIndex = -1;
-    tb.innerHTML = d.top_defects.map((t) => {
-      if (lastQty === null || t.Qty !== lastQty) {
-        toneIndex += 1;
-      }
-      lastQty = t.Qty;
-      const tone = topTones[Math.min(toneIndex, topTones.length - 1)];
-      return `
-      <div class="mbw">
-        <div class="mbar ${tone}" style="height:${Math.max(t.BarPct * 1.5, 28)}px;">${fmtNum(t.Qty)}</div>
-        <div class="mbl">${escape(t.DefectCode)}</div>
-      </div>
-    `;
-    }).join('');
+    const lbl = document.createElement('div');
+    lbl.className = 'x-lbl' + (isFail ? ' fail' : '') + (isCur ? ' cur' : '');
+    lbl.textContent = s.label + (isCur ? ' ▸' : '');
+    xl.appendChild(lbl);
   }
-
-  // KCS footer
-  document.getElementById('kcs-qty').innerHTML = fmtNum(d.kcs.Qty) + ' <span style="font-size:12px;color:var(--ink-3)">pcs</span>';
-  document.getElementById('kcs-pass').textContent = fmtNum(d.kcs.Pass);
-  document.getElementById('kcs-defect').textContent = fmtNum(d.kcs.Defect);
-  const rateEl = document.getElementById('kcs-rate');
-  const rateOk = d.kcs.DefectRate <= k.DefectThreshold;
-  rateEl.className = 'v ' + (rateOk ? 'pass' : 'fail');
-  rateEl.innerHTML = d.kcs.DefectRate + '% <span style="font-size:12px;color:var(--ink-3)">≤ ' + k.DefectThreshold + '%</span>';
-
-  // Breakdown
-  const brkArea = document.getElementById('brk-area');
-  if (!d.breakdowns.length) {
-    brkArea.className = 'empty';
-    brkArea.innerHTML = `
-      <div class="empty-ic">✓</div>
-      <div class="empty-t">Không có sự cố máy</div>
-      <div class="empty-s">No machine breakdown reported today</div>
-    `;
-  } else {
-    brkArea.className = 'blist';
-    brkArea.innerHTML = d.breakdowns.map(b => `
-      <div class="brow">
-        <div>
-          <div class="m-name">${escape(b.MachineName)}</div>
-          ${b.Reason ? `<div class="m-reason">${escape(b.Reason)}</div>` : ''}
-        </div>
-        <div class="m-min">${b.DownMinutes}′</div>
-      </div>
-    `).join('');
-  }
-  document.getElementById('brk-count').textContent = d.breakdown_count;
-  document.getElementById('brk-count').className = 'v ' + (d.breakdown_count === 0 ? '' : 'warn');
-  document.getElementById('brk-mins').textContent = d.downtime_min + '′';
-  document.getElementById('brk-mins').className = 'v ' + (d.downtime_min === 0 ? '' : 'warn');
 }
 
-function escape(s) {
-  if (s == null) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+/* ── Alert chips ── */
+function renderAlerts(list) {
+  const area = $('alert-area');
+  /* keep first child (al-lbl) */
+  while (area.children.length > 1) area.removeChild(area.lastChild);
+  if (!list.length) {
+    const el = document.createElement('span');
+    el.style.cssText = 'font-size:11px;color:var(--ink-3);';
+    el.textContent = 'Không có cảnh báo';
+    area.appendChild(el);
+    return;
+  }
+  for (const cb of list) {
+    const chip = document.createElement('span');
+    chip.className = 'al';
+    chip.textContent = cb.time + ' · ' + cb.text;
+    area.appendChild(chip);
+  }
 }
-function truncate(s, n) { return (s && s.length > n) ? s.substring(0, n - 1) + '…' : (s || ''); }
 
+/* ══ SVG Donut ══════════════════════════════════════════════════════ */
+function makeSVGDonut(segments, W, R, r) {
+  const cx = W / 2, cy = W / 2;
+  let paths = '', labels = '';
+  let angle = -Math.PI / 2;
+  const midR = (R + r) / 2;
+
+  for (const seg of segments) {
+    if (seg.pct <= 0) continue;
+    const span   = seg.pct * 2 * Math.PI;
+    const startA = angle;
+    const x1  = cx + R * Math.cos(angle),  y1  = cy + R * Math.sin(angle);
+    angle += span;
+    const x2  = cx + R * Math.cos(angle),  y2  = cy + R * Math.sin(angle);
+    const ix1 = cx + r * Math.cos(angle),  iy1 = cy + r * Math.sin(angle);
+    const ix2 = cx + r * Math.cos(angle - span), iy2 = cy + r * Math.sin(angle - span);
+    const large = span > Math.PI ? 1 : 0;
+    const d = `M${x1.toFixed(2)},${y1.toFixed(2)} A${R},${R},0,${large},1,${x2.toFixed(2)},${y2.toFixed(2)}` +
+              ` L${ix1.toFixed(2)},${iy1.toFixed(2)} A${r},${r},0,${large},0,${ix2.toFixed(2)},${iy2.toFixed(2)} Z`;
+    paths += `<path d="${d}" fill="${seg.color}" stroke="#fff" stroke-width="3"/>`;
+
+    if (seg.pct >= 0.06) {
+      const midA = startA + span / 2;
+      const tx = (cx + midR * Math.cos(midA)).toFixed(1);
+      const ty = (cy + midR * Math.sin(midA)).toFixed(1);
+      const fs = seg.pct >= 0.15 ? 13 : 11;
+      labels += `<text x="${tx}" y="${ty}" text-anchor="middle" dominant-baseline="central"
+        font-family="'Roboto Mono',monospace" font-size="${fs}" font-weight="700" fill="#fff"
+        style="paint-order:stroke;stroke:#0004;stroke-width:2px;">${Math.round(seg.pct*100)}%</text>`;
+    }
+  }
+  return paths + labels;
+}
+
+function renderDonut(boPhanList, totalLoi) {
+  const total = boPhanList.reduce((s, b) => s + b.count, 0);
+  const svg   = $('donut-svg');
+
+  if (!boPhanList.length) {
+    svg.innerHTML = '';
+  } else {
+    const segs = boPhanList.map((b, i) => ({
+      color: BP_COLORS[i % BP_COLORS.length],
+      pct:   total ? b.count / total : 0,
+    }));
+    svg.innerHTML = makeSVGDonut(segs, 210, 96, 60);
+  }
+  $('donut-total').textContent = totalLoi != null ? totalLoi : '—';
+
+  const legend = $('donut-legend');
+  legend.innerHTML = '';
+  boPhanList.forEach((b, i) => {
+    const row = document.createElement('div');
+    row.className = 'dl' + (activeFilter === b.name ? ' active' : '');
+    row.innerHTML = `<span class="dl-dot" style="background:${BP_COLORS[i % BP_COLORS.length]}"></span>
+                     <span class="dl-name">${esc(b.name)}</span>`;
+    row.onclick = () => setFilter(activeFilter === b.name ? null : b.name);
+    legend.appendChild(row);
+  });
+}
+
+/* ── Filter chips ── */
+function renderFilters(boPhanList) {
+  const row = $('filter-row');
+  while (row.children.length > 1) row.removeChild(row.lastChild);
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'fc' + (activeFilter === null ? ' active' : '');
+  allBtn.textContent = 'Tất cả';
+  allBtn.onclick = () => setFilter(null);
+  row.appendChild(allBtn);
+
+  (boPhanList || []).forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'fc' + (activeFilter === b.name ? ' active' : '');
+    btn.textContent = b.name + ' (' + b.count + ')';
+    btn.onclick = () => setFilter(activeFilter === b.name ? null : b.name);
+    row.appendChild(btn);
+  });
+}
+
+function setFilter(bp) {
+  activeFilter = bp;
+  renderFilters(lastBoPhan);
+  renderDonut(lastBoPhan, null);  // re-render legend với active class
+
+  /* Tính top3 từ combo data khi filter theo bộ phận */
+  if (bp) {
+    const filtered = lastCombo.filter(r => r.bp === bp);
+    const agg = {};
+    for (const r of filtered) {
+      if (!agg[r.ma_loi]) agg[r.ma_loi] = { ma_loi: r.ma_loi, n: 0 };
+      agg[r.ma_loi].n += r.n;
+    }
+    renderTop3(Object.values(agg).sort((a, b) => b.n - a.n).slice(0, 3));
+  } else {
+    renderTop3(lastTop3);
+  }
+  renderCombo(bp);
+}
+
+/* ── Top 3 column chart ── */
+function renderTop3(top3Data) {
+  $('top3-lbl').textContent = activeFilter || 'tất cả bộ phận';
+  const el   = $('top3-bars');
+  el.innerHTML = '';
+  const maxN = top3Data.length ? top3Data[0].n : 1;
+
+  for (let i = 0; i < 3; i++) {
+    const t   = top3Data[i];
+    const col = document.createElement('div');
+    col.className = 't3col';
+    if (!t) {
+      col.innerHTML = `<div class="t3bar empty" style="height:32px;">—</div><div class="t3code">—</div>`;
+    } else {
+      const h = Math.max(Math.round((t.n / maxN) * 150), 32);
+      col.innerHTML =
+        `<div class="t3bar ${TONES[i]}" style="height:${h}px;">${t.n}</div>
+         <div class="t3code">${esc(t.ma_loi)}</div>`;
+    }
+    el.appendChild(col);
+  }
+}
+
+/* ── Combo table ── */
+function renderCombo(bp) {
+  const body = $('combo-body');
+  body.innerHTML = '';
+  const rows = bp ? lastCombo.filter(r => r.bp === bp) : lastCombo;
+
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.style.cssText = 'padding:12px 16px;font-size:13px;color:var(--ink-3);';
+    empty.textContent = 'Chưa có dữ liệu lỗi hôm nay';
+    body.appendChild(empty);
+    return;
+  }
+
+  rows.forEach(r => {
+    const row = document.createElement('div');
+    row.className = 'crow';
+    row.innerHTML =
+      `<span class="bp">${esc(r.bp)}</span>
+       <span class="ct">${esc(r.ct)}</span>
+       <span class="loi-cell"><span class="loi-code">${esc(r.ma_loi)}</span></span>
+       <span class="n">${r.n}</span>`;
+    body.appendChild(row);
+  });
+}
+
+/* ══ Init ════════════════════════════════════════════════════════════ */
 loadData();
 setInterval(loadData, REFRESH_MS);
 </script>

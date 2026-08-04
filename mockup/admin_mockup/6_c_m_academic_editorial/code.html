@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Cấu hình 6 cụm theo dõi sản lượng - Hanging Conveyor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&amp;family=Inter:wght@400;500;600&amp;family=JetBrains+Mono:wght@500&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .pill-row:hover {
+            background-color: #e5eeff;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d3e4fe;
+            border-radius: 10px;
+        }
+        .glass-header {
+            background: rgba(248, 249, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        @keyframes pulse-subtle {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .flow-arrow {
+            color: #7082b7;
+            opacity: 0.3;
+        }
+        /* No-Line rule: using shadows and tonal differences instead of borders */
+        .tonal-layering {
+            box-shadow: 0 4px 24px -2px rgba(11, 28, 48, 0.05);
+        }
+    </style>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-surface-variant": "#44464f",
+                        "on-error": "#ffffff",
+                        "secondary-fixed-dim": "#c3c7cb",
+                        "on-tertiary-fixed": "#00174d",
+                        "on-tertiary": "#ffffff",
+                        "surface-bright": "#f8f9ff",
+                        "surface-variant": "#d3e4fe",
+                        "surface-container-highest": "#d3e4fe",
+                        "on-primary-fixed-variant": "#324576",
+                        "error": "#ba1a1a",
+                        "inverse-surface": "#213145",
+                        "outline": "#757780",
+                        "on-secondary-fixed": "#181c1f",
+                        "secondary-fixed": "#e0e3e7",
+                        "primary-fixed": "#dae2ff",
+                        "on-surface": "#0b1c30",
+                        "surface-container": "#e5eeff",
+                        "primary-container": "#001848",
+                        "on-tertiary-container": "#6480d7",
+                        "tertiary": "#000000",
+                        "tertiary-container": "#00174d",
+                        "surface-container-low": "#eff4ff",
+                        "on-secondary-fixed-variant": "#43474b",
+                        "on-background": "#0b1c30",
+                        "tertiary-fixed": "#dbe1ff",
+                        "secondary-fixed": "#e0e3e7",
+                        "primary-fixed-dim": "#b3c5fe",
+                        "error-container": "#ffdad6",
+                        "on-secondary-container": "#5f6367",
+                        "on-error-container": "#93000a",
+                        "inverse-primary": "#b3c5fe",
+                        "tertiary-fixed-dim": "#b5c4ff",
+                        "secondary": "#5b5f62",
+                        "surface-tint": "#4a5d8f",
+                        "surface-container-high": "#dce9ff",
+                        "on-primary-fixed": "#001848",
+                        "on-tertiary-fixed-variant": "#214195",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary-container": "#7082b7",
+                        "secondary-container": "#dde0e4",
+                        "primary": "#000000",
+                        "surface": "#f8f9ff",
+                        "on-primary": "#ffffff",
+                        "surface-dim": "#cbdbf5",
+                        "outline-variant": "#c5c6d0",
+                        "on-secondary": "#ffffff",
+                        "background": "#f8f9ff",
+                        "inverse-on-surface": "#eaf1ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "1rem",
+                        "2xl": "1.5rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "display-lg": ["Manrope"],
+                        "headline-md": ["Manrope"],
+                        "title-sm": ["Manrope"],
+                        "body-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "label-numeric": ["JetBrains Mono"]
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface-bright text-on-background font-body-md min-h-screen selection:bg-primary-fixed selection:text-primary">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] flex flex-col py-10 px-8 bg-surface-container-lowest z-50">
+<div class="mb-12">
+<h1 class="font-display-lg text-[24px] font-extrabold text-primary tracking-tight">Hanging Conveyor</h1>
+<p class="font-label-caps text-[10px] text-secondary opacity-60 tracking-[0.2em] mt-1.5 uppercase">Admin Editorial</p>
+</div>
+<nav class="flex-1 space-y-2 overflow-y-auto custom-scrollbar">
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all group" href="#">
+<span class="material-symbols-outlined text-[22px]">dashboard</span>
+<span class="font-body-md font-medium">Tổng quan</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-[22px]">calendar_today</span>
+<span class="font-body-md font-medium">Lịch nghỉ</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-[22px]">subdirectory_arrow_right</span>
+<span class="font-body-md font-medium">Nhu cầu con</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-[22px]">account_tree</span>
+<span class="font-body-md font-medium">Nhu cầu mẹ</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-primary font-bold bg-surface-container-high shadow-sm" href="#">
+<span class="material-symbols-outlined text-[22px]">reorder</span>
+<span class="font-body-md">6 cụm</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-[22px]">analytics</span>
+<span class="font-body-md font-medium">SAM</span>
+</a>
+<a class="flex items-center gap-4 px-4 py-3 rounded-xl text-secondary hover:text-primary hover:bg-surface-container transition-all" href="#">
+<span class="material-symbols-outlined text-[22px]">person</span>
+<span class="font-body-md font-medium">Tài khoản</span>
+</a>
+</nav>
+<div class="mt-auto pt-8">
+<div class="flex items-center gap-4 px-4 py-4 bg-surface-container-low rounded-2xl">
+<div class="w-10 h-10 rounded-full bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">admin_panel_settings</span>
+</div>
+<div>
+<p class="font-headline-md text-[14px] text-primary leading-tight">Nguyễn Văn A</p>
+<p class="text-[10px] text-secondary mt-0.5 uppercase tracking-wider font-semibold opacity-60">Hệ thống quản trị</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="pl-[280px] flex flex-col min-h-screen">
+<!-- TopAppBar with Glassmorphism -->
+<header class="sticky top-0 h-20 flex justify-between items-center px-10 glass-header z-40">
+<div class="flex items-center gap-6">
+<button class="p-2.5 hover:bg-surface-container-high rounded-full transition-all text-primary">
+<span class="material-symbols-outlined">menu_open</span>
+</button>
+<h2 class="font-headline-md text-[20px] text-on-surface tracking-tight">Cấu hình cụm sản lượng</h2>
+</div>
+<div class="flex items-center gap-8">
+<div class="relative group">
+<span class="absolute left-4 top-1/2 -translate-y-1/2 material-symbols-outlined text-secondary text-[20px]">search</span>
+<input class="bg-surface-container-low border-none rounded-2xl pl-12 pr-6 py-2.5 w-72 focus:ring-2 focus:ring-primary/20 focus:bg-surface-container transition-all text-body-sm placeholder:text-secondary/50" placeholder="Tìm kiếm nhu cầu..." type="text"/>
+</div>
+<div class="flex items-center gap-3">
+<button class="p-2.5 hover:bg-surface-container-high rounded-full transition-all text-on-surface relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button class="p-2.5 hover:bg-surface-container-high rounded-full transition-all text-on-surface">
+<span class="material-symbols-outlined">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Canvas -->
+<div class="p-10 grid grid-cols-12 gap-10">
+<!-- PANEL 1: Danh sách Nhu cầu mẹ -->
+<section class="col-span-12 lg:col-span-4 flex flex-col">
+<div class="bg-surface-container-lowest rounded-2xl p-8 tonal-layering h-full">
+<div class="flex justify-between items-center mb-10">
+<h3 class="font-headline-md text-[18px] flex items-center gap-3">
+<span class="material-symbols-outlined text-primary-container">list_alt</span>
+                        Danh sách Nhu cầu mẹ
+                    </h3>
+<span class="font-label-numeric text-[12px] bg-surface-container px-3 py-1 rounded-full font-bold">128</span>
+</div>
+<div class="space-y-3 max-h-[calc(100vh-340px)] overflow-y-auto custom-scrollbar pr-3">
+<!-- Active Item -->
+<div class="pill-row p-5 rounded-2xl bg-surface-container-high border-none cursor-pointer flex justify-between items-center transition-all group">
+<div class="space-y-1">
+<p class="font-label-caps text-[10px] text-primary-fixed-variant font-bold tracking-widest">PO-2024-0812</p>
+<p class="font-headline-md text-[16px] text-primary group-hover:translate-x-1 transition-transform">Áo Thun Polo Premium</p>
+</div>
+<span class="bg-[#C6F6D5] text-[#22543D] text-[9px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">6/6</span>
+</div>
+<!-- Inactive Items -->
+<div class="pill-row p-5 rounded-2xl cursor-pointer flex justify-between items-center group">
+<div class="space-y-1">
+<p class="font-label-caps text-[10px] text-secondary opacity-60 font-bold tracking-widest">PO-2024-0945</p>
+<p class="font-headline-md text-[16px] group-hover:translate-x-1 transition-transform">Quần Kaki Office</p>
+</div>
+<span class="bg-surface-container text-secondary text-[9px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">0/6</span>
+</div>
+<div class="pill-row p-5 rounded-2xl cursor-pointer flex justify-between items-center group">
+<div class="space-y-1">
+<p class="font-label-caps text-[10px] text-secondary opacity-60 font-bold tracking-widest">PO-2024-1022</p>
+<p class="font-headline-md text-[16px] group-hover:translate-x-1 transition-transform">Váy Chữ A Công Sở</p>
+</div>
+<span class="bg-surface-container-highest text-secondary text-[9px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">3/6</span>
+</div>
+<div class="pill-row p-5 rounded-2xl cursor-pointer flex justify-between items-center group">
+<div class="space-y-1">
+<p class="font-label-caps text-[10px] text-secondary opacity-60 font-bold tracking-widest">PO-2024-1100</p>
+<p class="font-headline-md text-[16px] group-hover:translate-x-1 transition-transform">Áo Sơ Mi Nam Cotton</p>
+</div>
+<span class="bg-surface-container text-secondary text-[9px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">0/6</span>
+</div>
+<div class="pill-row p-5 rounded-2xl cursor-pointer flex justify-between items-center group opacity-50">
+<div class="space-y-1">
+<p class="font-label-caps text-[10px] text-secondary opacity-60 font-bold tracking-widest">PO-2024-1150</p>
+<p class="font-headline-md text-[16px] group-hover:translate-x-1 transition-transform">Bộ Đồ Thể Thao Pro</p>
+</div>
+<span class="bg-surface-container text-secondary text-[9px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider">0/6</span>
+</div>
+</div>
+</div>
+</section>
+<!-- PANEL 2: Cấu hình 6 cụm -->
+<section class="col-span-12 lg:col-span-8 space-y-10">
+<div class="flex justify-between items-start">
+<div class="max-w-xl">
+<nav class="flex gap-3 text-[10px] font-bold text-secondary tracking-[0.2em] mb-4 items-center">
+<span class="opacity-40">NHU CẦU MẸ</span>
+<span class="material-symbols-outlined text-[14px] opacity-40">chevron_right</span>
+<span class="text-primary-container">ÁO THUN POLO PREMIUM</span>
+</nav>
+<h2 class="font-display-lg text-[36px] font-extrabold leading-tight text-on-surface">Thiết lập Luồng Sản xuất</h2>
+<p class="text-secondary mt-2 text-body-md">Sắp xếp các trạm theo quy trình tối ưu hóa vận hành cho chuyền treo.</p>
+</div>
+<button class="bg-primary text-on-primary px-8 py-3.5 rounded-2xl flex items-center gap-3 font-bold hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all">
+<span class="material-symbols-outlined text-[20px]">save</span>
+                    Lưu cấu hình
+                </button>
+</div>
+<!-- Grid for 6 Clusters with Tonal Layering and Pipeline Flow -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-x-8 gap-y-12 relative pb-12">
+<!-- Visual Pipeline Arrows (Editorial Style - Asymmetric) -->
+<div class="hidden md:block absolute top-[18%] left-[28%] z-0">
+<span class="material-symbols-outlined text-[32px] flow-arrow">arrow_forward</span>
+</div>
+<div class="hidden md:block absolute top-[18%] left-[61%] z-0">
+<span class="material-symbols-outlined text-[32px] flow-arrow">arrow_forward</span>
+</div>
+<div class="hidden md:block absolute top-[48%] right-[-2%] z-0 translate-x-1/2">
+<span class="material-symbols-outlined text-[40px] flow-arrow rotate-90">subdirectory_arrow_right</span>
+</div>
+<div class="hidden md:block absolute bottom-[15%] left-[28%] z-0">
+<span class="material-symbols-outlined text-[32px] flow-arrow rotate-180">arrow_forward</span>
+</div>
+<div class="hidden md:block absolute bottom-[15%] left-[61%] z-0">
+<span class="material-symbols-outlined text-[32px] flow-arrow rotate-180">arrow_forward</span>
+</div>
+<!-- Cluster 1: Input (Tinted Teal-ish Blue) -->
+<div class="bg-surface-container-low rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-high group">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-primary-fixed-dim flex items-center justify-center text-primary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">input</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#01</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-primary/60 tracking-[0.15em] mb-1">CỤM ĐẦU VÀO</h4>
+<p class="font-headline-md text-[18px] text-primary mb-6">Input Station</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-secondary uppercase opacity-60">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-primary/5 py-3.5 px-4 shadow-sm">
+<option>Trạm số 01 - Cấp phôi</option>
+<option>Trạm số 02 - Cấp phụ liệu</option>
+</select>
+</div>
+</div>
+<!-- Cluster 2: Assembly A (Neutral) -->
+<div class="bg-surface-container-lowest rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-low group">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-secondary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined">conveyor_belt</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#02</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-secondary/60 tracking-[0.15em] mb-1">CỤM TRUNG GIAN 1</h4>
+<p class="font-headline-md text-[18px] text-on-surface mb-6">Assembly A</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-secondary uppercase opacity-60">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-low border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-primary/5 py-3.5 px-4">
+<option>Trạm số 05 - May sườn</option>
+<option>Trạm số 06 - May gấu</option>
+</select>
+</div>
+</div>
+<!-- Cluster 3: Assembly B (Neutral) -->
+<div class="bg-surface-container-lowest rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-low group">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-secondary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined">engineering</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#03</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-secondary/60 tracking-[0.15em] mb-1">CỤM TRUNG GIAN 2</h4>
+<p class="font-headline-md text-[18px] text-on-surface mb-6">Assembly B</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-secondary uppercase opacity-60">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-low border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-primary/5 py-3.5 px-4">
+<option>Trạm số 12 - Ráp vai</option>
+<option>Trạm số 14 - Tra cổ</option>
+</select>
+</div>
+</div>
+<!-- Cluster 6: QC (Tinted Light Blue/Surface Container) -->
+<div class="bg-surface-container rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-high group order-last md:order-none">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-on-tertiary-container flex items-center justify-center text-on-tertiary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">fact_check</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#06</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-on-tertiary-container/80 tracking-[0.15em] mb-1">CỤM KIỂM SOÁT (QC)</h4>
+<p class="font-headline-md text-[18px] text-on-tertiary-container mb-6">Quality Control</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-on-tertiary-container uppercase opacity-50">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-lowest border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-tertiary/5 py-3.5 px-4 shadow-sm">
+<option>Trạm số 30 - Kiểm tra lỗi</option>
+<option>Trạm số 31 - Kiểm tra thông số</option>
+</select>
+</div>
+</div>
+<!-- Cluster 5: Packing (Neutral) -->
+<div class="bg-surface-container-lowest rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-low group">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-secondary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined">inventory_2</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#05</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-secondary/60 tracking-[0.15em] mb-1">CỤM TRUNG GIAN 4</h4>
+<p class="font-headline-md text-[18px] text-on-surface mb-6">Packing Prep</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-secondary uppercase opacity-60">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-low border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-primary/5 py-3.5 px-4">
+<option>Trạm số 25 - Gấp áo</option>
+<option>Trạm số 26 - Dán nhãn</option>
+</select>
+</div>
+</div>
+<!-- Cluster 4: Finishing (Neutral) -->
+<div class="bg-surface-container-lowest rounded-2xl p-8 tonal-layering relative z-10 transition-all hover:bg-surface-container-low group">
+<div class="flex justify-between items-start mb-8">
+<div class="w-12 h-12 rounded-2xl bg-surface-container flex items-center justify-center text-secondary shadow-sm group-hover:scale-105 transition-transform">
+<span class="material-symbols-outlined">precision_manufacturing</span>
+</div>
+<span class="font-label-numeric text-[12px] font-bold text-primary opacity-30">#04</span>
+</div>
+<h4 class="font-label-caps text-[10px] font-black text-secondary/60 tracking-[0.15em] mb-1">CỤM TRUNG GIAN 3</h4>
+<p class="font-headline-md text-[18px] text-on-surface mb-6">Finishing A</p>
+<div class="space-y-2">
+<label class="font-label-caps text-[10px] font-bold text-secondary uppercase opacity-60">CHỌN TRẠM</label>
+<select class="w-full bg-surface-container-low border-none rounded-xl text-body-sm font-medium focus:ring-4 focus:ring-primary/5 py-3.5 px-4">
+<option>Trạm số 20 - Ủi thành phẩm</option>
+<option>Trạm số 21 - Cắt chỉ</option>
+</select>
+</div>
+</div>
+</div>
+<!-- Summary Status Card - Editorial Tonal Layering -->
+<div class="bg-on-background text-on-primary rounded-2xl p-10 flex flex-col md:flex-row justify-between items-center gap-10 tonal-layering">
+<div class="flex items-center gap-8">
+<div class="w-16 h-16 bg-white/10 rounded-2xl flex items-center justify-center">
+<span class="material-symbols-outlined text-[32px] text-primary-fixed">reorder</span>
+</div>
+<div class="space-y-1">
+<h3 class="font-display-lg text-[24px] font-bold">Trạng thái cấu hình</h3>
+<p class="opacity-60 text-body-md max-w-md">Luồng sản xuất cho <span class="font-bold text-white">PO-2024-0812</span> đã được tối ưu hóa và sẵn sàng áp dụng vào hệ thống.</p>
+</div>
+</div>
+<div class="flex gap-4 w-full md:w-auto">
+<button class="flex-1 md:flex-none bg-white/10 hover:bg-white/20 px-8 py-3.5 rounded-xl font-bold transition-all text-body-md">Hủy bỏ</button>
+<button class="flex-1 md:flex-none bg-white text-on-background px-10 py-3.5 rounded-xl font-black shadow-2xl hover:scale-105 active:scale-95 transition-all text-body-md">Áp dụng</button>
+</div>
+</div>
+</section>
+</div>
+</main>
+<script>
+    // Selection interaction for the left list
+    document.querySelectorAll('.pill-row').forEach(row => {
+        row.addEventListener('click', () => {
+            document.querySelectorAll('.pill-row').forEach(r => {
+                r.classList.remove('bg-surface-container-high', 'shadow-sm');
+            });
+            row.classList.add('bg-surface-container-high', 'shadow-sm');
+        });
+    });
+
+    // Subtle animation for completed status
+    const successPill = document.querySelector('.bg-\\[\\#C6F6D5\\]');
+    if (successPill) {
+        successPill.style.animation = 'pulse-subtle 3s infinite ease-in-out';
+    }
+</script>
+</body></html>

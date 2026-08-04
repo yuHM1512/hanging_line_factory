@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+
+<html class="light" lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Lịch nghỉ | Hanging Conveyor</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&amp;family=Manrope:wght@600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-surface-variant": "#44464f",
+                    "on-error": "#ffffff",
+                    "secondary-fixed-dim": "#c3c7cb",
+                    "on-tertiary-fixed": "#00174d",
+                    "on-tertiary": "#ffffff",
+                    "surface-bright": "#f8f9ff",
+                    "surface-variant": "#d3e4fe",
+                    "surface-container-highest": "#d3e4fe",
+                    "on-primary-fixed-variant": "#324576",
+                    "error": "#ba1a1a",
+                    "inverse-surface": "#213145",
+                    "outline": "#757780",
+                    "on-secondary-fixed": "#181c1f",
+                    "secondary-fixed": "#e0e3e7",
+                    "primary-fixed": "#dae2ff",
+                    "on-surface": "#0b1c30",
+                    "surface-container": "#e5eeff",
+                    "primary-container": "#001848",
+                    "on-tertiary-container": "#6480d7",
+                    "tertiary": "#000000",
+                    "tertiary-container": "#00174d",
+                    "surface-container-low": "#eff4ff",
+                    "on-secondary-fixed-variant": "#43474b",
+                    "on-background": "#0b1c30",
+                    "tertiary-fixed": "#dbe1ff",
+                    "secondary-fixed": "#e0e3e7",
+                    "primary-fixed-dim": "#b3c5fe",
+                    "error-container": "#ffdad6",
+                    "on-secondary-container": "#5f6367",
+                    "on-error-container": "#93000a",
+                    "inverse-primary": "#b3c5fe",
+                    "tertiary-fixed-dim": "#b5c4ff",
+                    "secondary": "#5b5f62",
+                    "surface-tint": "#4a5d8f",
+                    "surface-container-high": "#dce9ff",
+                    "on-primary-fixed": "#001848",
+                    "on-tertiary-fixed-variant": "#214195",
+                    "surface-container-lowest": "#ffffff",
+                    "on-primary-container": "#7082b7",
+                    "secondary-container": "#dde0e4",
+                    "primary": "#000000",
+                    "surface": "#f8f9ff",
+                    "on-primary": "#ffffff",
+                    "surface-dim": "#cbdbf5",
+                    "outline-variant": "#c5c6d0",
+                    "on-secondary": "#ffffff",
+                    "background": "#f8f9ff",
+                    "inverse-on-surface": "#eaf1ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "grid-columns": "12",
+                    "gutter": "24px",
+                    "stack-gap": "16px",
+                    "container-padding": "32px",
+                    "sidebar-width": "280px"
+            },
+            "fontFamily": {
+                    "display-lg": ["Manrope"],
+                    "headline-md": ["Manrope"],
+                    "label-numeric": ["JetBrains Mono"],
+                    "title-sm": ["Manrope"],
+                    "body-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "label-caps": ["Inter"]
+            },
+            "fontSize": {
+                    "display-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}],
+                    "label-numeric": ["14px", {"lineHeight": "20px", "fontWeight": "500"}],
+                    "title-sm": ["18px", {"lineHeight": "24px", "fontWeight": "600"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "fontWeight": "400"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { background-color: #f8f9ff; }
+        .pill-row td:first-child { border-top-left-radius: 12px; border-bottom-left-radius: 12px; }
+        .pill-row td:last-child { border-top-right-radius: 12px; border-bottom-right-radius: 12px; }
+        .glass-header { backdrop-filter: blur(24px); background: rgba(248, 249, 255, 0.7); }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; vertical-align: middle; }
+        ::-webkit-calendar-picker-indicator { cursor: pointer; opacity: 0.6; }
+        ::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+        .btn-navy-gradient { background: linear-gradient(135deg, #000000 0%, #001848 100%); }
+    </style>
+</head>
+<body class="font-body-md text-on-background overflow-x-hidden">
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-0 h-full w-[280px] bg-surface-container-lowest flex flex-col py-8 px-6 z-50">
+<div class="mb-10">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-white" style="font-variation-settings: 'FILL' 1;">conveyor_belt</span>
+</div>
+<div>
+<h1 class="font-headline-md text-headline-md font-bold text-primary leading-none">Hanging Conveyor</h1>
+<p class="font-label-caps text-label-caps text-secondary mt-1">Admin Setup</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="dashboard">dashboard</span>
+<span class="font-body-md">Tổng quan</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-primary font-bold bg-surface-container-low transition-all" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_today" style="font-variation-settings: 'FILL' 1;">calendar_today</span>
+<span class="font-body-md">Lịch nghỉ</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="subdirectory_arrow_right">subdirectory_arrow_right</span>
+<span class="font-body-md">Nhu cầu con</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="account_tree">account_tree</span>
+<span class="font-body-md">Nhu cầu mẹ</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="reorder">reorder</span>
+<span class="font-body-md">6 cụm</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="analytics">analytics</span>
+<span class="font-body-md">SAM</span>
+</a>
+<a class="flex items-center gap-4 py-3 px-4 rounded-xl text-secondary hover:text-primary hover:bg-surface-container-low transition-colors duration-200" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-body-md">Tài khoản</span>
+</a>
+</nav>
+<div class="pt-6 mt-6 bg-surface-container-lowest">
+<div class="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-container-low transition-colors cursor-pointer">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest flex items-center justify-center text-primary-fixed-dim overflow-hidden">
+<img class="w-full h-full object-cover" data-alt="A professional studio portrait of a Vietnamese male operations manager in a smart casual white shirt, blurred industrial factory background, soft high-key lighting, focused and trustworthy expression." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBJyqeKBI7dOFednwbeCNlSTqHx0SW50LSxVb4Zfj7eLFdMUd9u9VpfN-GVt2bT6Jx7C6cxns1ctCXsVYHz_4OmEuMHqlDQHwqTjQyhfJzQKpla3zatcwkau2O-vWYcAFLgUXbEsJpcmYCFIDBy45DWJc02Q72rcRmfiQLLzIGfXFGvk2eH16CAAXBKRW83A_d-dEYrikpRFgJPGiWzAbgHyn99maz9llm2WV-zylzd8CSdAQ31zi3m7A"/>
+</div>
+<div class="flex-1 min-w-0">
+<p class="font-body-md font-bold truncate">Nguyễn Văn A</p>
+<p class="font-label-caps text-[10px] text-secondary">HÀNH CHÍNH</p>
+</div>
+<span class="material-symbols-outlined text-secondary" data-icon="admin_panel_settings">admin_panel_settings</span>
+</div>
+</div>
+</aside>
+<!-- Main Content -->
+<main class="ml-[280px] min-h-screen bg-surface">
+<!-- TopAppBar -->
+<header class="h-20 flex justify-between items-center w-full px-8 sticky top-0 z-40 glass-header">
+<div class="flex items-center gap-4">
+<h2 class="font-display-lg text-display-lg text-primary">Lịch nghỉ</h2>
+<div class="h-8 w-px bg-surface-container-high"></div>
+<p class="font-body-md text-secondary">Ngày lễ + ngày nghỉ riêng của tổ</p>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<span class="absolute left-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-outline group-focus-within:text-primary">search</span>
+<input class="pl-10 pr-4 py-2 bg-surface-container border-none rounded-full w-64 focus:ring-0 focus:bg-surface-container-highest transition-all text-body-sm" placeholder="Tìm kiếm..." type="text"/>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-secondary hover:bg-surface-container rounded-full transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="p-2 text-secondary hover:bg-surface-container rounded-full transition-all active:scale-95">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+</div>
+</div>
+</header>
+<div class="p-16 space-y-16 max-w-7xl mx-auto">
+<!-- PANEL 1: Add Holiday Form -->
+<section class="bg-surface-container-lowest rounded-[1.25rem] p-8">
+<div class="flex items-center gap-3 mb-8">
+<div class="w-8 h-8 bg-primary-fixed text-on-primary-fixed rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">add</span>
+</div>
+<h3 class="font-title-sm text-title-sm">Thêm ngày nghỉ mới</h3>
+</div>
+<form class="grid grid-cols-12 gap-6 items-end">
+<div class="col-span-3">
+<label class="font-label-caps text-label-caps text-secondary mb-3 block">NGÀY NGHỈ</label>
+<div class="relative">
+<input class="w-full bg-surface-container border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 transition-all font-label-numeric" type="date"/>
+</div>
+</div>
+<div class="col-span-7">
+<label class="font-label-caps text-label-caps text-secondary mb-3 block">GHI CHÚ (Tên ngày lễ / Lý do)</label>
+<input class="w-full bg-surface-container border-none rounded-xl py-3.5 px-4 focus:ring-2 focus:ring-primary/20 transition-all text-body-md" placeholder="Ví dụ: Giải phóng Miền Nam, Nghỉ bảo trì hệ thống..." type="text"/>
+</div>
+<div class="col-span-2">
+<button class="w-full btn-navy-gradient text-white font-bold py-3.5 px-6 rounded-xl hover:opacity-90 active:scale-[0.98] transition-all flex items-center justify-center gap-2 shadow-lg shadow-primary/10" type="submit">
+<span class="material-symbols-outlined text-[20px]">send</span>
+                        Thêm
+                    </button>
+</div>
+</form>
+</section>
+<!-- Main Layout: Table + Mini Calendar -->
+<div class="grid grid-cols-12 gap-16">
+<!-- PANEL 2: Holiday List -->
+<section class="col-span-8 bg-surface-container-lowest rounded-[1.25rem] p-8">
+<div class="flex justify-between items-center mb-8">
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 bg-surface-container-highest text-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]" style="font-variation-settings: 'FILL' 1;">list_alt</span>
+</div>
+<h3 class="font-title-sm text-title-sm">Danh sách ngày nghỉ</h3>
+</div>
+<div class="flex gap-2">
+<span class="px-4 py-1.5 bg-surface-container text-primary rounded-full text-[10px] font-bold uppercase tracking-wider">Năm 2024</span>
+</div>
+</div>
+<div class="overflow-x-auto">
+<table class="w-full text-left border-separate border-spacing-y-3">
+<thead>
+<tr class="text-label-caps text-secondary">
+<th class="px-6 py-2 font-semibold">NGÀY</th>
+<th class="px-4 py-2 font-semibold">THỨ</th>
+<th class="px-4 py-2 font-semibold">GHI CHÚ</th>
+<th class="px-6 py-2 font-semibold text-right">THAO TÁC</th>
+</tr>
+</thead>
+<tbody>
+<!-- Past Date Row -->
+<tr class="pill-row bg-surface-container/30 opacity-60 transition-all hover:opacity-100">
+<td class="px-6 py-5 font-label-numeric">01/01/2024</td>
+<td class="px-4 py-5 font-body-sm">Thứ 2</td>
+<td class="px-4 py-5">
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant rounded-full text-xs font-medium">Tết Dương Lịch</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-secondary/40 cursor-not-allowed"><span class="material-symbols-outlined">delete_outline</span></button>
+</td>
+</tr>
+<!-- National Holiday Row -->
+<tr class="pill-row bg-primary-fixed/30 transition-all hover:bg-primary-fixed/50">
+<td class="px-6 py-5 font-label-numeric font-bold text-on-primary-fixed-variant">30/04/2024</td>
+<td class="px-4 py-5 font-body-sm text-on-primary-fixed-variant">Thứ 3</td>
+<td class="px-4 py-5">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+<span class="text-on-primary-fixed-variant font-semibold">Giải phóng Miền Nam</span>
+</div>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-error hover:bg-error-container/30 p-2 rounded-lg transition-all active:scale-90"><span class="material-symbols-outlined">delete</span></button>
+</td>
+</tr>
+<tr class="pill-row bg-primary-fixed/30 transition-all hover:bg-primary-fixed/50">
+<td class="px-6 py-5 font-label-numeric font-bold text-on-primary-fixed-variant">01/05/2024</td>
+<td class="px-4 py-5 font-body-sm text-on-primary-fixed-variant">Thứ 4</td>
+<td class="px-4 py-5">
+<span class="text-on-primary-fixed-variant font-semibold">Quốc tế Lao động</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-error hover:bg-error-container/30 p-2 rounded-lg transition-all active:scale-90"><span class="material-symbols-outlined">delete</span></button>
+</td>
+</tr>
+<!-- Normal Holiday Row -->
+<tr class="pill-row bg-surface-container/50 transition-all hover:bg-surface-container">
+<td class="px-6 py-5 font-label-numeric text-on-surface">15/06/2024</td>
+<td class="px-4 py-5 font-body-sm text-on-surface">Thứ 7</td>
+<td class="px-4 py-5">
+<span class="text-secondary">Nghỉ bảo trì đường ray cụm 3</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-error hover:bg-error-container/30 p-2 rounded-lg transition-all active:scale-90"><span class="material-symbols-outlined">delete</span></button>
+</td>
+</tr>
+<tr class="pill-row bg-surface-container/50 transition-all hover:bg-surface-container">
+<td class="px-6 py-5 font-label-numeric text-on-surface">02/09/2024</td>
+<td class="px-4 py-5 font-body-sm text-on-surface">Thứ 2</td>
+<td class="px-4 py-5">
+<span class="font-semibold text-primary">Quốc khánh Việt Nam</span>
+</td>
+<td class="px-6 py-5 text-right">
+<button class="text-error hover:bg-error-container/30 p-2 rounded-lg transition-all active:scale-90"><span class="material-symbols-outlined">delete</span></button>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</section>
+<!-- Mini Calendar Widget -->
+<section class="col-span-4 space-y-8">
+<div class="bg-surface-container-lowest rounded-[1.25rem] p-8">
+<div class="flex items-center justify-between mb-8">
+<h3 class="font-title-sm text-title-sm">Tháng 04</h3>
+<div class="flex gap-2">
+<button class="w-9 h-9 rounded-full hover:bg-surface-container flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[20px]">chevron_left</span>
+</button>
+<button class="w-9 h-9 rounded-full hover:bg-surface-container flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[20px]">chevron_right</span>
+</button>
+</div>
+</div>
+<div class="grid grid-cols-7 gap-1 text-center mb-6">
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">CN</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T2</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T3</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T4</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T5</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T6</div>
+<div class="text-[10px] font-bold text-secondary uppercase tracking-wider">T7</div>
+</div>
+<div class="grid grid-cols-7 gap-1 text-center font-label-numeric">
+<!-- Empty cells for padding start of month -->
+<div class="p-2.5"></div>
+<div class="p-2.5 text-secondary/30">1</div>
+<div class="p-2.5 text-secondary/30">2</div>
+<div class="p-2.5 text-secondary/30">3</div>
+<div class="p-2.5 text-secondary/30">4</div>
+<div class="p-2.5 text-secondary/30">5</div>
+<div class="p-2.5 text-secondary/30">6</div>
+<div class="p-2.5 text-secondary/30">7</div>
+<div class="p-2.5 text-secondary/30">8</div>
+<div class="p-2.5 text-secondary/30">9</div>
+<div class="p-2.5 text-secondary/30">10</div>
+<div class="p-2.5 text-secondary/30">11</div>
+<div class="p-2.5 text-secondary/30">12</div>
+<div class="p-2.5 text-secondary/30">13</div>
+<div class="p-2.5">14</div>
+<div class="p-2.5">15</div>
+<div class="p-2.5">16</div>
+<div class="p-2.5 bg-primary/5 rounded-lg">17</div>
+<div class="p-2.5">18</div>
+<div class="p-2.5">19</div>
+<div class="p-2.5">20</div>
+<div class="p-2.5">21</div>
+<div class="p-2.5">22</div>
+<div class="p-2.5">23</div>
+<div class="p-2.5">24</div>
+<div class="p-2.5">25</div>
+<div class="p-2.5">26</div>
+<div class="p-2.5">27</div>
+<div class="p-2.5 text-error font-bold">28</div>
+<div class="p-2.5">29</div>
+<div class="p-2.5 bg-primary text-white rounded-lg font-bold relative">
+                            30
+                            <div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-white rounded-full"></div>
+</div>
+<div class="p-2.5"></div><div class="p-2.5"></div><div class="p-2.5"></div><div class="p-2.5"></div>
+</div>
+<div class="mt-8 pt-8 bg-surface-container-lowest space-y-4">
+<div class="flex items-center gap-3 text-body-sm">
+<div class="w-3 h-3 rounded-full bg-primary"></div>
+<span class="flex-1 text-secondary">Ngày lễ quốc gia</span>
+<span class="font-label-numeric font-bold text-primary">2</span>
+</div>
+<div class="flex items-center gap-3 text-body-sm">
+<div class="w-3 h-3 rounded-full bg-surface-container-high"></div>
+<span class="flex-1 text-secondary">Ngày nghỉ riêng</span>
+<span class="font-label-numeric font-bold text-secondary">3</span>
+</div>
+</div>
+</div>
+<div class="relative rounded-[1.25rem] overflow-hidden h-48 group shadow-xl shadow-primary/5">
+<div class="absolute inset-0 z-10 bg-gradient-to-t from-primary-container/90 to-transparent p-8 flex flex-col justify-end text-white">
+<p class="font-label-caps text-white/70">LƯU Ý VẬN HÀNH</p>
+<h4 class="font-headline-md text-headline-md leading-tight mt-1">Ngày lễ 30/04 - 01/05</h4>
+<p class="font-body-sm text-white/70 mt-2">Toàn bộ hệ thống băng chuyền sẽ được ngắt điện lúc 22:00 ngày 29/04.</p>
+</div>
+<img class="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" data-alt="A cinematic, high-contrast photograph of a silent, sophisticated hanging conveyor system in a large modern garment factory at night, dramatic blue moonlight streaming through high windows, minimal tech glow, tranquil yet industrial atmosphere." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0OEBgWym2zZgp7He-Em3c7HvoIsGJzU_3a4VEpvHIhXZb-QEGP1lTojCYsTK8-dE811Ph8csuqioygVV7s_IfnXm1WiJhW4zjkiuwu5mAOzKQ4EPS-q_-RZl8hKh1w-1VdjZwdwul2bqgQh-iapE8O-oHO85peWfjAFDwZPbL-wKMj5pHTPFSCVfxDcyoGwlIx49lp1rIfzR4v3yHx_2LNkRTaMTbqEGQ2GspNKLyjoALzzCVvOS2SA"/>
+</div>
+</section>
+</div>
+</div>
+</main>
+<script>
+    document.querySelectorAll('form').forEach(form => {
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            const btn = form.querySelector('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> Đang lưu...';
+            btn.classList.add('opacity-70');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('opacity-70');
+                alert('Đã thêm ngày nghỉ mới thành công!');
+            }, 1000);
+        });
+    });
+
+    document.querySelectorAll('.pill-row').forEach(row => {
+        row.addEventListener('mouseenter', () => {
+            row.style.transform = 'translateY(-2px)';
+            row.style.boxShadow = '0 12px 24px -10px rgba(0,0,0,0.05)';
+        });
+        row.addEventListener('mouseleave', () => {
+            row.style.transform = 'translateY(0)';
+            row.style.boxShadow = 'none';
+        });
+    });
+</script>
+</body></html>

@@ -1,11 +1,15 @@
 {% extends "admin/base.html" %}
 {% set active = 'demand' %}
+{% block header_breadcrumb %}Nhu cầu mẹ{% endblock %}
 {% block heading %}Nhu cầu mẹ{% endblock %}
-{% block subheading %}Chọn 1 Nhu cầu con (đã khai báo) làm mẹ. Tổ + Mã hàng auto-lấy từ con. Mẹ chỉ cần thêm ĐMKT / Phân loại / LĐ biên chế.{% endblock %}
+{% block subheading %}Chọn 1 Nhu cầu con làm mẹ. Tổ + Mã hàng auto-lấy từ con.{% endblock %}
 
 {% block body %}
 <div class="panel">
-  <h3 class="panel-title">Chọn Nhu cầu con chưa có mẹ</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">list_alt</span>
+    Chọn Nhu cầu con chưa có mẹ
+  </h3>
   <p class="muted small">List dưới chỉ hiện các con (tPlanMaster) chưa được gán làm NhuCauMe nào. Tạo NhuCauCon trước ở <a href="/admin/plan">trang Nhu cầu con</a>.</p>
   <table class="data-table" id="tbl-cands">
     <thead>
@@ -26,7 +30,10 @@
 </div>
 
 <div class="panel" id="form-panel" hidden>
-  <h3 class="panel-title">Đăng ký Nhu cầu mẹ</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">add_circle</span>
+    Đăng ký Nhu cầu mẹ
+  </h3>
   <form id="form-demand" class="grid-form">
     <label class="field">
       <span class="field-label">NhuCauMe (= Số đơn hàng con đầu)</span>
@@ -70,7 +77,10 @@
 </div>
 
 <div class="panel">
-  <h3 class="panel-title">Đã đăng ký</h3>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">check_circle</span>
+    Đã đăng ký
+  </h3>
   <table class="data-table" id="tbl-demand">
     <thead>
       <tr>
@@ -95,6 +105,7 @@
 {% block page_scripts %}
 <script>
 const API = '/admin/api/demand';
+let editingKey = null;  // null = create mode; string = NhuCauMe being edited
 
 function renderCands(rows) {
   const tbody = document.querySelector('#tbl-cands tbody');
@@ -144,41 +155,80 @@ async function loadDemand() {
       <td>${Admin.escape(r.PhanLoaiDH)}</td>
       <td>${r.LDBienChe}</td>
       <td class="col-action">
-        <button class="btn btn-danger btn-sm" data-del="${Admin.escape(r.NhuCauMe)}">Xoá</button>
+        <button class="btn-icon" data-edit='${JSON.stringify(r).replace(/&#39;/g, "&#39;")}' title="Sửa">
+          <span class="material-symbols-outlined">edit</span>
+        </button>
+        <button class="btn-icon btn-icon-danger" data-del="${Admin.escape(r.NhuCauMe)}" title="Xoá">
+          <span class="material-symbols-outlined">delete</span>
+        </button>
       </td>
     </tr>
   `).join('');
 }
 
-document.querySelector('#tbl-cands').addEventListener('click', (e) => {
-  const btn = e.target.closest('[data-pick]');
-  if (!btn) return;
-  const r = JSON.parse(btn.dataset.pick.replace(/&#39;/g, "'"));
+function openCreate(r) {
+  editingKey = null;
   const f = document.querySelector('#form-demand');
+  f.reset();
   f.NhuCauMe.value = r.SoDonHang;
   f.StyleNo.value = r.StyleNo;
   f.LineNo.value = r.LineNoOut;
+  document.querySelector('#form-panel h3').textContent = 'Đăng ký Nhu cầu mẹ';
+  document.querySelector('#form-demand button[type="submit"]').textContent = 'Lưu Nhu cầu mẹ';
   document.querySelector('#form-panel').hidden = false;
   document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+function openEdit(r) {
+  editingKey = r.NhuCauMe;
+  const f = document.querySelector('#form-demand');
+  f.reset();
+  f.NhuCauMe.value = r.NhuCauMe;
+  f.StyleNo.value = r.StyleNo;
+  f.LineNo.value = r.LineNoOut;
+  f.DMKT.value = r.DMKT;
+  f.PhanLoaiDH.value = r.PhanLoaiDH;
+  f.LDBienChe.value = r.LDBienChe;
+  f.Notes.value = r.Notes || '';
+  document.querySelector('#form-panel h3').textContent = 'Sửa Nhu cầu mẹ: ' + r.NhuCauMe;
+  document.querySelector('#form-demand button[type="submit"]').textContent = 'Cập nhật';
+  document.querySelector('#form-panel').hidden = false;
+  document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.querySelector('#tbl-cands').addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-pick]');
+  if (!btn) return;
+  openCreate(JSON.parse(btn.dataset.pick.replace(/&#39;/g, "'")));
 });
 
 document.querySelector('#btn-cancel').addEventListener('click', () => {
+  editingKey = null;
   document.querySelector('#form-panel').hidden = true;
 });
 
 document.querySelector('#form-demand').addEventListener('submit', async (e) => {
   e.preventDefault();
+  if (!Admin.validateForm(e.target)) return;
   const fd = new FormData(e.target);
   const body = {
-    NhuCauMe: fd.get('NhuCauMe'),
     DMKT: parseFloat(fd.get('DMKT')),
     PhanLoaiDH: fd.get('PhanLoaiDH'),
     LDBienChe: parseInt(fd.get('LDBienChe')),
     Notes: fd.get('Notes') || null,
   };
   try {
-    await Admin.fetchJSON(API, { method: 'POST', body: JSON.stringify(body) });
-    Admin.toast('Đã lưu Nhu cầu mẹ. Quay lại trang Nhu cầu con để gắn mẹ vào con.', 'ok');
+    if (editingKey) {
+      await Admin.fetchJSON(`${API}/${encodeURIComponent(editingKey)}`, {
+        method: 'PUT', body: JSON.stringify(body),
+      });
+      Admin.toast('Đã cập nhật Nhu cầu mẹ.', 'ok');
+    } else {
+      body.NhuCauMe = fd.get('NhuCauMe');
+      await Admin.fetchJSON(API, { method: 'POST', body: JSON.stringify(body) });
+      Admin.toast('Đã lưu Nhu cầu mẹ. Quay lại trang Nhu cầu con để gắn mẹ vào con.', 'ok');
+    }
+    editingKey = null;
     document.querySelector('#form-panel').hidden = true;
     e.target.reset();
     loadCands();
@@ -189,10 +239,17 @@ document.querySelector('#form-demand').addEventListener('submit', async (e) => {
 });
 
 document.querySelector('#tbl-demand').addEventListener('click', async (e) => {
+  /* Edit button */
+  const editBtn = e.target.closest('[data-edit]');
+  if (editBtn) {
+    openEdit(JSON.parse(editBtn.dataset.edit.replace(/&#39;/g, "'")));
+    return;
+  }
+  /* Delete button */
   const btn = e.target.closest('[data-del]');
   if (!btn) return;
   const k = btn.dataset.del;
-  if (!confirm(`Xoá Nhu cầu mẹ "${k}"? Các con sẽ unlink (NhuCauMe = NULL).`)) return;
+  if (!await Admin.confirmDelete(`Xoá Nhu cầu mẹ "${k}"? Các con sẽ unlink (NhuCauMe = NULL).`)) return;
   try {
     await Admin.fetchJSON(`${API}/${encodeURIComponent(k)}`, { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');

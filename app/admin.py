@@ -3,8 +3,11 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import math
+import os
 import re
+import time
 import urllib.request
 import uuid
 from datetime import date, datetime, timedelta
@@ -17,6 +20,13 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import auth, db
+
+# URL base app QLCL — dùng để lấy danh mục loại hàng và đồng bộ kế hoạch
+QLCL_API_URL = os.environ.get("QLCL_API_URL", "http://localhost:8008")
+# API key để xác thực với QLCL server (phải trùng với QLCL_API_KEY bên QLCL)
+QLCL_API_KEY = os.environ.get("QLCL_API_KEY", "")
+# Đơn vị của app này — gắn vào prod_plan.don_vi khi push sang QLCL
+QLCL_DON_VI  = os.environ.get("QLCL_DON_VI", "XN")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -39,6 +49,8 @@ def _actor_id(user: dict) -> str:
 
 # Chỉ hiện MONo có scan đầu tiên (MIN ShtDate) từ ngày này trở đi.
 PLAN_CANDIDATE_START_DATE = date(2026, 4, 18)
+PLAN_CANDIDATE_CACHE_TTL_SECONDS = 60
+_plan_candidate_cache: dict[str, Any] = {"expires_at": 0.0, "rows": None}
 
 # Regex parse Tổ từ MONo prefix (handle 'LINE 1 #', 'LINE; 1- #', 'LINE; 6-#')
 _RE_LINE_NUM = re.compile(r"LINE\W*?(\d+)", re.IGNORECASE)
@@ -57,6 +69,11 @@ def parse_mono(mono: str) -> dict[str, Any]:
         m_st = _RE_LEAD_DIGITS.match(so_dh.lstrip("#"))
         style = m_st.group(1) if m_st else None
     return {"LineNo": line_no, "SoDonHang": so_dh, "StyleNo": style}
+
+
+def _clear_plan_candidate_cache() -> None:
+    _plan_candidate_cache["expires_at"] = 0.0
+    _plan_candidate_cache["rows"] = None
 
 
 def get_holidays() -> set[date]:
@@ -130,6 +147,30 @@ def page_plan(request: Request):
     return templates.TemplateResponse(
         "admin/plan.html", {"request": request, "user": request.state.current_user}
     )
+
+
+# ============================================================
+# Checklist API — tổng quan trạng thái setup
+# ============================================================
+@router.get("/api/checklist")
+def api_checklist():
+    """Trả về số lượng record mỗi bảng master data để hiển thị checklist."""
+    counts = {}
+    tables = {
+        "holiday": "SELECT COUNT(*) AS c FROM app.tHoliday",
+        "demand":  "SELECT COUNT(*) AS c FROM app.tDemandRoot",
+        "plan":    "SELECT COUNT(*) AS c FROM app.tPlanMaster",
+        "cluster": "SELECT COUNT(*) AS c FROM app.tClusterStationConfig",
+        "sam":     "SELECT COUNT(*) AS c FROM app.tSAM",
+        "user":    "SELECT COUNT(*) AS c FROM app.tUser",
+    }
+    for key, sql in tables.items():
+        try:
+            rows = db.query(sql)
+            counts[key] = rows[0]["c"] if rows else 0
+        except Exception:
+            counts[key] = -1  # error
+    return counts
 
 
 # ============================================================
@@ -298,26 +339,52 @@ def api_demand_delete(nhu_cau_me: str, user: dict = Depends(auth.require_admin))
 # M5 — Plan (Nhu cầu con) — tPlanMaster + tPlanPO
 # ============================================================
 @router.get("/api/plan/candidates")
-def api_plan_candidates():
+def api_plan_candidates(request: Request):
     """List MONo từ MES `tMOM` chưa có trong app.tPlanMaster, kèm 2 điều kiện lọc.
 
     1. MIN(ShtDate) trong tRecentWork >= PLAN_CANDIDATE_START_DATE
     2. Có sản lượng ra chuyền > 0 (SUM(Qty) WHERE StRole=13 AND IsLastSeq=1)
     """
+    force_refresh = request.query_params.get("refresh") == "1"
+    now = time.monotonic()
+    if not force_refresh and _plan_candidate_cache["expires_at"] > now:
+        return _plan_candidate_cache["rows"]
+
     rows = db.query(
-        "SELECT mm.MONo FROM {MES_DB}.dbo.tMOM mm "
-        "WHERE NOT EXISTS (SELECT 1 FROM app.tPlanMaster pm WHERE pm.MONo = mm.MONo) "
-        "  AND mm.MONo IN ("
-        "      SELECT rw.MONo "
-        "      FROM {MES_DB}.dbo.tRecentWork rw "
-        "      INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid "
-        "      WHERE rw.MONo IS NOT NULL AND rw.MONo <> '' "
-        "      GROUP BY rw.MONo "
-        "      HAVING MIN(rw.ShtDate) >= ? "
-        "         AND SUM(CASE WHEN st.StRole = 13 AND rw.IsLastSeq = 1 THEN rw.Qty ELSE 0 END) > 0"
-        "  ) "
-        "ORDER BY mm.MONo",
-        (PLAN_CANDIDATE_START_DATE,),
+        """
+        WITH FinalOutput AS (
+            SELECT rw.MONo, SUM(rw.Qty) AS QtyOut
+            FROM {MES_DB}.dbo.tRecentWork rw
+            INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+            WHERE rw.ShtDate >= ?
+              AND st.StRole = 13
+              AND rw.IsLastSeq = 1
+              AND rw.MONo IS NOT NULL
+              AND rw.MONo <> ''
+            GROUP BY rw.MONo
+            HAVING SUM(rw.Qty) > 0
+        )
+        SELECT fo.MONo
+        FROM FinalOutput fo
+        WHERE EXISTS (
+            SELECT 1
+            FROM {MES_DB}.dbo.tMOM mm
+            WHERE mm.MONo = fo.MONo
+        )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM app.tPlanMaster pm
+            WHERE pm.MONo = fo.MONo
+          )
+          AND NOT EXISTS (
+            SELECT 1
+            FROM {MES_DB}.dbo.tRecentWork rw_before
+            WHERE rw_before.MONo = fo.MONo
+              AND rw_before.ShtDate < ?
+          )
+        ORDER BY fo.MONo
+        """,
+        (PLAN_CANDIDATE_START_DATE, PLAN_CANDIDATE_START_DATE),
     )
     out = []
     for r in rows:
@@ -325,6 +392,8 @@ def api_plan_candidates():
         parts = parse_mono(mono)
         if parts["SoDonHang"] and parts["LineNo"] and parts["StyleNo"]:
             out.append({"MONo": mono, **parts})
+    _plan_candidate_cache["rows"] = out
+    _plan_candidate_cache["expires_at"] = now + PLAN_CANDIDATE_CACHE_TTL_SECONDS
     return out
 
 
@@ -344,6 +413,7 @@ class PlanIn(AdminModel):
     daily_aim: Optional[int] = Field(None, alias="DailyAim", gt=0)
     customer: Optional[str] = Field(None, alias="Customer")
     nhu_cau_me: Optional[str] = Field(None, alias="NhuCauMe")
+    loai_hang: Optional[str] = Field(None, alias="LoaiHang")
     notes: Optional[str] = Field(None, alias="Notes")
     pos: list[POIn] = Field(default_factory=list, alias="POs")
 
@@ -379,7 +449,7 @@ def _enrich_plan_rows(rows: list[dict]) -> list[dict]:
 def api_plan_list():
     rows = db.query(
         "SELECT PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo] AS LineNoOut, "
-        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, Notes, "
+        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes, "
         "CreatedBy, "
         "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
         "FROM app.tPlanMaster ORDER BY FirstHangDate DESC, [LineNo], SoDonHang"
@@ -391,7 +461,7 @@ def api_plan_list():
 def api_plan_detail(guid: str):
     rows = db.query(
         "SELECT PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo] AS LineNoOut, "
-        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, Notes "
+        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes "
         "FROM app.tPlanMaster WHERE PlanMaster_guid = ?",
         (guid,),
     )
@@ -416,11 +486,11 @@ def api_plan_create(body: PlanIn, user: dict = Depends(auth.require_admin)):
             cur.execute(
                 "INSERT INTO app.tPlanMaster "
                 "(PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo], "
-                "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, Notes, CreatedBy) "
-                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+                "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes, CreatedBy) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (new_guid, body.mono, body.so_don_hang, body.style_no, body.line_no,
                  body.first_hang_date, body.slkh, body.daily_aim, body.customer,
-                 body.nhu_cau_me, body.notes, _actor_id(user)),
+                 body.nhu_cau_me, body.loai_hang, body.notes, _actor_id(user)),
             )
             for po in body.pos:
                 cur.execute(
@@ -430,6 +500,7 @@ def api_plan_create(body: PlanIn, user: dict = Depends(auth.require_admin)):
                 )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, f"Lưu thất bại: {exc}") from exc
+    _clear_plan_candidate_cache()
     return {"ok": True, "guid": str(new_guid)}
 
 
@@ -440,6 +511,7 @@ class PlanUpdate(AdminModel):
     daily_aim: Optional[int] = Field(None, alias="DailyAim", gt=0)
     customer: Optional[str] = Field(None, alias="Customer")
     nhu_cau_me: Optional[str] = Field(None, alias="NhuCauMe")
+    loai_hang: Optional[str] = Field(None, alias="LoaiHang")
     notes: Optional[str] = Field(None, alias="Notes")
 
 @router.put("/api/plan/{guid}")
@@ -449,14 +521,15 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
         cur.execute(
             "UPDATE app.tPlanMaster SET "
             "[LineNo] = ?, FirstHangDate = ?, SLKH = ?, DailyAim = ?, "
-            "Customer = ?, NhuCauMe = ?, Notes = ?, "
+            "Customer = ?, NhuCauMe = ?, LoaiHang = ?, Notes = ?, "
             "UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
             "WHERE PlanMaster_guid = ?",
             (body.line_no, body.first_hang_date, body.slkh, body.daily_aim,
-             body.customer, body.nhu_cau_me, body.notes, _actor_id(user), guid),
+             body.customer, body.nhu_cau_me, body.loai_hang, body.notes, _actor_id(user), guid),
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Plan không tồn tại")
+    _clear_plan_candidate_cache()
     return {"ok": True}
 
 
@@ -468,7 +541,95 @@ def api_plan_delete(guid: str):
         cur.execute("DELETE FROM app.tPlanMaster WHERE PlanMaster_guid = ?", (guid,))
         if cur.rowcount == 0:
             raise HTTPException(404, "Plan không tồn tại")
+    _clear_plan_candidate_cache()
     return {"ok": True}
+
+
+# --- Proxy API: lấy danh mục loại hàng từ QLCL ---
+
+@router.get("/api/dm-loai-hang")
+def api_dm_loai_hang_proxy():
+    """Proxy lấy danh sách loại hàng từ app QLCL (dm_loai_hang.ten_loai)."""
+    try:
+        url = f"{QLCL_API_URL}/api/dm/loai-hang"
+        req = urllib.request.Request(url, method="GET")
+        req.add_header("Accept", "application/json")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read())
+        # Return only ten_loai list for dropdown
+        rows = data.get("rows", [])
+        return {"rows": [{"ten_loai": r["ten_loai"]} for r in rows]}
+    except Exception as exc:  # noqa: BLE001
+        return {"rows": [], "error": f"Không kết nối được QLCL: {exc}"}
+
+
+@router.post("/api/sync-to-qlcl")
+def api_sync_to_qlcl():
+    """Đọc tPlanMaster từ SQL Server, push sang QLCL server qua HTTP.
+
+    Endpoint này được gọi từ admin UI thay thế cho sync-hanging-line cũ
+    (vì QLCL trên server trung tâm không thể kết nối trực tiếp SQL Server XN).
+    """
+    # 1. Đọc kế hoạch từ SQL Server của app này
+    plan_rows = db.query(
+        """
+        SELECT CAST(pm.PlanMaster_guid AS NVARCHAR(36)) AS guid,
+               pm.MONo,
+               pm.SoDonHang,
+               pm.StyleNo,
+               pm.[LineNo],
+               pm.LoaiHang,
+               CONVERT(VARCHAR(10), pm.FirstHangDate, 120) AS FirstHangDate,
+               pm.SLKH,
+               pm.Customer,
+               ISNULL((SELECT SUM(Qty) FROM app.tPlanPO po
+                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid), pm.SLKH) AS TotalPOQty
+        FROM app.tPlanMaster pm
+        ORDER BY pm.FirstHangDate DESC, pm.CreatedAt DESC
+        """
+    )
+
+    plans = []
+    for r in plan_rows:
+        mono = str(r.get("MONo") or "").strip()
+        if not mono:
+            continue
+        plans.append({
+            "guid":       str(r["guid"]),
+            "mono":       mono,
+            "ke_hoach":   f"HL-{mono}",
+            "line_no":    r.get("LineNo") or 0,
+            "style_no":   str(r.get("StyleNo") or "").strip(),
+            "customer":   str(r.get("Customer") or "").strip(),
+            "loai_hang":  str(r.get("LoaiHang") or "").strip() or None,
+            "first_hang": r.get("FirstHangDate"),
+            "san_luong":  int(r.get("TotalPOQty") or r.get("SLKH") or 0),
+        })
+
+    if not plans:
+        return {"status": "ok", "message": "Không có kế hoạch nào", "inserted": 0, "updated": 0}
+
+    # 2. POST sang QLCL
+    body = json.dumps({"don_vi": QLCL_DON_VI, "plans": plans}).encode()
+    req = urllib.request.Request(
+        f"{QLCL_API_URL}/api/prod-plan/push-from-hl",
+        data=body,
+        method="POST",
+    )
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
+    if QLCL_API_KEY:
+        req.add_header("X-API-Key", QLCL_API_KEY)
+
+    try:
+        with urllib.request.urlopen(req, timeout=15) as resp:
+            result = json.loads(resp.read())
+        return result
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Không kết nối được QLCL: {exc}")
 
 
 @router.post("/api/plan/{guid}/po")
