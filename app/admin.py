@@ -607,14 +607,8 @@ def api_dm_loai_hang_proxy():
         return {"rows": [], "error": f"Không kết nối được QLCL: {exc}"}
 
 
-@router.post("/api/sync-to-qlcl")
-def api_sync_to_qlcl():
-    """Đọc tPlanMaster từ SQL Server, push sang QLCL server qua HTTP.
-
-    Endpoint này được gọi từ admin UI thay thế cho sync-hanging-line cũ
-    (vì QLCL trên server trung tâm không thể kết nối trực tiếp SQL Server XN).
-    """
-    # 1. Đọc kế hoạch từ SQL Server của app này
+def _do_sync_to_qlcl() -> dict:
+    """Core logic: đọc tPlanMaster → push sang QLCL. Gọi được từ cả endpoint lẫn background thread."""
     plan_rows = db.query(
         """
         SELECT CAST(pm.PlanMaster_guid AS NVARCHAR(36)) AS guid,
@@ -653,14 +647,17 @@ def api_sync_to_qlcl():
     if not plans:
         return {"status": "ok", "message": "Không có kế hoạch nào", "inserted": 0, "updated": 0}
 
-    # 2. POST sang QLCL
     body = json.dumps({"don_vi": QLCL_DON_VI, "plans": plans}).encode()
     req = _qlcl_request("/api/prod-plan/push-from-hl", data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=15) as resp:
+        return json.loads(resp.read())
 
+
+@router.post("/api/sync-to-qlcl")
+def api_sync_to_qlcl():
+    """Push kế hoạch từ SQL Server XN sang QLCL server — gọi từ admin UI."""
     try:
-        with urllib.request.urlopen(req, timeout=15) as resp:
-            result = json.loads(resp.read())
-        return result
+        return _do_sync_to_qlcl()
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
         raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")

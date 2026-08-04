@@ -1,6 +1,10 @@
 """FastAPI app: Hanging Conveyor Dashboard."""
 from __future__ import annotations
 
+import logging
+import os
+import threading
+import time
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
@@ -11,6 +15,30 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from . import admin, auth, db, entry, queries, tv
+
+logger = logging.getLogger(__name__)
+
+# Auto-sync sang QLCL — bật bằng QLCL_AUTO_SYNC_ENABLED=true trong .env
+_AUTO_SYNC_ENABLED  = os.getenv("QLCL_AUTO_SYNC_ENABLED", "false").lower() in ("1", "true", "yes")
+_AUTO_SYNC_INTERVAL = max(1, int(os.getenv("QLCL_AUTO_SYNC_INTERVAL_MINUTES", "60")))
+_auto_sync_started  = False
+_auto_sync_lock     = threading.Lock()
+
+
+def _auto_sync_loop() -> None:
+    logger.info("QLCL auto-sync started, interval=%s minutes", _AUTO_SYNC_INTERVAL)
+    while True:
+        time.sleep(_AUTO_SYNC_INTERVAL * 60)
+        try:
+            result = admin._do_sync_to_qlcl()
+            logger.info(
+                "QLCL auto-sync ok — inserted=%s updated=%s skipped=%s",
+                result.get("inserted", 0),
+                result.get("updated", 0),
+                result.get("skipped", 0),
+            )
+        except Exception:
+            logger.exception("QLCL auto-sync failed")
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -23,6 +51,20 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(tv.router)
 app.include_router(entry.router)
+
+
+@app.on_event("startup")
+def startup_auto_sync() -> None:
+    global _auto_sync_started
+    if not _AUTO_SYNC_ENABLED:
+        return
+    with _auto_sync_lock:
+        if _auto_sync_started:
+            return
+        t = threading.Thread(target=_auto_sync_loop, name="qlcl-auto-sync", daemon=True)
+        t.start()
+        _auto_sync_started = True
+        logger.info("QLCL auto-sync thread started")
 
 
 def _default_range() -> tuple[date, date]:
