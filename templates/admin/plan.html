@@ -20,13 +20,35 @@
         <th>Số đơn hàng</th>
         <th>Mã hàng</th>
         <th>Tổ</th>
+        <th class="col-action">Chi tiết</th>
         <th class="col-action">Chọn</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="5" class="muted">Đang tải...</td></tr>
+      <tr><td colspan="6" class="muted">Đang tải...</td></tr>
     </tbody>
   </table>
+</div>
+
+<!-- Modal: sản lượng theo ngày -->
+<div id="modal-daily" style="display:none; position:fixed; inset:0; z-index:1000;
+     background:rgba(0,0,0,.45); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:1rem; padding:1.5rem 2rem;
+              min-width:340px; max-width:480px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+      <h3 style="margin:0; font-family:Manrope,sans-serif; font-size:1.05rem; color:#0b1c30;" id="modal-daily-title">
+        Sản lượng theo ngày
+      </h3>
+      <button onclick="closeDailyModal()"
+              style="background:none; border:none; cursor:pointer; font-size:1.4rem; color:#44464f; line-height:1;">✕</button>
+    </div>
+    <div id="modal-daily-body" style="max-height:380px; overflow-y:auto;">
+      <p class="muted">Đang tải...</p>
+    </div>
+    <div style="margin-top:1rem; text-align:right;">
+      <button class="btn btn-tertiary" onclick="closeDailyModal()">Đóng</button>
+    </div>
+  </div>
 </div>
 
 <div class="panel" id="form-panel" hidden>
@@ -189,7 +211,7 @@ async function loadMothersInto(currentValue = '') {
 function renderCands(rows) {
   const tbody = document.querySelector('#tbl-cands tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="muted">Không có MONo nào.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="muted">Không có MONo nào.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => `
@@ -199,6 +221,12 @@ function renderCands(rows) {
       <td>${Admin.escape(r.StyleNo)}</td>
       <td>Tổ ${r.LineNo}</td>
       <td class="col-action">
+        <button class="btn-icon" title="Xem sản lượng theo ngày"
+                data-daily="${Admin.escape(r.MONo)}">
+          <span class="material-symbols-outlined">bar_chart</span>
+        </button>
+      </td>
+      <td class="col-action">
         <button class="btn btn-primary btn-sm"
                 data-pick='${JSON.stringify(r).replace(/'/g, "&#39;")}'>Chọn</button>
       </td>
@@ -206,9 +234,77 @@ function renderCands(rows) {
   `).join('');
 }
 
+// --- Modal sản lượng theo ngày ---
+function closeDailyModal() {
+  document.getElementById('modal-daily').style.display = 'none';
+}
+
+async function openDailyModal(mono) {
+  const modal = document.getElementById('modal-daily');
+  const body  = document.getElementById('modal-daily-body');
+  document.getElementById('modal-daily-title').textContent = `Sản lượng KCS — ${mono}`;
+  body.innerHTML = '<p class="muted">Đang tải...</p>';
+  modal.style.display = 'flex';
+  try {
+    const data = await Admin.fetchJSON(`${API}/candidates/${encodeURIComponent(mono)}/daily-output`);
+    if (!data.rows.length) {
+      body.innerHTML = '<p class="muted">Chưa có dữ liệu.</p>';
+      return;
+    }
+    // Format ngày dd/M
+    const fmt = s => { const d = new Date(s); return `${d.getDate()}/${d.getMonth()+1}`; };
+    const maxQty = Math.max(1, ...data.rows.map(r => r.Qty));
+    body.innerHTML = `
+      <table style="width:100%; border-collapse:collapse; font-size:0.9rem;">
+        <thead>
+          <tr style="border-bottom:2px solid #e2e8f0;">
+            <th style="text-align:left; padding:0.4rem 0.5rem; color:#44464f; font-weight:600;">Ngày</th>
+            <th style="text-align:right; padding:0.4rem 0.5rem; color:#44464f; font-weight:600;">Sản lượng</th>
+            <th style="padding:0.4rem 0.5rem; width:120px;"></th>
+          </tr>
+        </thead>
+        <tbody>
+          ${data.rows.map(r => `
+            <tr style="border-bottom:1px solid #f1f5f9;">
+              <td style="padding:0.4rem 0.5rem; font-weight:600; color:#0b1c30;">${fmt(r.ShtDate)}</td>
+              <td style="padding:0.4rem 0.5rem; text-align:right; font-family:monospace;">
+                ${r.Qty.toLocaleString('vi-VN')}
+              </td>
+              <td style="padding:0.4rem 0.5rem;">
+                <div style="background:#e0f2fe; border-radius:3px; height:10px; overflow:hidden;">
+                  <div style="background:#3b82f6; height:100%; width:${Math.round(r.Qty/maxQty*100)}%;"></div>
+                </div>
+              </td>
+            </tr>`).join('')}
+        </tbody>
+        <tfoot>
+          <tr style="border-top:2px solid #0b1c30;">
+            <td style="padding:0.5rem 0.5rem; font-weight:700; color:#0b1c30;">Tổng</td>
+            <td style="padding:0.5rem 0.5rem; text-align:right; font-weight:700; font-family:monospace; color:#0b1c30;">
+              ${data.total.toLocaleString('vi-VN')}
+            </td>
+            <td></td>
+          </tr>
+        </tfoot>
+      </table>`;
+  } catch (err) {
+    body.innerHTML = `<p style="color:#ef4444;">Lỗi: ${Admin.escape(err.message)}</p>`;
+  }
+}
+
+// Đóng modal khi click ra ngoài
+document.getElementById('modal-daily').addEventListener('click', (e) => {
+  if (e.target === e.currentTarget) closeDailyModal();
+});
+
+document.querySelector('#tbl-cands').addEventListener('click', (e) => {
+  const daily = e.target.closest('[data-daily]');
+  if (daily) { openDailyModal(daily.dataset.daily); return; }
+});
+
 async function loadCands(forceRefresh = false) {
   const tbody = document.querySelector('#tbl-cands tbody');
-  tbody.innerHTML = '<tr><td colspan="5" class="muted">Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="6" class="muted">Đang tải...</td></tr>';
   const suffix = forceRefresh ? '?refresh=1' : '';
   const rows = await Admin.fetchJSON(`${API}/candidates${suffix}`);
   renderCands(rows);
@@ -239,6 +335,9 @@ function renderPlans(rows) {
         <td>${r.POCount} (${r.POQtySum.toLocaleString('vi-VN')})</td>
         <td>${meBadge}</td>
         <td class="col-action">
+          <button class="btn-icon" data-daily="${Admin.escape(r.MONo)}" title="Xem sản lượng theo ngày">
+            <span class="material-symbols-outlined">bar_chart</span>
+          </button>
           <button class="btn-icon" data-edit="${r.PlanMaster_guid}" title="Sửa">
             <span class="material-symbols-outlined">edit</span>
           </button>
@@ -553,6 +652,8 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
 });
 
 document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
+  const dailyBtn = e.target.closest('[data-daily]');
+  if (dailyBtn) { openDailyModal(dailyBtn.dataset.daily); return; }
   const editBtn = e.target.closest('[data-edit]');
   if (editBtn) {
     openEdit(editBtn.dataset.edit);

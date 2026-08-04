@@ -397,6 +397,28 @@ def api_plan_candidates(request: Request):
     return out
 
 
+@router.get("/api/plan/candidates/{mono}/daily-output")
+def api_plan_candidate_daily_output(mono: str):
+    """Sản lượng KCS (StRole=13, IsLastSeq=1) theo từng ngày cho 1 MONo — đọc MES."""
+    rows = db.query(
+        """
+        SELECT
+            CONVERT(varchar(10), rw.ShtDate, 120) AS ShtDate,
+            SUM(rw.Qty) AS Qty
+        FROM {MES_DB}.dbo.tRecentWork rw
+        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        WHERE rw.MONo = ?
+          AND st.StRole = 13
+          AND rw.IsLastSeq = 1
+        GROUP BY rw.ShtDate
+        ORDER BY rw.ShtDate
+        """,
+        (mono,),
+    )
+    total = sum(r["Qty"] for r in rows)
+    return {"mono": mono, "rows": rows, "total": total}
+
+
 class POIn(AdminModel):
     po_no: str = Field(..., alias="PONo")
     qty: int = Field(..., alias="Qty", gt=0)
