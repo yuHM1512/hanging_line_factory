@@ -79,20 +79,64 @@ _plan_candidate_cache: dict[str, Any] = {"expires_at": 0.0, "rows": None}
 # Regex parse Tổ từ MONo prefix (handle 'LINE 1 #', 'LINE; 1- #', 'LINE; 6-#')
 _RE_LINE_NUM = re.compile(r"LINE\W*?(\d+)", re.IGNORECASE)
 _RE_LEAD_DIGITS = re.compile(r"(\d+)")
+# Số tổ tối đa — dùng để phân biệt số tổ với mã hàng trong format StyleNo-LineNo
+_MAX_LINE_NO = 10
 
 
 def parse_mono(mono: str) -> dict[str, Any]:
-    """Tách MONo -> {LineNo, SoDonHang, StyleNo}."""
+    """Tách MONo -> {LineNo, SoDonHang, StyleNo}.
+
+    Hỗ trợ 2 format:
+
+    Format 1 — có từ "LINE" (cũ):
+        'LINE 3 #324230-4'  -> LineNo=3, SoDonHang='#324230-4', StyleNo='324230'
+        'LINE; 6-#D093-6'   -> LineNo=6, SoDonHang='#D093-6',   StyleNo='D093'
+
+    Format 2 — không có "LINE" (mới): [#]StyleNo-LineNo[-Repeat]
+        '376556-5'    -> LineNo=5, SoDonHang='376556-5',   StyleNo='376556'
+        '#D093-6'     -> LineNo=6, SoDonHang='#D093-6',    StyleNo='D093'
+        '376556-5-2'  -> LineNo=5, SoDonHang='376556-5-2', StyleNo='376556'  (lần 2)
+        'HWP100-1'    -> LineNo=1, SoDonHang='HWP100-1',   StyleNo='HWP100'
+        '324212'      -> LineNo=None  (không đủ thông tin, bỏ qua)
+    """
     if not mono:
         return {"LineNo": None, "SoDonHang": None, "StyleNo": None}
+
+    # --- Format 1: có "LINE" ---
     m_line = _RE_LINE_NUM.search(mono)
-    line_no = int(m_line.group(1)) if m_line else None
-    so_dh = mono[mono.index("#"):] if "#" in mono else None
-    style = None
-    if so_dh:
-        m_st = _RE_LEAD_DIGITS.match(so_dh.lstrip("#"))
-        style = m_st.group(1) if m_st else None
-    return {"LineNo": line_no, "SoDonHang": so_dh, "StyleNo": style}
+    if m_line:
+        line_no = int(m_line.group(1))
+        so_dh = mono[mono.index("#"):] if "#" in mono else None
+        style = None
+        if so_dh:
+            m_st = _RE_LEAD_DIGITS.match(so_dh.lstrip("#"))
+            style = m_st.group(1) if m_st else None
+        return {"LineNo": line_no, "SoDonHang": so_dh, "StyleNo": style}
+
+    # --- Format 2: [#]StyleNo-LineNo[-Repeat] ---
+    so_dh   = mono                      # SoDonHang = MONo chính nó
+    stripped = mono.lstrip("#").strip()
+    parts    = stripped.split("-")
+
+    line_no = None
+    style   = None
+
+    if len(parts) >= 2:
+        last        = parts[-1]
+        second_last = parts[-2]
+
+        if (last.isdigit() and second_last.isdigit()
+                and 1 <= int(second_last) <= _MAX_LINE_NO):
+            # Dạng StyleNo-LineNo-Repeat (vd 376556-5-2)
+            line_no = int(second_last)
+            style   = "-".join(parts[:-2]) or None
+        elif last.isdigit() and 1 <= int(last) <= _MAX_LINE_NO:
+            # Dạng StyleNo-LineNo (vd 376556-5)
+            line_no = int(last)
+            style   = "-".join(parts[:-1]) or None
+        # else: không nhận ra được tổ → line_no=None, bỏ qua ở bước lọc
+
+    return {"LineNo": line_no, "SoDonHang": so_dh, "StyleNo": style or stripped or None}
 
 
 def _clear_plan_candidate_cache() -> None:
