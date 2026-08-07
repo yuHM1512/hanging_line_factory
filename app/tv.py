@@ -39,7 +39,6 @@ def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
         resp.raise_for_status()
         return resp.json()
     except Exception:
-        # QLCL unavailable → TV-3 vẫn hiển thị MES data, defect section trống
         return {"found": False}
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -293,6 +292,83 @@ def _scan_count_for_cluster(
     # Lấy MIN để bảo thủ (= số SP đã pass qua tất cả SeqNo của cụm)
     # Nếu group chỉ 1 SeqNo thì = COUNT(*)
     return min(qtys)
+
+
+def _configured_last_cluster(plan: dict) -> Optional[dict]:
+    clusters = sorted(plan.get("Cluster") or [], key=lambda x: x["ClusterOrder"])
+    return (
+        next((c for c in clusters if c["ClusterOrder"] == 6), None)
+        or next((c for c in clusters if c["Role"] == "last"), None)
+        or (clusters[-1] if clusters else None)
+    )
+
+
+def _daily_output_for_configured_last_cluster(plan: dict, mono: str, the_date: date) -> int:
+    """Output ngày của cụm cuối được khai báo cho plan.
+
+    TV display lấy số qua cụm cuối từ MES/MSD. Với cụm có Role=last, giữ công
+    thức KCS đang dùng ở TV-1/TV-2; nếu cấu hình không đánh dấu last thì đọc
+    theo RouteStepOdr của ClusterOrder=6/cụm cuối.
+    """
+    last_cluster = _configured_last_cluster(plan)
+    if not last_cluster:
+        return _output_kcs(mono, the_date, the_date)["Qty"]
+    if last_cluster["Role"] == "last":
+        return _output_kcs(mono, the_date, the_date)["Qty"]
+    return _scan_count_for_cluster(mono, last_cluster["RouteStepOdr"], the_date, the_date)
+
+
+def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: date) -> dict[int, int]:
+    """Output theo slot của cụm cuối cấu hình, dùng làm mẫu số tỉ lệ lỗi TV-3."""
+    last_cluster = _configured_last_cluster(plan)
+    if not last_cluster or last_cluster["Role"] == "last":
+        return _hourly_actual(mono, the_date)
+
+    route_step_odr = last_cluster["RouteStepOdr"]
+    seq_nos = db.query(
+        """
+        ;WITH Steps AS (
+          SELECT ds.Odr, ds.SeqNo,
+                 MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
+                   OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
+          FROM {MES_DB}.dbo.tRouteDS ds
+          JOIN {MES_DB}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
+          JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
+          WHERE mm.MONo = ?
+        )
+        SELECT DISTINCT SeqNo FROM Steps WHERE HeadOdr = ?
+        """,
+        (mono, route_step_odr),
+    )
+    if not seq_nos:
+        return {i: 0 for i in range(1, 6)}
+
+    seq_list = [r["SeqNo"] for r in seq_nos]
+    placeholders = ",".join(["?"] * len(seq_list))
+    rows = db.query(
+        f"""
+        SELECT rw.SeqNo, rw.BeginTime, COUNT(*) AS Qty
+        FROM {{MES_DB}}.dbo.tRecentWork rw
+        WHERE rw.MONo = ? AND rw.SeqNo IN ({placeholders})
+          AND rw.ShtDate = ?
+        GROUP BY rw.SeqNo, rw.BeginTime
+        """,
+        [mono] + seq_list + [the_date],
+    )
+
+    per_seq_slot: dict[Any, dict[int, int]] = {}
+    for r in rows:
+        slot = _slot_from_time(r["BeginTime"])
+        if not slot:
+            continue
+        seq_counts = per_seq_slot.setdefault(r["SeqNo"], {i: 0 for i in range(1, 6)})
+        seq_counts[slot] += int(r["Qty"] or 0)
+
+    counts = {i: 0 for i in range(1, 6)}
+    for slot in counts:
+        qtys = [seq_counts[slot] for seq_counts in per_seq_slot.values()]
+        counts[slot] = min(qtys) if qtys else 0
+    return counts
 
 
 def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
@@ -771,9 +847,11 @@ def api_tv3(
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
 
-    # ── MES: Tổng kiểm KCS (golden formula) ─────────────────────────
+    # ── MES/MSD: Tổng kiểm theo cụm cuối cấu hình ───────────────────
     today_kcs = _output_kcs(mono, the_date, the_date)
-    kcs_qty   = today_kcs["Qty"]   # số SP qua KCS hôm nay
+    kcs_qty   = today_kcs["Qty"]   # số SP qua KCS của ngày chọn để cross-check
+    final_cluster_qty = _daily_output_for_configured_last_cluster(plan, mono, the_date)
+    final_cluster_slots = _hourly_output_for_configured_last_cluster(plan, mono, the_date)
 
     # Xác định slot hiện tại từ scan KCS gần nhất
     recent_scan_row = db.query(
@@ -790,20 +868,20 @@ def api_tv3(
     current_slot = _slot_from_time(last_scan_bt)
 
     # ── QLCL: Defect data từ QC PostgreSQL ──────────────────────────
-    # Gọi HTTP tới QLCL app cùng máy; timeout 5s, fallback gracefully
+    # Gọi HTTP tới QLCL app cùng máy; timeout 5s.
     qc = _fetch_qlcl_tv3(mono, the_date)
     qc_found = qc.get("found", False)
 
-    # KPI lỗi: ưu tiên QLCL nếu có, fallback về MES DefectiveQty
-    if qc_found:
-        total_kiem = qc.get("total_kiem", 0) or kcs_qty  # QC có thể kiểm nhiều hơn
-        total_loi  = qc.get("total_loi",  0)
-        ty_le_loi  = qc.get("ty_le_loi",  0.0)
-    else:
-        # Fallback: dùng DefectiveQty từ MES KCS
-        total_kiem = kcs_qty
-        total_loi  = int(today_kcs["Def"])
-        ty_le_loi  = round(total_loi / total_kiem * 100, 1) if total_kiem else 0.0
+    if not qc_found:
+        raise HTTPException(
+            status_code=502,
+            detail="Không lấy được dữ liệu QC thật từ QLCL /api/tv3/qc-data",
+        )
+
+    # KPI lỗi: Tổng kiểm luôn là MES/MSD cụm cuối cấu hình; QLCL chỉ cấp số lỗi.
+    total_kiem = final_cluster_qty
+    total_loi  = qc.get("total_loi",  0)
+    ty_le_loi = round(total_loi / total_kiem * 100, 1) if total_kiem else 0.0
 
     # Determine defect KPI status
     defect_target = 5.0  # %
@@ -811,6 +889,24 @@ def api_tv3(
 
     # Số cảnh báo hàng loạt
     canh_bao_list = qc.get("canh_bao", []) if qc_found else []
+
+    qc_slot_errors = {
+        int(s.get("slot")): int(s.get("loi") or 0)
+        for s in qc.get("slots", [])
+        if s.get("slot") is not None
+    }
+
+    slots = []
+    for i, (label, _) in enumerate(SLOT_LABELS, start=1):
+        kiem = int(final_cluster_slots.get(i, 0) or 0)
+        loi = int(qc_slot_errors.get(i, 0) or 0)
+        slots.append({
+            "slot": i,
+            "label": label,
+            "kiem": kiem,
+            "loi": loi,
+            "pct": round(loi / kiem * 100, 1) if kiem else 0.0,
+        })
 
     # Null-safe: SoDonHang và FirstHangDate có thể NULL trên một số plan
     ma_don_kh = (plan["SoDonHang"] or "").lstrip("#")
@@ -827,7 +923,7 @@ def api_tv3(
             "Workers":        workers,
         },
         "kpi": {
-            # Tổng kiểm: QC nguồn (output QC nhập liệu)
+            # Tổng kiểm: output MSD/MES của cụm cuối cấu hình
             "TongKiem":      total_kiem,
             "TongLoi":       total_loi,
             "TyLeLoi":       ty_le_loi,
@@ -837,19 +933,20 @@ def api_tv3(
             "CurrentSlot":   current_slot,
             # MES KCS để crosscheck
             "MES_KCS_Qty":   kcs_qty,
+            "FinalClusterQty": final_cluster_qty,
         },
-        # Biểu đồ lỗi theo giờ — từ QLCL slots; fallback rỗng
-        "slots": qc.get("slots", []) if qc_found else [],
+        # Biểu đồ lỗi theo giờ: mẫu số MSD cụm cuối, tử số QLCL.
+        "slots": slots,
         # Phân bổ bộ phận (donut)
-        "bo_phan": qc.get("bo_phan", []) if qc_found else [],
+        "bo_phan": qc.get("bo_phan", []),
         # Top 3 mã lỗi (column chart)
-        "top3": qc.get("top3", []) if qc_found else [],
+        "top3": qc.get("top3", []),
         # Combo table
-        "combo": qc.get("combo", []) if qc_found else [],
+        "combo": qc.get("combo", []),
         # Cảnh báo hàng loạt
         "canh_bao": canh_bao_list,
         # Meta
-        "qc_source": "qlcl" if qc_found else "mes_fallback",
+        "qc_source": "qlcl",
     }
 
 

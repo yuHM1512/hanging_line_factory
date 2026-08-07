@@ -317,14 +317,14 @@
   <!-- ── KPI ROW ── -->
   <div class="kpis">
     <div class="card kp">
-      <div class="kp-head"><div class="k">Tổng kiểm (QC)</div><div class="en">Total inspected · QLCL hôm nay</div></div>
+      <div class="kp-head"><div class="k">Tổng kiểm (MSD)</div><div class="en">Output cụm cuối · theo ngày chọn</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-kiem">—</span>
-        <div class="kp-meta"><span class="chip neu">QC nhập liệu</span></div>
+        <div class="kp-meta"><span class="chip neu">Cụm cuối</span></div>
       </div>
     </div>
     <div class="card kp">
-      <div class="kp-head"><div class="k">Tổng lỗi (SP)</div><div class="en">Defective garments · QLCL hôm nay</div></div>
+      <div class="kp-head"><div class="k">Tổng lỗi (SP)</div><div class="en">Defective garments · QLCL theo ngày chọn</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-loi" style="color:var(--fail-solid)">—</span>
         <div class="kp-meta"><span class="chip fail">LỖI</span></div>
@@ -356,7 +356,7 @@
     <div class="card" style="display:flex;flex-direction:column;">
       <div class="panel-title">
         Tỉ lệ lỗi theo mốc giờ
-        <span class="pt-en">Tỉ lệ lỗi từng mốc · luỹ kế ngày</span>
+        <span class="pt-en">Lỗi QC / output MSD cụm cuối từng mốc</span>
       </div>
       <div class="left-body">
         <div class="bar-area">
@@ -483,6 +483,18 @@ let lastTop3     = [];
 const $ = id => document.getElementById(id);
 const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 const pad = n => String(n).padStart(2, '0');
+function parseDateInput(value) {
+  if (!value) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
+function formatSelectedDate(value) {
+  const d = parseDateInput(value) || new Date();
+  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  return days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
+}
 
 /* ── Scaling ── */
 function fit() {
@@ -493,11 +505,10 @@ fit(); addEventListener('resize', fit);
 
 /* ── Clock ── */
 function tick() {
-  const d = new Date();
-  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  $('clock').textContent  = pad(d.getHours()) + ':' + pad(d.getMinutes());
-  $('h-date').textContent = days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
-  $('ftr-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds());
+  const now = new Date();
+  $('clock').textContent  = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  $('h-date').textContent = formatSelectedDate(INIT_DATE);
+  $('ftr-time').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
 }
 tick(); setInterval(tick, 1000);
 
@@ -533,10 +544,9 @@ function render(d) {
   renderCombo(null);
 
   /* Source badge */
-  const isQlcl = d.qc_source === 'qlcl';
   const badge  = $('src-badge');
-  badge.textContent = isQlcl ? 'Dữ liệu QC' : 'Dữ liệu MES';
-  badge.style.background = isQlcl ? 'rgba(89,199,140,.25)' : 'rgba(224,165,59,.3)';
+  badge.textContent = 'Dữ liệu QC';
+  badge.style.background = 'rgba(89,199,140,.25)';
 }
 
 /* ── Header ── */
@@ -602,7 +612,7 @@ function renderBars(slots, kpi) {
   bi.innerHTML = xl.innerHTML = '';
 
   if (!slots.length) {
-    bi.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu QC hôm nay</div>';
+    bi.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu QC theo ngày chọn</div>';
     return;
   }
 
@@ -789,7 +799,7 @@ function renderCombo(bp) {
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.style.cssText = 'padding:12px 16px;font-size:13px;color:var(--ink-3);';
-    empty.textContent = 'Chưa có dữ liệu lỗi hôm nay';
+    empty.textContent = 'Chưa có dữ liệu lỗi theo ngày chọn';
     body.appendChild(empty);
     return;
   }
