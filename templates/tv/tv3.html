@@ -453,7 +453,7 @@
   <div class="ftr">
     <span class="l">
       <span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span>
-      · Tự động làm mới mỗi 5 phút
+      · Auto refresh <span id="ftr-interval">—</span>
     </span>
     <span class="r">TV-3 · Chất lượng sản phẩm cuối chuyền</span>
   </div>
@@ -461,6 +461,13 @@
 </div><!-- /si -->
 </div><!-- /stage -->
 </div><!-- /stage-wrap -->
+
+<button id="btn-refresh" onclick="loadData()" title="Refresh ngay"
+  style="position:fixed;bottom:18px;right:18px;z-index:999;
+         background:rgba(15,30,60,.82);border:1px solid rgba(255,255,255,.3);
+         color:#fff;padding:8px 18px;border-radius:6px;cursor:pointer;
+         font-size:15px;font-family:inherit;letter-spacing:.03em;
+         backdrop-filter:blur(4px);">↺ Refresh</button>
 
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
@@ -513,15 +520,29 @@ function tick() {
 tick(); setInterval(tick, 1000);
 
 /* ══ Fetch ════════════════════════════════════════════════════════════ */
+function _btnState(text, disabled, borderColor) {
+  const btn = $('btn-refresh');
+  if (!btn) return;
+  btn.textContent = text;
+  btn.disabled = disabled;
+  btn.style.borderColor = borderColor;
+  btn.style.opacity = disabled ? '0.7' : '1';
+}
+
 async function loadData() {
   if (!INIT_MONO || !INIT_DATE) return;
+  _btnState('⏳ Đang tải...', true, 'rgba(255,255,255,.3)');
   try {
     const resp = await fetch(`/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     $('dc-overlay').classList.remove('show');
     render(data);
+    _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
+    setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
   } catch(e) {
+    _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
+    setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
     $('dc-overlay').classList.add('show');
     $('dc-sub').textContent = 'Lỗi: ' + e.message + ' · Thử lại sau 30 giây';
     setTimeout(loadData, 30000);
@@ -817,8 +838,12 @@ function renderCombo(bp) {
 }
 
 /* ══ Init ════════════════════════════════════════════════════════════ */
+const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
+const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
+$('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+
 loadData();
-setInterval(loadData, REFRESH_MS);
+setInterval(loadData, ACTIVE_REFRESH_MS);
 </script>
 </body>
 </html>
