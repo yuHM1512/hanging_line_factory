@@ -336,38 +336,35 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
           JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
           WHERE mm.MONo = ?
         )
-        SELECT DISTINCT SeqNo FROM Steps WHERE HeadOdr = ?
+        SELECT TOP 1 SeqNo
+        FROM Steps
+        WHERE HeadOdr = ?
+        ORDER BY Odr DESC, SeqNo DESC
         """,
         (mono, route_step_odr),
     )
     if not seq_nos:
         return {i: 0 for i in range(1, 6)}
 
-    seq_list = [r["SeqNo"] for r in seq_nos]
-    placeholders = ",".join(["?"] * len(seq_list))
+    tail_seq_no = seq_nos[0]["SeqNo"]
     rows = db.query(
-        f"""
-        SELECT rw.SeqNo, rw.BeginTime, COUNT(*) AS Qty
-        FROM {{MES_DB}}.dbo.tRecentWork rw
-        WHERE rw.MONo = ? AND rw.SeqNo IN ({placeholders})
+        """
+        SELECT rw.BeginTime, COUNT(*) AS Qty
+        FROM {MES_DB}.dbo.tRecentWork rw
+        WHERE rw.MONo = ? AND rw.SeqNo = ?
           AND rw.ShtDate = ?
-        GROUP BY rw.SeqNo, rw.BeginTime
+        GROUP BY rw.BeginTime
         """,
-        [mono] + seq_list + [the_date],
+        (mono, tail_seq_no, the_date),
     )
 
-    per_seq_slot: dict[Any, dict[int, int]] = {}
+    # Bucket by the tail SeqNo so the slot represents when output leaves this cluster.
+    counts = {i: 0 for i in range(1, 6)}
     for r in rows:
         slot = _slot_from_time(r["BeginTime"])
         if not slot:
             continue
-        seq_counts = per_seq_slot.setdefault(r["SeqNo"], {i: 0 for i in range(1, 6)})
-        seq_counts[slot] += int(r["Qty"] or 0)
-
-    counts = {i: 0 for i in range(1, 6)}
-    for slot in counts:
-        qtys = [seq_counts[slot] for seq_counts in per_seq_slot.values()]
-        counts[slot] = min(qtys) if qtys else 0
+        counts[slot] += int(r["Qty"] or 0)
     return counts
 
 
