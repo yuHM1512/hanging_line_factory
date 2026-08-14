@@ -219,7 +219,7 @@ function renderCands(rows) {
       <td class="small">${Admin.escape(r.MONo)}</td>
       <td><strong>${Admin.escape(r.SoDonHang)}</strong></td>
       <td>${Admin.escape(r.StyleNo)}</td>
-      <td>Tổ ${r.LineNo}</td>
+      <td>${r.LineNo ? `Tổ ${r.LineNo}` : '<span class="muted">Tự nhập</span>'}</td>
       <td class="col-action">
         <button class="btn-icon" title="Xem sản lượng theo ngày"
                 data-daily="${Admin.escape(r.MONo)}">
@@ -453,7 +453,7 @@ async function openCreate(r) {
   f.SoDonHangDisplay.value = r.SoDonHang;
   f.StyleNo.value = r.StyleNo;
   f.StyleNoDisplay.value = r.StyleNo;
-  f.LineNo.value = r.LineNo;
+  f.LineNo.value = r.LineNo || '';
   pendingPOs = [];
   renderPOs();
   await loadMothersInto();

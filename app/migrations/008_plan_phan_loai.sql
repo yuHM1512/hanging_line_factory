@@ -17,8 +17,13 @@ IF EXISTS (SELECT 1 FROM sys.columns
            WHERE object_id = OBJECT_ID('app.tPlanMaster') AND name = 'PhanLoaiDH')
 BEGIN
     -- Copy data nếu LoaiHang còn NULL
-    UPDATE app.tPlanMaster SET LoaiHang = PhanLoaiDH WHERE LoaiHang IS NULL AND PhanLoaiDH IS NOT NULL;
-    ALTER TABLE app.tPlanMaster DROP COLUMN PhanLoaiDH;
+    EXEC sp_executesql N'
+        UPDATE app.tPlanMaster
+        SET LoaiHang = PhanLoaiDH
+        WHERE LoaiHang IS NULL AND PhanLoaiDH IS NOT NULL;
+
+        ALTER TABLE app.tPlanMaster DROP COLUMN PhanLoaiDH;
+    ';
 END
 GO
 

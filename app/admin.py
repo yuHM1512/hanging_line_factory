@@ -458,7 +458,7 @@ def api_plan_candidates(request: Request):
     for r in rows:
         mono = r["MONo"]
         parts = parse_mono(mono)
-        if parts["SoDonHang"] and parts["LineNo"] and parts["StyleNo"]:
+        if parts["SoDonHang"] and parts["StyleNo"]:
             out.append({"MONo": mono, **parts})
     _plan_candidate_cache["rows"] = out
     _plan_candidate_cache["expires_at"] = now + PLAN_CANDIDATE_CACHE_TTL_SECONDS
