@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -80,7 +80,7 @@ _plan_candidate_cache: dict[str, Any] = {"expires_at": 0.0, "rows": None}
 _RE_LINE_NUM = re.compile(r"LINE\W*?(\d+)", re.IGNORECASE)
 _RE_LEAD_DIGITS = re.compile(r"(\d+)")
 # Số tổ tối đa — dùng để phân biệt số tổ với mã hàng trong format StyleNo-LineNo
-_MAX_LINE_NO = 10
+_MAX_LINE_NO = 99
 
 
 def parse_mono(mono: str) -> dict[str, Any]:
@@ -192,7 +192,7 @@ def page_holiday(request: Request):
 @router.get("/demand")
 def page_demand(request: Request):
     return templates.TemplateResponse(
-        "admin/demand.html", {"request": request, "user": request.state.current_user}
+        "admin/plan.html", {"request": request, "user": request.state.current_user}
     )
 
 
@@ -212,9 +212,7 @@ def page_user(request: Request):
 
 @router.get("/plan")
 def page_plan(request: Request):
-    return templates.TemplateResponse(
-        "admin/plan.html", {"request": request, "user": request.state.current_user}
-    )
+    return RedirectResponse(url="/admin/demand", status_code=307)
 
 
 # ============================================================
@@ -497,7 +495,7 @@ class PlanIn(AdminModel):
     mono: str = Field(..., alias="MONo")
     so_don_hang: str = Field(..., alias="SoDonHang")
     style_no: str = Field(..., alias="StyleNo")
-    line_no: int = Field(..., alias="LineNo", ge=1, le=10)
+    line_no: int = Field(..., alias="LineNo", ge=1, le=99)
     first_hang_date: date = Field(..., alias="FirstHangDate")
     slkh: int = Field(..., alias="SLKH", gt=0)
     daily_aim: Optional[int] = Field(None, alias="DailyAim", gt=0)
@@ -506,6 +504,20 @@ class PlanIn(AdminModel):
     loai_hang: Optional[str] = Field(None, alias="LoaiHang")
     notes: Optional[str] = Field(None, alias="Notes")
     pos: list[POIn] = Field(default_factory=list, alias="POs")
+
+
+class DemandPlanIn(PlanIn):
+    nhu_cau_me: str = Field(..., alias="NhuCauMe")
+    demand_notes: Optional[str] = Field(None, alias="DemandNotes")
+    dmkt: float = Field(..., alias="DMKT", gt=0)
+    phan_loai_dh: str = Field(..., alias="PhanLoaiDH")
+    ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+
+
+class AdjustmentIn(AdminModel):
+    delta_qty: int = Field(..., alias="DeltaQty")
+    reason: str = Field(..., alias="Reason", min_length=1, max_length=100)
+    notes: Optional[str] = Field(None, alias="Notes", max_length=500)
 
 def _enrich_plan_rows(rows: list[dict]) -> list[dict]:
     """Thêm EndDateExpected (computed) + PO count cho mỗi plan."""
@@ -522,11 +534,26 @@ def _enrich_plan_rows(rows: list[dict]) -> list[dict]:
         guids,
     )
     po_map = {r["PlanMaster_guid"]: r for r in po_rows}
+    adj_rows = db.query(
+        f"SELECT PlanMaster_guid, SUM(DeltaQty) AS AdjustmentQty, COUNT(*) AS AdjustmentCount "
+        f"FROM app.tPlanAdjustment WHERE PlanMaster_guid IN ({placeholders}) "
+        f"GROUP BY PlanMaster_guid",
+        guids,
+    )
+    adj_map = {r["PlanMaster_guid"]: r for r in adj_rows}
     for r in rows:
         po = po_map.get(r["PlanMaster_guid"], {})
+        adj = adj_map.get(r["PlanMaster_guid"], {})
+        base_slkh = int(r.get("SLKH") or 0)
+        adjustment_qty = int(adj.get("AdjustmentQty") or 0)
+        effective_slkh = max(0, base_slkh + adjustment_qty)
         r["POCount"] = po.get("POCount", 0)
         r["POQtySum"] = int(po.get("POQtySum") or 0)
-        end = compute_end_date(r["FirstHangDate"], r["SLKH"], r["DailyAim"], holidays)
+        r["BaseSLKH"] = base_slkh
+        r["AdjustmentQty"] = adjustment_qty
+        r["AdjustmentCount"] = int(adj.get("AdjustmentCount") or 0)
+        r["EffectiveSLKH"] = effective_slkh
+        end = compute_end_date(r["FirstHangDate"], effective_slkh, r["DailyAim"], holidays)
         r["EndDateExpected"] = end.isoformat() if end else None
         # Stringify date for JSON
         r["FirstHangDate"] = r["FirstHangDate"].isoformat() if r["FirstHangDate"] else None
@@ -594,8 +621,62 @@ def api_plan_create(body: PlanIn, user: dict = Depends(auth.require_admin)):
     return {"ok": True, "guid": str(new_guid)}
 
 
+@router.post("/api/plan/setup-root")
+def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_admin)):
+    """Create one DemandRoot and its first PlanMaster from a selected MONo."""
+    new_guid = uuid.uuid4()
+    cur = None
+    try:
+        with db.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("BEGIN TRAN")
+            cur.execute(
+                "SELECT 1 FROM app.tDemandRoot WHERE NhuCauMe = ?",
+                (body.nhu_cau_me,),
+            )
+            if cur.fetchone():
+                cur.execute("ROLLBACK TRAN")
+                raise HTTPException(400, f"NhuCauMe `{body.nhu_cau_me}` da ton tai.")
+
+            cur.execute(
+                "INSERT INTO app.tDemandRoot "
+                "(NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], "
+                "LDBienChe, Notes, CreatedBy) "
+                "VALUES (?,?,?,?,?,?,?,?)",
+                (body.nhu_cau_me, body.style_no, body.dmkt, body.phan_loai_dh,
+                 body.line_no, body.ld_bien_che, body.demand_notes, _actor_id(user)),
+            )
+            cur.execute(
+                "INSERT INTO app.tPlanMaster "
+                "(PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo], "
+                "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes, CreatedBy) "
+                "VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (new_guid, body.mono, body.so_don_hang, body.style_no, body.line_no,
+                 body.first_hang_date, body.slkh, body.daily_aim, body.customer,
+                 body.nhu_cau_me, body.loai_hang, body.notes, _actor_id(user)),
+            )
+            for po in body.pos:
+                cur.execute(
+                    "INSERT INTO app.tPlanPO (PlanMaster_guid, PONo, Qty, ShipDate, "
+                    "Notes, CreatedBy) VALUES (?,?,?,?,?,?)",
+                    (new_guid, po.po_no, po.qty, po.ship_date, po.notes, _actor_id(user)),
+                )
+            cur.execute("COMMIT TRAN")
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001
+        try:
+            if cur is not None:
+                cur.execute("IF @@TRANCOUNT > 0 ROLLBACK TRAN")
+        except Exception:
+            pass
+        raise HTTPException(400, f"Luu that bai: {exc}") from exc
+    _clear_plan_candidate_cache()
+    return {"ok": True, "guid": str(new_guid), "NhuCauMe": body.nhu_cau_me}
+
+
 class PlanUpdate(AdminModel):
-    line_no: int = Field(..., alias="LineNo", ge=1, le=10)
+    line_no: int = Field(..., alias="LineNo", ge=1, le=99)
     first_hang_date: date = Field(..., alias="FirstHangDate")
     slkh: int = Field(..., alias="SLKH", gt=0)
     daily_aim: Optional[int] = Field(None, alias="DailyAim", gt=0)
@@ -637,6 +718,49 @@ def api_plan_delete(guid: str):
 
 # --- Proxy API: lấy danh mục loại hàng từ QLCL ---
 
+@router.get("/api/plan/{guid}/adjustments")
+def api_plan_adjustment_list(guid: str):
+    return db.query(
+        "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, "
+        "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
+        "FROM app.tPlanAdjustment "
+        "WHERE PlanMaster_guid = ? "
+        "ORDER BY CreatedAt DESC, Adjustment_guid DESC",
+        (guid,),
+    )
+
+
+@router.post("/api/plan/{guid}/adjustments")
+def api_plan_adjustment_create(guid: str, body: AdjustmentIn, user: dict = Depends(auth.require_admin)):
+    if body.delta_qty == 0:
+        raise HTTPException(400, "So luong dieu chinh phai khac 0.")
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM app.tPlanMaster WHERE PlanMaster_guid = ?", (guid,))
+        if not cur.fetchone():
+            raise HTTPException(404, "Plan khong ton tai")
+        cur.execute(
+            "INSERT INTO app.tPlanAdjustment "
+            "(PlanMaster_guid, DeltaQty, Reason, Notes, CreatedBy) "
+            "VALUES (?,?,?,?,?)",
+            (guid, body.delta_qty, body.reason, body.notes, _actor_id(user)),
+        )
+    return {"ok": True}
+
+
+@router.delete("/api/plan-adjustments/{adjustment_guid}")
+def api_plan_adjustment_delete(adjustment_guid: str):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM app.tPlanAdjustment WHERE Adjustment_guid = ?",
+            (adjustment_guid,),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Dieu chinh khong ton tai")
+    return {"ok": True}
+
+
 @router.get("/api/dm-loai-hang")
 def api_dm_loai_hang_proxy():
     """Proxy lấy danh sách loại hàng từ app QLCL (dm_loai_hang.ten_loai)."""
@@ -665,8 +789,14 @@ def _do_sync_to_qlcl() -> dict:
                pm.SLKH,
                pm.Customer,
                ISNULL((SELECT SUM(Qty) FROM app.tPlanPO po
-                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid), pm.SLKH) AS TotalPOQty
+                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid),
+                      pm.SLKH + ISNULL(adj.AdjustmentQty, 0)) AS TotalPOQty
         FROM app.tPlanMaster pm
+        OUTER APPLY (
+            SELECT SUM(DeltaQty) AS AdjustmentQty
+            FROM app.tPlanAdjustment pa
+            WHERE pa.PlanMaster_guid = pm.PlanMaster_guid
+        ) adj
         ORDER BY pm.FirstHangDate DESC, pm.CreatedAt DESC
         """
     )
@@ -697,6 +827,197 @@ def _do_sync_to_qlcl() -> dict:
         return json.loads(resp.read())
 
 
+def _refresh_plan_employee_assignments(plan_master_guid: str | None = None) -> dict:
+    """Rebuild local assignment cache from MES output history for declared plans."""
+    where_clause = "WHERE PlanMaster_guid = ?" if plan_master_guid else ""
+    params = (plan_master_guid,) if plan_master_guid else ()
+    plan_rows = db.query(
+        f"""
+        SELECT PlanMaster_guid, MONo, NhuCauMe, [LineNo] AS LineNoOut
+        FROM app.tPlanMaster
+        {where_clause}
+        ORDER BY FirstHangDate DESC, CreatedAt DESC
+        """,
+        params,
+    )
+    refreshed = 0
+    assignment_rows: list[dict] = []
+
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        for plan in plan_rows:
+            plan_guid = plan["PlanMaster_guid"]
+            root_mono = str(plan.get("MONo") or "").strip()
+            if not root_mono:
+                continue
+
+            rows = db.query(
+                """
+                ;WITH RouteSeq AS (
+                    SELECT ds.Odr, ds.SeqNo, COALESCE(sd.SeqName, ds.SeqNo) AS SeqName
+                    FROM {MES_DB}.dbo.tMOM mm
+                    JOIN {MES_DB}.dbo.tRouteM rm ON rm.MOM_guid = mm.guid
+                    JOIN {MES_DB}.dbo.tRouteDS ds ON ds.RouteM_guid = rm.guid
+                    LEFT JOIN {MES_DB}.dbo.tMOSeqM sm ON sm.MOM_guid = mm.guid
+                    LEFT JOIN {MES_DB}.dbo.tMOSeqD sd
+                      ON sd.MOSeqM_guid = sm.guid AND sd.SeqNo = ds.SeqNo
+                    WHERE mm.MONo = ?
+                      AND ds.IsUsing = 1
+                )
+                SELECT
+                    w.MONo AS SourceMONo,
+                    w.WorkLine,
+                    w.StNo,
+                    rs.Odr,
+                    rs.SeqNo,
+                    rs.SeqName,
+                    w.EmpID,
+                    w.EmpName,
+                    SUM(w.Qty) AS Qty,
+                    MIN(w.ShtDate) AS FirstWorkDate,
+                    MAX(w.ShtDate) AS LastWorkDate
+                FROM {MES_DB}.dbo.vHangerRecentWorkSum
+                w
+                JOIN RouteSeq rs ON rs.SeqNo = w.SeqNo
+                WHERE w.MONo = ?
+                  AND w.EmpID IS NOT NULL AND LTRIM(RTRIM(w.EmpID)) <> ''
+                  AND UPPER(LTRIM(RTRIM(w.EmpID))) <> 'TEST'
+                  AND w.EmpName IS NOT NULL AND LTRIM(RTRIM(w.EmpName)) <> ''
+                GROUP BY w.MONo, w.WorkLine, w.StNo, rs.Odr, rs.SeqNo, rs.SeqName, w.EmpID, w.EmpName
+                """,
+                (root_mono, root_mono),
+            )
+
+            cur.execute(
+                "DELETE FROM app.tPlanEmployeeAssignment WHERE PlanMaster_guid = ?",
+                (plan_guid,),
+            )
+            bo_phan = str(plan.get("LineNoOut")).strip() if plan.get("LineNoOut") is not None else None
+            for r in rows:
+                cur.execute(
+                    """
+                    INSERT INTO app.tPlanEmployeeAssignment
+                        (PlanMaster_guid, NhuCauMe, RootMONo, SourceMONo, DonVi,
+                         [LineNo], BoPhan, WorkLine, StNo, Odr, SeqNo, SeqName,
+                         EmpID, EmpName, Qty, FirstWorkDate, LastWorkDate)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        plan_guid,
+                        plan.get("NhuCauMe"),
+                        root_mono,
+                        r.get("SourceMONo"),
+                        QLCL_DON_VI,
+                        plan.get("LineNoOut"),
+                        bo_phan,
+                        r.get("WorkLine"),
+                        r.get("StNo"),
+                        r.get("Odr"),
+                        r.get("SeqNo"),
+                        r.get("SeqName"),
+                        str(r.get("EmpID") or "").strip(),
+                        str(r.get("EmpName") or "").strip(),
+                        int(r.get("Qty") or 0),
+                        r.get("FirstWorkDate"),
+                        r.get("LastWorkDate"),
+                    ),
+                )
+            refreshed += len(rows)
+
+    assignment_filter = "WHERE PlanMaster_guid = ?" if plan_master_guid else ""
+    assignment_params = (plan_master_guid,) if plan_master_guid else ()
+    assignment_rows = db.query(
+        f"""
+        SELECT DonVi, BoPhan, EmpID, EmpName, Odr, SeqName, SUM(Qty) AS Qty
+        FROM app.tPlanEmployeeAssignment
+        {assignment_filter}
+        GROUP BY DonVi, BoPhan, EmpID, EmpName, Odr, SeqName
+        """,
+        assignment_params,
+    )
+    return {
+        "plans": len(plan_rows),
+        "assignments": refreshed,
+        "employee_rows": assignment_rows,
+    }
+
+
+def _build_qc_employee_payload(employee_rows: list[dict]) -> list[dict]:
+    employees: dict[str, dict] = {}
+    for row in employee_rows:
+        emp_id = str(row.get("EmpID") or "").strip()
+        emp_name = str(row.get("EmpName") or "").strip()
+        if not emp_id or not emp_name:
+            continue
+        target = employees.setdefault(
+            emp_id,
+            {
+                "ma_nv": emp_id,
+                "ho_ten": emp_name,
+                "bo_phan": row.get("BoPhan") or "",
+                "station": set(),
+            },
+        )
+        if not target.get("bo_phan") and row.get("BoPhan"):
+            target["bo_phan"] = row.get("BoPhan")
+        odr = row.get("Odr")
+        seq_name = str(row.get("SeqName") or "").strip()
+        if odr and seq_name:
+            target["station"].add(f"Odr {odr} - {seq_name}")
+
+    out = []
+    for item in employees.values():
+        station = sorted(item.pop("station"))
+        item["station"] = station
+        out.append(item)
+    out.sort(key=lambda x: x["ma_nv"])
+    return out
+
+
+def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
+    refreshed = _refresh_plan_employee_assignments(plan_master_guid)
+    employees = _build_qc_employee_payload(refreshed["employee_rows"])
+    if not employees:
+        return {
+            "status": "ok",
+            "message": "Không có nhân viên/công đoạn để đồng bộ",
+            "plans": refreshed["plans"],
+            "assignments": refreshed["assignments"],
+            "employees": 0,
+            "inserted": 0,
+            "updated": 0,
+        }
+
+    body = json.dumps({
+        "don_vi": QLCL_DON_VI,
+        "replace_station_scope": plan_master_guid is None,
+        "employees": employees,
+    }).encode()
+    req = _qlcl_request("/api/qc/employees/push-from-hl", data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=30) as resp:
+        result = json.loads(resp.read())
+
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        if plan_master_guid:
+            cur.execute(
+                "UPDATE app.tPlanEmployeeAssignment SET SyncedAt = SYSDATETIME() "
+                "WHERE DonVi = ? AND PlanMaster_guid = ?",
+                (QLCL_DON_VI, plan_master_guid),
+            )
+        else:
+            cur.execute(
+                "UPDATE app.tPlanEmployeeAssignment SET SyncedAt = SYSDATETIME() "
+                "WHERE DonVi = ?",
+                (QLCL_DON_VI,),
+            )
+
+    result["plans"] = refreshed["plans"]
+    result["assignments"] = refreshed["assignments"]
+    result["employees"] = len(employees)
+    return result
+
+
 @router.post("/api/sync-to-qlcl")
 def api_sync_to_qlcl():
     """Push kế hoạch từ SQL Server XN sang QLCL server — gọi từ admin UI."""
@@ -707,6 +1028,39 @@ def api_sync_to_qlcl():
         raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Không kết nối được QLCL: {exc}")
+
+
+@router.post("/api/sync-qc-employees-to-qlcl")
+async def api_sync_qc_employees_to_qlcl(request: Request):
+    """Push EmpID/Seq assignments from hanging app to QLCL quality_employees."""
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    plan_master_guid = str(payload.get("PlanMaster_guid") or "").strip() or None
+    try:
+        return _do_sync_qc_employees_to_qlcl(plan_master_guid)
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Không đồng bộ được nhân sự sang QLCL: {exc}")
+
+
+@router.get("/api/plan-employee-assignments")
+def api_plan_employee_assignments():
+    return db.query(
+        """
+        SELECT TOP 500
+            RootMONo, SourceMONo, DonVi, BoPhan, WorkLine, StNo, Odr,
+            SeqNo, SeqName, EmpID, EmpName, Qty,
+            CONVERT(varchar(10), FirstWorkDate, 120) AS FirstWorkDate,
+            CONVERT(varchar(10), LastWorkDate, 120) AS LastWorkDate,
+            CONVERT(varchar(19), SyncedAt, 120) AS SyncedAt
+        FROM app.tPlanEmployeeAssignment
+        ORDER BY RootMONo, Odr, EmpID
+        """
+    )
 
 
 @router.post("/api/plan/{guid}/po")

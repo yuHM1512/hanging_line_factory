@@ -41,14 +41,6 @@
     <p>Thiết lập thời gian dừng chuyền, ngày nghỉ lễ và bảo trì định kỳ.</p>
     <span class="link-card-action">Quản lý <span class="material-symbols-outlined">arrow_forward</span></span>
   </a>
-  <a class="link-card" href="/admin/plan">
-    <div class="link-card-icon">
-      <span class="material-symbols-outlined">account_tree</span>
-    </div>
-    <h3>Nhu cầu con</h3>
-    <p>Phân tách chi tiết nhu cầu sản xuất theo từng mã hàng và công đoạn.</p>
-    <span class="link-card-action">Quản lý <span class="material-symbols-outlined">arrow_forward</span></span>
-  </a>
   <a class="link-card" href="/admin/demand">
     <div class="link-card-icon">
       <span class="material-symbols-outlined">hub</span>
@@ -110,7 +102,6 @@
 const ITEMS = [
   { key: 'user',    label: 'Tài khoản',           href: '/admin/user' },
   { key: 'holiday', label: 'Lịch nghỉ',           href: '/admin/holiday' },
-  { key: 'plan',    label: 'Nhu cầu con',         href: '/admin/plan' },
   { key: 'demand',  label: 'Nhu cầu mẹ',          href: '/admin/demand' },
   { key: 'cluster', label: '6 cụm theo dõi',      href: '/admin/cluster' },
   { key: 'sam',     label: 'SAM',                  href: '/admin/sam' },
@@ -164,5 +155,6 @@ async function syncToQlcl() {
     btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
   }
 }
+
 </script>
 {% endblock %}

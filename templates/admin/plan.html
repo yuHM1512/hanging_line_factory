@@ -1,8 +1,8 @@
-{% extends "admin/base.html" %}
-{% set active = 'plan' %}
-{% block header_breadcrumb %}Nhu cầu con{% endblock %}
-{% block heading %}Nhu cầu con (Kế hoạch con){% endblock %}
-{% block subheading %}Khai báo từng kế hoạch con trước khi sản xuất. Tổ + Mã + Số đơn hàng auto-parse từ MONo. Chỉ hiện MONo bắt đầu chạy từ 18/04/2026 trở đi và đã có sản lượng ra chuyền (StRole=13, IsLastSeq=1).{% endblock %}
+﻿{% extends "admin/base.html" %}
+{% set active = 'demand' %}
+{% block header_breadcrumb %}Nhu cầu mẹ{% endblock %}
+{% block heading %}Nhu cầu mẹ{% endblock %}
+{% block subheading %}Chọn MONo để khai báo một nhu cầu mẹ xuyên suốt, gồm thông tin kế hoạch, sản lượng, PO/EHD và các lần cập nhật tăng giảm SLKH.{% endblock %}
 
 {% block body %}
 <div class="panel">
@@ -54,7 +54,7 @@
 <div class="panel" id="form-panel" hidden>
   <h3 class="panel-title">
     <span class="material-symbols-outlined">add_circle</span>
-    Khai báo Nhu cầu con
+    Khai báo Nhu cầu mẹ
   </h3>
   <form id="form-plan" class="grid-form">
     <input type="hidden" name="MONo" />
@@ -75,7 +75,30 @@
     </label>
     <label class="field">
       <span class="field-label">Tổ</span>
-      <input type="number" name="LineNo" required min="1" max="10" />
+      <input type="number" name="LineNo" required min="1" max="99" />
+    </label>
+
+    <label class="field">
+      <span class="field-label">NhuCauMe</span>
+      <input type="text" name="NhuCauMe" required />
+    </label>
+    <label class="field">
+      <span class="field-label">Dinh muc ky thuat</span>
+      <input type="number" name="DMKT" required min="0.01" step="0.01" />
+    </label>
+    <label class="field">
+      <span class="field-label">Phan loai DH</span>
+      <select name="PhanLoaiDH" required>
+        <option value="">-- chon --</option>
+        <option value="Đặc biệt">Đặc biệt</option>
+        <option value="Mới">Mới</option>
+        <option value="Lặp lại">Lặp lại</option>
+        <option value="Vest">Vest</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">LD bien che</span>
+      <input type="number" name="LDBienChe" required min="1" step="1" />
     </label>
 
     <label class="field">
@@ -102,10 +125,8 @@
       </select>
     </label>
     <label class="field">
-      <span class="field-label">Nhu cầu mẹ (gắn nếu đã có)</span>
-      <select name="NhuCauMe">
-        <option value="">— chưa gắn —</option>
-      </select>
+      <span class="field-label">Ghi chú NhuCauMe</span>
+      <input type="text" name="DemandNotes" maxlength="500" placeholder="Ghi chu cho nhu cau me" />
     </label>
 
     <div class="full-row">
@@ -152,7 +173,7 @@
 
     <div class="full-row form-actions">
       <button type="button" class="btn btn-tertiary" id="btn-cancel">Huỷ</button>
-      <button type="submit" class="btn btn-primary" id="btn-submit">Lưu Nhu cầu con</button>
+      <button type="submit" class="btn btn-primary" id="btn-submit">Lưu Nhu cầu mẹ</button>
     </div>
   </form>
 </div>
@@ -172,7 +193,9 @@
         <th>Loại hàng</th>
         <th>Ngày bắt đầu</th>
         <th>Kết thúc DK</th>
-        <th>SLKH</th>
+        <th>SLKH ban dau</th>
+        <th>Dieu chinh</th>
+        <th>SLKH hien tai</th>
         <th>Aim/ngày</th>
         <th>POs</th>
         <th>NhuCauMe</th>
@@ -180,7 +203,7 @@
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="11" class="muted">Đang tải...</td></tr>
+      <tr><td colspan="14" class="muted">Đang tải...</td></tr>
     </tbody>
   </table>
 </div>
@@ -194,6 +217,9 @@ let pendingPOs = [];
 let editingGuid = null;  // null = create mode; guid string = edit mode
 
 async function loadMothersInto(currentValue = '') {
+  const input = document.querySelector('input[name="NhuCauMe"]');
+  if (input && currentValue) input.value = currentValue;
+  return;
   const sel = document.querySelector('select[name="NhuCauMe"]');
   sel.innerHTML = '<option value="">— chưa gắn —</option>';
   try {
@@ -313,7 +339,7 @@ async function loadCands(forceRefresh = false) {
 function renderPlans(rows) {
   const tbody = document.querySelector('#tbl-plans tbody');
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="12" class="muted">Chưa có Nhu cầu con.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="14" class="muted">Chưa có Nhu cầu mẹ.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => {
@@ -330,20 +356,38 @@ function renderPlans(rows) {
         <td>${r.LoaiHang ? Admin.escape(r.LoaiHang) : '<span class="muted">—</span>'}</td>
         <td>${r.FirstHangDate}</td>
         <td>${r.EndDateExpected || '<span class="muted">—</span>'}</td>
-        <td>${r.SLKH.toLocaleString('vi-VN')}</td>
+        <td>${(r.BaseSLKH ?? r.SLKH).toLocaleString('vi-VN')}</td>
+        <td>${(r.AdjustmentQty || 0).toLocaleString('vi-VN')}</td>
+        <td><strong>${(r.EffectiveSLKH ?? r.SLKH).toLocaleString('vi-VN')}</strong></td>
         <td>${r.DailyAim || '<span class="muted">—</span>'}</td>
         <td>${r.POCount} (${r.POQtySum.toLocaleString('vi-VN')})</td>
         <td>${meBadge}</td>
-        <td class="col-action">
-          <button class="btn-icon" data-daily="${Admin.escape(r.MONo)}" title="Xem sản lượng theo ngày">
-            <span class="material-symbols-outlined">bar_chart</span>
+        <td class="col-action" style="position:relative;">
+          <button class="btn-icon" data-row-menu-toggle="${r.PlanMaster_guid}" title="Thao tac">
+            <span class="material-symbols-outlined">more_horiz</span>
           </button>
-          <button class="btn-icon" data-edit="${r.PlanMaster_guid}" title="Sửa">
-            <span class="material-symbols-outlined">edit</span>
-          </button>
-          <button class="btn-icon btn-icon-danger" data-del="${r.PlanMaster_guid}" title="Xoá">
-            <span class="material-symbols-outlined">delete</span>
-          </button>
+          <div data-row-menu="${r.PlanMaster_guid}" style="display:none; position:absolute; right:0; top:calc(100% + 6px); min-width:220px; background:#fff; border:1px solid rgba(15,23,42,.08); border-radius:12px; box-shadow:0 14px 30px rgba(15,23,42,.14); padding:6px; z-index:20;">
+            <button type="button" data-daily="${Admin.escape(r.MONo)}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">bar_chart</span>
+              <span>Xem sản lượng theo ngày</span>
+            </button>
+            <button type="button" data-adjust="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">add_notes</span>
+              <span>Cập nhật thêm số lượng</span>
+            </button>
+            <button type="button" data-sync-employees="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;" title="Đồng bộ nhân sự">
+              <span class="material-symbols-outlined" style="font-size:18px;">group</span>
+              <span>Đồng bộ nhân sự</span>
+            </button>
+            <button type="button" data-edit="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">edit</span>
+              <span>Sửa nhu cầu mẹ</span>
+            </button>
+            <button type="button" data-del="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer; color:#b42318;">
+              <span class="material-symbols-outlined" style="font-size:18px;">delete</span>
+              <span>Xoá nhu cầu mẹ</span>
+            </button>
+          </div>
         </td>
       </tr>`;
   }).join('');
@@ -351,7 +395,7 @@ function renderPlans(rows) {
 
 async function loadPlans() {
   const tbody = document.querySelector('#tbl-plans tbody');
-  tbody.innerHTML = '<tr><td colspan="11" class="muted">Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="14" class="muted">Đang tải...</td></tr>';
   renderPlans(await Admin.fetchJSON(API));
 }
 
@@ -454,10 +498,15 @@ async function openCreate(r) {
   f.StyleNo.value = r.StyleNo;
   f.StyleNoDisplay.value = r.StyleNo;
   f.LineNo.value = r.LineNo || '';
+  f.NhuCauMe.value = r.SoDonHang;
+  f.DMKT.value = '';
+  f.PhanLoaiDH.value = '';
+  f.LDBienChe.value = '';
+  f.DemandNotes.value = '';
   pendingPOs = [];
   renderPOs();
   await loadMothersInto();
-  document.querySelector('#btn-submit').textContent = 'Lưu Nhu cầu con';
+  document.querySelector('#btn-submit').textContent = 'Lưu Nhu cầu mẹ';
   document.querySelector('#form-panel').hidden = false;
   document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
 }
@@ -474,6 +523,12 @@ async function openEdit(guid) {
   f.StyleNo.value = p.StyleNo;
   f.StyleNoDisplay.value = p.StyleNo;
   f.LineNo.value = p.LineNoOut;
+  f.NhuCauMe.value = p.NhuCauMe || p.SoDonHang;
+  f.DMKT.value = 1;
+  f.PhanLoaiDH.value = 'Mới';
+  if (!f.PhanLoaiDH.value) f.PhanLoaiDH.selectedIndex = 1;
+  f.LDBienChe.value = 1;
+  f.DemandNotes.value = '';
   f.FirstHangDate.value = p.FirstHangDate;
   f.SLKH.value = p.SLKH;
   f.DailyAim.value = p.DailyAim || '';
@@ -635,10 +690,14 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
         MONo: fd.get('MONo'),
         SoDonHang: fd.get('SoDonHang'),
         StyleNo: fd.get('StyleNo'),
+        DMKT: parseFloat(fd.get('DMKT')),
+        PhanLoaiDH: fd.get('PhanLoaiDH'),
+        LDBienChe: parseInt(fd.get('LDBienChe')),
+        DemandNotes: fd.get('DemandNotes') || null,
         POs: pendingPOs,
       };
-      await Admin.fetchJSON(API, { method: 'POST', body: JSON.stringify(body) });
-      Admin.toast('Đã lưu Nhu cầu con.', 'ok');
+      await Admin.fetchJSON(`${API}/setup-root`, { method: 'POST', body: JSON.stringify(body) });
+      Admin.toast('Đã lưu Nhu cầu mẹ.', 'ok');
     }
     editingGuid = null;
     document.querySelector('#form-panel').hidden = true;
@@ -652,15 +711,78 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
 });
 
 document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
+  const rowMenuToggle = e.target.closest('[data-row-menu-toggle]');
+  if (rowMenuToggle) {
+    const guid = rowMenuToggle.dataset.rowMenuToggle;
+    document.querySelectorAll('[data-row-menu]').forEach(menu => {
+      if (menu.dataset.rowMenu === guid) {
+        menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+      } else {
+        menu.style.display = 'none';
+      }
+    });
+    return;
+  }
   const dailyBtn = e.target.closest('[data-daily]');
-  if (dailyBtn) { openDailyModal(dailyBtn.dataset.daily); return; }
+  if (dailyBtn) {
+    document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
+    openDailyModal(dailyBtn.dataset.daily);
+    return;
+  }
+  const adjustBtn = e.target.closest('[data-adjust]');
+  if (adjustBtn) {
+    document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
+    const rawQty = prompt('Nhap so luong them/bot, vi du 300 hoac -150');
+    if (rawQty === null) return;
+    const deltaQty = parseInt(rawQty, 10);
+    if (!Number.isInteger(deltaQty) || deltaQty === 0) {
+      Admin.toast('So luong dieu chinh phai la so nguyen khac 0.', 'error');
+      return;
+    }
+    const reason = prompt('Ly do/ghi chu ngan cho lan cap nhat', 'Nhu cau bo sung');
+    if (reason === null || !reason.trim()) return;
+    try {
+      await Admin.fetchJSON(`${API}/${adjustBtn.dataset.adjust}/adjustments`, {
+        method: 'POST',
+        body: JSON.stringify({ DeltaQty: deltaQty, Reason: reason.trim(), Notes: null }),
+      });
+      Admin.toast('Da cap nhat so luong.', 'ok');
+      loadPlans();
+    } catch (err) {
+      Admin.toast(err.message, 'error');
+    }
+    return;
+  }
+  const syncEmployeesBtn = e.target.closest('[data-sync-employees]');
+  if (syncEmployeesBtn) {
+    document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
+    syncEmployeesBtn.disabled = true;
+    try {
+      const data = await Admin.fetchJSON('/admin/api/sync-qc-employees-to-qlcl', {
+        method: 'POST',
+        body: JSON.stringify({ PlanMaster_guid: syncEmployeesBtn.dataset.syncEmployees }),
+      });
+      const employees = data.employees || 0;
+      const assignments = data.assignments || 0;
+      const inserted = data.inserted || 0;
+      const updated = data.updated || 0;
+      Admin.toast(`Da sync nhan su: ${employees} NV, ${assignments} phan cong, them ${inserted}, cap nhat ${updated}.`, 'ok');
+    } catch (err) {
+      Admin.toast(err.message, 'error');
+    } finally {
+      syncEmployeesBtn.disabled = false;
+    }
+    return;
+  }
   const editBtn = e.target.closest('[data-edit]');
   if (editBtn) {
+    document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
     openEdit(editBtn.dataset.edit);
     return;
   }
   const delBtn = e.target.closest('[data-del]');
   if (!delBtn) return;
+  document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
   if (!await Admin.confirmDelete('Xoá kế hoạch này? PO list cũng sẽ xoá theo.')) return;
   try {
     await Admin.fetchJSON(`${API}/${delBtn.dataset.del}`, { method: 'DELETE' });
@@ -669,6 +791,12 @@ document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
     loadPlans();
   } catch (err) {
     Admin.toast(err.message, 'error');
+  }
+});
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('[data-row-menu]') && !e.target.closest('[data-row-menu-toggle]')) {
+    document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
   }
 });
 
