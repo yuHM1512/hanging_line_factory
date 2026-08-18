@@ -880,6 +880,12 @@ def _refresh_plan_employee_assignments(plan_master_guid: str | None = None) -> d
                 w
                 JOIN RouteSeq rs ON rs.SeqNo = w.SeqNo
                 WHERE w.MONo = ?
+                  AND EXISTS (
+                      SELECT 1
+                      FROM {MES_DB}.dbo.tStation st
+                      WHERE st.StNo = w.StNo
+                        AND st.StRole = 13
+                  )
                   AND w.EmpID IS NOT NULL AND LTRIM(RTRIM(w.EmpID)) <> ''
                   AND UPPER(LTRIM(RTRIM(w.EmpID))) <> 'TEST'
                   AND w.EmpName IS NOT NULL AND LTRIM(RTRIM(w.EmpName)) <> ''
