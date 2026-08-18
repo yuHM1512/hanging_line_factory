@@ -134,7 +134,7 @@
       <div class="fld"><span class="k">Khach hang / Customer</span><span class="v" id="h-customer">—</span></div>
       <div class="fld"><span class="k">Rai chuyen / First day</span><span class="v mono" id="h-firstday">—</span></div>
       <div class="fld"><span class="k">Lao dong / Workers</span><span class="v mono" id="h-workers2">—</span></div>
-      <div class="fld"><span class="k">Muc tieu / Cum</span><span class="v mono ok" id="h-target">—</span></div>
+      <div class="fld"><span class="k">Mục tiêu / Cụm</span><span class="v mono ok" id="h-target">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -289,9 +289,9 @@ function render(d) {
   for (const pct of [0, 33.3, 66.6, 100]) {
     html += `<div class="gl" style="bottom:${pct}%"></div>`;
   }
-  const targetLabel = d.target_cutoff_label ? ` DEN ${d.target_cutoff_label}` : '';
+  const targetLabel = d.target_cutoff_label ? ` đến ${d.target_cutoff_label}` : '';
   html += `<div class="tline" style="bottom:${targetPct}%">
-             <span class="tlabel">MUC TIEU${targetLabel} ${fmtNum(d.target)}</span>
+             <span class="tlabel">[Mục tiêu${targetLabel}] ${fmtNum(d.target)}</span>
            </div>`;
   html += '<div class="bars">';
   for (const c of d.clusters) {

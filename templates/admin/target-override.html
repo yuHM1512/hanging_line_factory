@@ -1,0 +1,210 @@
+{% extends "admin/base.html" %}
+{% set active = 'target-override' %}
+{% block header_breadcrumb %}Hiệu chỉnh lộ trình{% endblock %}
+{% block heading %}Hiệu chỉnh lộ trình{% endblock %}
+{% block subheading %}Override mục tiêu ngày cho từng đơn hàng. Từ ngày N trở đi, mục tiêu sẽ là con số bạn nhập thay vì tính tự động từ đường cong.{% endblock %}
+
+{% block body %}
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Chọn đơn hàng
+  </h3>
+  <div class="row-form">
+    <label class="field">
+      <span class="field-label">Tổ</span>
+      <select id="sel-line">
+        <option value="">— Đang tải... —</option>
+      </select>
+    </label>
+    <label class="field flex-grow">
+      <span class="field-label">Đơn hàng (MONo)</span>
+      <select id="sel-plan" disabled>
+        <option value="">— Chọn tổ trước —</option>
+      </select>
+    </label>
+  </div>
+  <div id="plan-info" class="muted" style="margin-top:.5rem" hidden></div>
+</div>
+
+<div class="panel" id="panel-override" hidden>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">add_circle</span>
+    Thêm mốc hiệu chỉnh
+  </h3>
+  <form id="form-add" class="row-form">
+    <label class="field">
+      <span class="field-label">Ngày thứ (trong lộ trình)</span>
+      <input type="number" name="DayN" min="1" step="1" required style="width:8rem" />
+    </label>
+    <label class="field">
+      <span class="field-label">Mục tiêu (pcs)</span>
+      <input type="number" name="TargetQty" min="1" step="1" required style="width:8rem" />
+    </label>
+    <label class="field flex-grow">
+      <span class="field-label">Ghi chú</span>
+      <input type="text" name="Notes" placeholder="Lý do điều chỉnh..." maxlength="200" />
+    </label>
+    <button class="btn btn-primary" type="submit">+ Thêm</button>
+  </form>
+</div>
+
+<div class="panel" id="panel-list" hidden>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">list_alt</span>
+    Danh sách mốc hiệu chỉnh
+  </h3>
+  <table class="data-table" id="tbl-override">
+    <thead>
+      <tr>
+        <th>Ngày thứ</th>
+        <th>Mục tiêu (pcs)</th>
+        <th>Áp dụng từ</th>
+        <th>Ghi chú</th>
+        <th>Tạo bởi</th>
+        <th>Tạo lúc</th>
+        <th class="col-action">Xoá</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td colspan="7" class="muted">Chọn đơn hàng để xem.</td></tr>
+    </tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const selLine = document.getElementById('sel-line');
+const selPlan = document.getElementById('sel-plan');
+const planInfo = document.getElementById('plan-info');
+const panelOverride = document.getElementById('panel-override');
+const panelList = document.getElementById('panel-list');
+
+let currentGuid = '';
+let currentFirstHang = '';
+
+async function loadLines() {
+  try {
+    const lines = await Admin.fetchJSON('/admin/api/target-override/lines');
+    selLine.innerHTML = '<option value="">— Chọn tổ —</option>' +
+      lines.map(l => `<option value="${l.line_no}">Tổ ${l.line_no}</option>`).join('');
+  } catch (err) {
+    selLine.innerHTML = '<option value="">Lỗi tải danh sách tổ</option>';
+  }
+}
+loadLines();
+
+selLine.addEventListener('change', async () => {
+  const line = selLine.value;
+  selPlan.innerHTML = '<option value="">— Đang tải... —</option>';
+  selPlan.disabled = true;
+  currentGuid = '';
+  planInfo.hidden = true;
+  panelOverride.hidden = true;
+  panelList.hidden = true;
+  if (!line) {
+    selPlan.innerHTML = '<option value="">— Chọn tổ trước —</option>';
+    return;
+  }
+  try {
+    const plans = await Admin.fetchJSON(`/admin/api/target-override/plans?line_no=${line}`);
+    if (!plans.length) {
+      selPlan.innerHTML = '<option value="">Không có đơn hàng nào</option>';
+      return;
+    }
+    selPlan.innerHTML = '<option value="">— Chọn đơn hàng —</option>' +
+      plans.map(p => `<option value="${p.PlanMaster_guid}" data-first="${p.FirstHangDate || ''}" data-style="${Admin.escape(p.StyleNo || '')}" data-customer="${Admin.escape(p.Customer || '')}" data-slkh="${p.SLKH || 0}">${Admin.escape(p.MONo)} — ${Admin.escape(p.StyleNo || '')} (${p.SLKH || 0} pcs)</option>`).join('');
+    selPlan.disabled = false;
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+    selPlan.innerHTML = '<option value="">Lỗi tải danh sách</option>';
+  }
+});
+
+selPlan.addEventListener('change', () => {
+  const opt = selPlan.selectedOptions[0];
+  currentGuid = selPlan.value;
+  if (!currentGuid) {
+    planInfo.hidden = true;
+    panelOverride.hidden = true;
+    panelList.hidden = true;
+    return;
+  }
+  currentFirstHang = opt.dataset.first || '';
+  planInfo.innerHTML = `<strong>${Admin.escape(opt.dataset.style)}</strong> · ${Admin.escape(opt.dataset.customer)} · SLKH: ${opt.dataset.slkh} · Rải chuyền: ${currentFirstHang || '—'}`;
+  planInfo.hidden = false;
+  panelOverride.hidden = false;
+  panelList.hidden = false;
+  loadOverrides();
+});
+
+async function loadOverrides() {
+  const tbody = document.querySelector('#tbl-override tbody');
+  tbody.innerHTML = '<tr><td colspan="7" class="muted">Đang tải...</td></tr>';
+  try {
+    const rows = await Admin.fetchJSON(`/admin/api/target-override?plan_guid=${currentGuid}`);
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="muted">Chưa có mốc hiệu chỉnh nào — mục tiêu đang tính tự động từ đường cong sản xuất.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = rows.map((r, i) => {
+      const nextDay = (i < rows.length - 1) ? rows[i + 1].DayN : null;
+      const range = nextDay ? `Ngày ${r.DayN} → ${nextDay - 1}` : `Ngày ${r.DayN} trở đi`;
+      return `<tr>
+        <td><strong>${r.DayN}</strong></td>
+        <td class="mono">${r.TargetQty.toLocaleString()}</td>
+        <td>${range}</td>
+        <td>${Admin.escape(r.Notes || '')}</td>
+        <td>${Admin.escape(r.CreatedBy || '')}</td>
+        <td class="muted">${r.CreatedAt || ''}</td>
+        <td class="col-action">
+          <button class="btn-icon btn-icon-danger" data-del="${r.Override_guid}" data-day="${r.DayN}" title="Xoá">
+            <span class="material-symbols-outlined">delete</span>
+          </button>
+        </td>
+      </tr>`;
+    }).join('');
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+}
+
+document.getElementById('form-add').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!currentGuid) return;
+  const fd = new FormData(e.target);
+  const body = {
+    PlanMasterGuid: currentGuid,
+    DayN: parseInt(fd.get('DayN'), 10),
+    TargetQty: parseInt(fd.get('TargetQty'), 10),
+    Notes: fd.get('Notes') || null,
+  };
+  try {
+    const res = await Admin.fetchJSON('/admin/api/target-override', {
+      method: 'POST', body: JSON.stringify(body),
+    });
+    Admin.toast(res.action === 'updated' ? 'Đã cập nhật mốc.' : 'Đã thêm mốc.', 'ok');
+    e.target.reset();
+    loadOverrides();
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+});
+
+document.getElementById('tbl-override').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-del]');
+  if (!btn) return;
+  const guid = btn.dataset.del;
+  const day = btn.dataset.day;
+  if (!await Admin.confirmDelete(`Xoá mốc ngày thứ ${day}?`)) return;
+  try {
+    await Admin.fetchJSON(`/admin/api/target-override/${guid}`, { method: 'DELETE' });
+    Admin.toast('Đã xoá.', 'ok');
+    loadOverrides();
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+});
+</script>
+{% endblock %}

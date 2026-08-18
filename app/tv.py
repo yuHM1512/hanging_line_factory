@@ -600,6 +600,19 @@ def _curve_ratio(phan_loai: str, ndsx_level: int, day_n: int) -> float:
     return float(rows[0]["Ratio"]) if rows else 1.0
 
 
+def _target_override(plan_guid: Optional[str], day_n: int) -> Optional[int]:
+    """Tìm override mục tiêu gần nhất có DayN <= day_n cho plan."""
+    if not plan_guid or day_n < 1:
+        return None
+    rows = db.query(
+        "SELECT TOP 1 TargetQty FROM app.tTargetOverride "
+        "WHERE PlanMaster_guid = ? AND DayN <= ? "
+        "ORDER BY DayN DESC",
+        (plan_guid, day_n),
+    )
+    return int(rows[0]["TargetQty"]) if rows else None
+
+
 def compute_day_target(
     first_hang_me: date,
     the_date: date,
@@ -607,25 +620,33 @@ def compute_day_target(
     phan_loai: str,
     workers: int,
     holidays: set,
+    plan_guid: Optional[str] = None,
 ) -> dict:
     """Tính mục tiêu năng suất ngày cho 1 plan/mẹ tại ngày `the_date`.
 
     Năng suất giao = ĐMKT × LĐ × ratio[day_n]
+    Nếu có override trong tTargetOverride → dùng override thay vì curve.
     """
     if not dmkt or not workers or not first_hang_me:
         return {"target": 0, "day_n": 0, "ndsx_sec": 0,
-                "ndsx_level": 0, "ratio": 0.0}
+                "ndsx_level": 0, "ratio": 0.0, "overridden": False}
     ndsx_sec = WORK_SECONDS_PER_DAY / (workers * dmkt)
     ndsx_level = _ndsx_level(phan_loai, ndsx_sec)
     day_n = _workday_index(first_hang_me, the_date, holidays)
     ratio = _curve_ratio(phan_loai, ndsx_level, day_n)
     target = round(dmkt * workers * ratio)
+    overridden = False
+    override_val = _target_override(plan_guid, day_n)
+    if override_val is not None:
+        target = override_val
+        overridden = True
     return {
         "target": target,
         "day_n": day_n,
         "ndsx_sec": round(ndsx_sec, 1),
         "ndsx_level": ndsx_level,
         "ratio": ratio,
+        "overridden": overridden,
     }
 
 
@@ -685,17 +706,26 @@ def api_tv1(
 
     # MỤC TIÊU NGÀY = compute từ curve (ĐMKT × LĐ × ratio_day_n)
     tgt = compute_day_target(first_hang_me, the_date, dmkt,
-                             plan["PhanLoaiDH"], workers, holidays)
+                             plan["PhanLoaiDH"], workers, holidays,
+                             plan_guid=plan["PlanMaster_guid"])
     daily_aim = tgt["target"]
 
     # Cumulative + today output
     cum = _output_kcs(mono, first_hang, the_date)
     today = _output_kcs(mono, the_date, the_date)
-    yesterday_out = 0
-    if the_date > first_hang:
-        y = _output_kcs(mono, the_date - timedelta(days=1), the_date - timedelta(days=1))
-        yesterday_out = y["Qty"]
-    last_day_output = today["Qty"] if today["Qty"] > 0 else yesterday_out
+    last_full_rows = db.query(
+        """
+        SELECT TOP 1 rw.ShtDate, SUM(rw.Qty) AS Qty
+        FROM {MES_DB}.dbo.tRecentWork rw
+        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        WHERE rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1
+          AND rw.ShtDate < ?
+        GROUP BY rw.ShtDate
+        ORDER BY rw.ShtDate DESC
+        """,
+        (mono, the_date),
+    )
+    last_day_output = int(last_full_rows[0]["Qty"]) if last_full_rows else 0
 
     # WIP = qty(first cluster cumulative) − qty(KCS cumulative golden formula)
     # Last cluster bắt buộc dùng StRole=13 + IsLastSeq=1 (vì SP có thể chốt nhiều SeqNo)
@@ -734,8 +764,10 @@ def api_tv1(
         (plan["PlanMaster_guid"], the_date),
     )
 
-    # Defect rate
-    defect_rate = round(cum["Def"] / cum["Qty"] * 100, 1) if cum["Qty"] else 0
+    # Defect rate: số lỗi từ QLCL / tổng kiểm (output ngày) từ MES
+    qc = _fetch_qlcl_tv3(mono, the_date)
+    total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
+    defect_rate = round(total_loi / today["Qty"] * 100, 1) if today["Qty"] else 0
 
     # Mã đơn KH = SoDonHang without '#'
     ma_don_kh = plan["SoDonHang"].lstrip("#")
@@ -802,7 +834,8 @@ def api_tv2(
     # Full-day target comes from the production curve; TV-2 target line shows
     # cumulative target up to the current reporting milestone.
     tgt = compute_day_target(first_hang_me, the_date, dmkt,
-                             plan["PhanLoaiDH"], workers, holidays)
+                             plan["PhanLoaiDH"], workers, holidays,
+                             plan_guid=plan["PlanMaster_guid"])
     target_full_day = tgt["target"]
     target_cutoff_slot, target_cutoff_label = _target_cutoff_slot(the_date)
     target_current = _target_until_cutoff(target_full_day, target_cutoff_slot)
@@ -1114,6 +1147,9 @@ def api_tv4(
         workers = _workers_for_me_day(nhu_cau_me_id, cur_date, ld_default) if is_past else ld_default
         ratio = _curve_ratio(phan_loai, ndsx_level, day_n)
         target = round(dmkt * workers * ratio) if workers else 0
+        override_val = _target_override(plan["PlanMaster_guid"], day_n)
+        if override_val is not None:
+            target = override_val
         actual = _kcs_qty_for_me(nhu_cau_me_id, cur_date, cur_date) if is_past else None
 
         cum_target += target

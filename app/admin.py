@@ -1515,3 +1515,106 @@ def api_user_delete(user_id: str):
         if cur.rowcount == 0:
             raise HTTPException(404, "User không tồn tại")
     return {"ok": True}
+
+
+# ============================================================
+# M8 — Hiệu chỉnh lộ trình (Target Override)
+# ============================================================
+@router.get("/target-override")
+def page_target_override(request: Request):
+    return templates.TemplateResponse(
+        "admin/target-override.html",
+        {"request": request, "user": request.state.current_user},
+    )
+
+
+@router.get("/api/target-override/lines")
+def api_target_override_lines():
+    rows = db.query(
+        "SELECT DISTINCT [LineNo] FROM app.tPlanMaster "
+        "WHERE [LineNo] IS NOT NULL ORDER BY [LineNo]"
+    )
+    return [{"line_no": r["LineNo"]} for r in rows]
+
+
+@router.get("/api/target-override/plans")
+def api_target_override_plans(line_no: int):
+    rows = db.query(
+        "SELECT pm.PlanMaster_guid, pm.MONo, pm.StyleNo, pm.Customer, "
+        "pm.FirstHangDate, pm.SLKH "
+        "FROM app.tPlanMaster pm "
+        "WHERE pm.[LineNo] = ? AND pm.FirstHangDate IS NOT NULL "
+        "ORDER BY pm.FirstHangDate DESC",
+        (line_no,),
+    )
+    for r in rows:
+        if r["FirstHangDate"]:
+            r["FirstHangDate"] = r["FirstHangDate"].strftime("%Y-%m-%d")
+    return rows
+
+
+@router.get("/api/target-override")
+def api_target_override_list(plan_guid: str):
+    rows = db.query(
+        "SELECT o.Override_guid, o.DayN, o.TargetQty, o.Notes, "
+        "o.CreatedBy, CONVERT(varchar(19), o.CreatedAt, 120) AS CreatedAt "
+        "FROM app.tTargetOverride o "
+        "WHERE o.PlanMaster_guid = ? "
+        "ORDER BY o.DayN",
+        (plan_guid,),
+    )
+    return rows
+
+
+class TargetOverrideIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    plan_guid: str = Field(..., alias="PlanMasterGuid")
+    day_n: int = Field(..., alias="DayN", ge=1)
+    target_qty: int = Field(..., alias="TargetQty", gt=0)
+    notes: Optional[str] = Field(None, alias="Notes")
+
+
+@router.post("/api/target-override")
+def api_target_override_create(
+    body: TargetOverrideIn, user: dict = Depends(auth.require_admin),
+):
+    actor = _actor_id(user)
+    existing = db.query(
+        "SELECT 1 FROM app.tTargetOverride "
+        "WHERE PlanMaster_guid = ? AND DayN = ?",
+        (body.plan_guid, body.day_n),
+    )
+    if existing:
+        with db.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(
+                "UPDATE app.tTargetOverride SET TargetQty = ?, Notes = ?, "
+                "CreatedBy = ?, CreatedAt = SYSDATETIME() "
+                "WHERE PlanMaster_guid = ? AND DayN = ?",
+                (body.target_qty, body.notes, actor, body.plan_guid, body.day_n),
+            )
+        return {"ok": True, "action": "updated"}
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO app.tTargetOverride "
+            "(PlanMaster_guid, DayN, TargetQty, Notes, CreatedBy) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (body.plan_guid, body.day_n, body.target_qty, body.notes, actor),
+        )
+    return {"ok": True, "action": "created"}
+
+
+@router.delete("/api/target-override/{override_guid}")
+def api_target_override_delete(
+    override_guid: str, user: dict = Depends(auth.require_admin),
+):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM app.tTargetOverride WHERE Override_guid = ?",
+            (override_guid,),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Override không tồn tại")
+    return {"ok": True}
