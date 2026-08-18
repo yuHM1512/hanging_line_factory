@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>TV Gallery · Dashboard Chuyền Treo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', sans-serif;
+    background: #0A1424; color: #fff;
+    width: 100vw; height: 100vh; overflow: hidden;
+  }
+  iframe {
+    position: fixed; inset: 0;
+    width: 100vw; height: 100vh; border: none;
+    background: #0A1424;
+  }
+
+  .toolbar {
+    position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 0.75rem;
+    background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(16px);
+    padding: 0.5rem 1.2rem; border-radius: 9999px;
+    z-index: 100;
+    opacity: 0; transition: opacity 0.3s;
+    font-size: 0.82rem; font-weight: 500;
+  }
+  body:hover .toolbar, .toolbar:hover, .toolbar.pinned { opacity: 1; }
+
+  .toolbar .info { white-space: nowrap; opacity: 0.8; }
+  .toolbar .dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.25); margin: 0 2px; }
+  .toolbar .dot.on { background: #4caf50; }
+
+  .toolbar label { display: flex; align-items: center; gap: 0.35rem; }
+  .toolbar input[type="number"] {
+    width: 3.5rem; background: rgba(255,255,255,0.12);
+    border: none; border-radius: 6px;
+    padding: 0.3rem 0.4rem; color: #fff;
+    font: inherit; font-size: 0.82rem; text-align: center;
+  }
+  .toolbar input[type="number"]:focus { outline: none; background: rgba(255,255,255,0.2); }
+
+  .tb { background: none; border: none; color: #fff; cursor: pointer; padding: 0.3rem;
+    border-radius: 6px; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s; }
+  .tb:hover { background: rgba(255,255,255,0.12); }
+  .tb svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .no-mono {
+    display: flex; align-items: center; justify-content: center;
+    height: 100vh;
+    font-family: 'Manrope', sans-serif; font-size: 1.2rem;
+    color: rgba(255,255,255,0.5);
+  }
+</style>
+</head>
+<body>
+
+<iframe id="tv-frame" src=""></iframe>
+
+<div class="toolbar pinned" id="toolbar">
+  <span class="info" id="slide-info">—</span>
+  <span id="dots"></span>
+  <label title="Thời gian chuyển (giây)">
+    <svg viewBox="0 0 24 24"><path d="M11.99 2C6.47 2 2 6.48 2 12s4.47 10 9.99 10C17.52 22 22 17.52 22 12S17.52 2 11.99 2zM12 20c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm.5-13H11v6l5.25 3.15.75-1.23-4.5-2.67z"/></svg>
+    <input type="number" id="inp-sec" value="30" min="5" max="600" />
+    <span>s</span>
+  </label>
+  <button class="tb" id="btn-fs" title="Toàn màn hình">
+    <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+  </button>
+</div>
+
+<script>
+const MONO = '{{ init_mono }}';
+const TV_IDS = [1, 2, 3, 4];
+const TV_NAMES = ['TV-1 · Sản lượng', 'TV-2 · Cụm', 'TV-3 · Chất lượng', 'TV-4 · Lộ trình'];
+
+if (!MONO) {
+  document.body.innerHTML = '<div class="no-mono">Thiếu tham số ?mono= trong URL</div>';
+}
+
+let idx = 0;
+let timer = null;
+
+function today() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+function buildURL(tvId) {
+  return `/tv/${tvId}?mono=${encodeURIComponent(MONO)}&date=${today()}`;
+}
+
+function renderDots() {
+  document.getElementById('dots').innerHTML =
+    TV_IDS.map((_, i) => `<span class="dot${i === idx ? ' on' : ''}"></span>`).join('');
+}
+
+function show() {
+  const frame = document.getElementById('tv-frame');
+  frame.src = buildURL(TV_IDS[idx]);
+  document.getElementById('slide-info').textContent =
+    `${TV_NAMES[idx]} · ${idx + 1}/${TV_IDS.length}`;
+  renderDots();
+}
+
+function getInterval() {
+  return Math.max(5, parseInt(document.getElementById('inp-sec').value) || 30);
+}
+
+function startRotate() {
+  stopRotate();
+  timer = setInterval(() => {
+    idx = (idx + 1) % TV_IDS.length;
+    show();
+  }, getInterval() * 1000);
+}
+
+function stopRotate() {
+  if (timer) { clearInterval(timer); timer = null; }
+}
+
+document.getElementById('inp-sec').addEventListener('change', () => {
+  if (timer) startRotate();
+});
+
+document.getElementById('btn-fs').addEventListener('click', () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen?.();
+  }
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'f' || e.key === 'F') {
+    document.documentElement.requestFullscreen?.();
+  }
+  if (e.key === 'ArrowRight') { idx = (idx + 1) % TV_IDS.length; show(); if (timer) startRotate(); }
+  if (e.key === 'ArrowLeft') { idx = (idx - 1 + TV_IDS.length) % TV_IDS.length; show(); if (timer) startRotate(); }
+});
+
+// Auto-hide toolbar after 5s idle
+let hideTimer;
+function resetHide() {
+  clearTimeout(hideTimer);
+  document.getElementById('toolbar').classList.add('pinned');
+  hideTimer = setTimeout(() => {
+    document.getElementById('toolbar').classList.remove('pinned');
+  }, 5000);
+}
+document.addEventListener('mousemove', resetHide);
+resetHide();
+
+if (MONO) {
+  show();
+  startRotate();
+}
+</script>
+</body>
+</html>

@@ -128,30 +128,66 @@ def page_tv4(
     )
 
 
+@router.get("/gallery")
+def page_gallery(
+    request: Request,
+    mono: Optional[str] = None,
+):
+    return templates.TemplateResponse(
+        "tv/gallery.html",
+        {"request": request, "init_mono": mono or ""},
+    )
+
+
 # ============================================================
 # Common API
 # ============================================================
 @router.get("/api/plans")
-def api_tv_plans():
-    """List NhuCauCon (tPlanMaster) đã có cluster đủ 6/6 + có ít nhất 1 ngày scan.
+def api_tv_plans(line_no: Optional[int] = None):
+    """List NhuCauCon (tPlanMaster) đã có cluster config + có data trong MES.
 
-    Trả về Plan + range ngày có data để picker.
+    Trả về Plan + range ngày có data + IsActive (có data trong 7 ngày gần nhất).
     """
-    sql = """
+    where = "pm.NhuCauMe IS NOT NULL"
+    params: list[Any] = []
+    if line_no is not None:
+        where += " AND pm.[LineNo] = ?"
+        params.append(line_no)
+    sql = f"""
         SELECT pm.MONo, pm.SoDonHang, pm.StyleNo, pm.[LineNo] AS LineNoOut,
-               pm.NhuCauMe,
+               pm.NhuCauMe, pm.Customer, pm.SLKH,
                CONVERT(varchar(10), pm.FirstHangDate, 120) AS FirstHangDate,
                (SELECT COUNT(*) FROM app.tClusterStationConfig c
                 WHERE c.NhuCauMe = pm.NhuCauMe) AS ClusterCount,
-               CONVERT(varchar(10), (SELECT MIN(ShtDate) FROM {MES_DB}.dbo.tRecentWork
+               CONVERT(varchar(10), (SELECT MIN(ShtDate) FROM {{MES_DB}}.dbo.tRecentWork
                                      WHERE MONo = pm.MONo), 120) AS DataFrom,
-               CONVERT(varchar(10), (SELECT MAX(ShtDate) FROM {MES_DB}.dbo.tRecentWork
+               CONVERT(varchar(10), (SELECT MAX(ShtDate) FROM {{MES_DB}}.dbo.tRecentWork
                                      WHERE MONo = pm.MONo), 120) AS DataTo
         FROM app.tPlanMaster pm
-        WHERE pm.NhuCauMe IS NOT NULL
+        WHERE {where}
         ORDER BY pm.[LineNo], pm.SoDonHang
     """
-    return db.query(sql)
+    rows = db.query(sql, params if params else None)
+    today = date.today()
+    cutoff = today - timedelta(days=7)
+    for r in rows:
+        data_to = r.get("DataTo")
+        if data_to:
+            last = date.fromisoformat(data_to)
+            r["IsActive"] = last >= cutoff
+        else:
+            r["IsActive"] = False
+    return rows
+
+
+@router.get("/api/plans/lines")
+def api_tv_plan_lines():
+    rows = db.query(
+        "SELECT DISTINCT [LineNo] FROM app.tPlanMaster "
+        "WHERE NhuCauMe IS NOT NULL AND [LineNo] IS NOT NULL "
+        "ORDER BY [LineNo]"
+    )
+    return [{"line_no": r["LineNo"]} for r in rows]
 
 
 def _resolve_plan_full(mono: str) -> dict:

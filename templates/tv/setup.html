@@ -9,7 +9,6 @@
 <link rel="stylesheet" href="/static/css/style.css">
 <link rel="stylesheet" href="/static/css/admin.css">
 <style>
-  /* Setup-specific tweaks on top of the Digital Curator system */
   .tv-setup-main { max-width: 1400px; margin: 0 auto; padding: 2.75rem 2rem 5rem; }
 
   .tv-hero { margin-bottom: 2.5rem; }
@@ -28,9 +27,11 @@
   }
 
   .control-grid {
-    display: grid; grid-template-columns: 1.1fr 1fr; gap: 1.25rem;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem;
     margin-bottom: 2.5rem;
   }
+  @media (max-width: 900px) { .control-grid { grid-template-columns: 1fr; } }
+
   .control-panel {
     background: var(--surface-container-lowest);
     border-radius: var(--r-xl); padding: 1.75rem 1.75rem 1.5rem;
@@ -45,48 +46,125 @@
     font-size: 0.7rem; letter-spacing: 0.04em; text-transform: uppercase;
     color: var(--on-surface-variant); font-weight: 600;
   }
-  .control-panel input, .control-panel select {
+  .control-panel select, .control-panel input {
     width: 100%; padding: 0.65rem 0.9rem;
     background: var(--surface-container-low);
     border: none; border-radius: var(--r-md);
     font: inherit; font-size: 0.95rem; color: var(--on-surface);
     transition: background 0.15s, box-shadow 0.15s;
   }
-  .control-panel input:focus, .control-panel select:focus {
+  .control-panel select:focus, .control-panel input:focus {
     background: var(--surface-container-lowest); outline: none;
     box-shadow: 0 0 0 2px rgba(0, 24, 72, 0.3);
   }
-  .control-panel .row-2 { display: grid; grid-template-columns: 1fr auto; gap: 0.75rem; align-items: end; }
   .control-panel .hint {
     font-size: 0.78rem; color: var(--on-surface-variant);
     padding-top: 0.4rem; line-height: 1.5;
   }
-  .control-panel .quick-row {
-    display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;
-    padding-top: 0.85rem;
+
+  .tab-bar {
+    display: flex; gap: 0; margin-bottom: 1rem;
+    border-radius: var(--r-md); overflow: hidden;
+    background: var(--surface-container-low);
+  }
+  .tab-bar button {
+    flex: 1; padding: 0.55rem 1rem;
+    background: none; border: none;
+    font: inherit; font-size: 0.82rem; font-weight: 600;
+    color: var(--on-surface-variant); cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .tab-bar button.active {
+    background: var(--primary); color: var(--on-primary);
+  }
+  .tab-bar .count {
+    font-weight: 400; opacity: 0.7; margin-left: 0.3rem;
+  }
+
+  .plan-list { max-height: 380px; overflow-y: auto; }
+  .plan-item {
+    display: flex; align-items: center; gap: 1rem;
+    padding: 0.85rem 1rem; border-radius: var(--r-md);
+    cursor: pointer; transition: background 0.15s;
+  }
+  .plan-item:hover { background: var(--surface-container-low); }
+  .plan-item.selected { background: var(--surface-container); }
+  .plan-item .pi-main { flex: 1; min-width: 0; }
+  .plan-item .pi-mono {
+    font-weight: 600; font-size: 0.92rem; color: var(--on-surface);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .plan-item .pi-sub {
+    font-size: 0.75rem; color: var(--on-surface-variant); margin-top: 0.15rem;
+  }
+  .plan-item .pi-badge {
+    font-size: 0.68rem; font-weight: 600; padding: 0.2rem 0.55rem;
+    border-radius: 9999px; white-space: nowrap;
+  }
+  .pi-badge.active { background: #e8f5e9; color: #2e7d32; }
+  .pi-badge.stopped { background: var(--surface-container); color: var(--on-surface-variant); }
+
+  .empty-msg {
+    padding: 2rem; text-align: center;
+    font-size: 0.85rem; color: var(--on-surface-variant);
+  }
+
+  /* Result panel */
+  .result-panel {
+    background: var(--surface-container-lowest);
+    border-radius: var(--r-xl); padding: 1.75rem;
+    margin-bottom: 2rem;
+  }
+  .result-panel .rp-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 1.25rem; flex-wrap: wrap; gap: 0.75rem;
+  }
+  .result-panel .rp-title {
+    font-family: 'Manrope', sans-serif; font-size: 1.1rem; font-weight: 700;
+    color: var(--on-surface);
+  }
+  .result-panel .rp-sub {
+    font-size: 0.82rem; color: var(--on-surface-variant);
+  }
+
+  .link-box {
+    display: flex; align-items: center; gap: 0.75rem;
+    background: var(--surface-container-low);
+    border-radius: var(--r-md); padding: 0.6rem 1rem;
+    margin-bottom: 1.25rem;
+  }
+  .link-box input {
+    flex: 1; background: none; border: none; font: inherit;
+    font-size: 0.88rem; color: var(--on-surface);
+    outline: none;
+  }
+  .link-box .btn-copy {
+    background: var(--primary); color: var(--on-primary);
+    border: none; border-radius: var(--r-md);
+    padding: 0.45rem 0.9rem; font: inherit; font-size: 0.82rem;
+    font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+
+  .quick-actions {
+    display: flex; gap: 0.5rem; flex-wrap: wrap;
   }
   .btn-soft {
     background: var(--surface-container-low); color: var(--primary);
     border: none; border-radius: var(--r-md);
     padding: 0.5rem 0.95rem; font: inherit; font-size: 0.85rem;
-    font-weight: 600; cursor: pointer;
-    transition: background 0.15s;
+    font-weight: 600; cursor: pointer; transition: background 0.15s;
+    text-decoration: none;
   }
   .btn-soft:hover { background: var(--surface-container); }
-  .btn-large { width: 100%; padding: 0.75rem 1.25rem; }
 
   .preview-grid {
     display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem;
-    margin-bottom: 2rem;
+    margin-top: 1.5rem;
   }
-  @media (min-width: 1400px) {
-    .preview-grid { grid-template-columns: repeat(4, 1fr); }
-  }
+  @media (min-width: 1400px) { .preview-grid { grid-template-columns: repeat(4, 1fr); } }
   .preview-card {
     background: var(--surface-container-lowest);
-    border-radius: var(--r-xl);
-    overflow: hidden;
-    cursor: pointer;
+    border-radius: var(--r-xl); overflow: hidden;
     transition: transform 0.2s, box-shadow 0.2s;
   }
   .preview-card:hover {
@@ -94,70 +172,47 @@
     box-shadow: 0 16px 40px rgba(25, 28, 29, 0.08);
   }
   .pc-head {
-    padding: 1.1rem 1.4rem;
-    display: flex; justify-content: space-between; align-items: flex-start; gap: 0.75rem;
+    padding: 0.85rem 1.2rem;
+    display: flex; justify-content: space-between; align-items: center;
   }
-  .pc-head .ct {
-    font-family: 'Manrope', sans-serif; font-size: 1rem;
-    font-weight: 600; color: var(--on-surface); line-height: 1.25;
-  }
-  .pc-head .ce {
-    font-size: 0.72rem; color: var(--on-surface-variant);
-    margin-top: 0.2rem;
-  }
+  .pc-head .ct { font-family: 'Manrope', sans-serif; font-size: 0.88rem; font-weight: 600; color: var(--on-surface); }
   .pc-head .tv-badge {
-    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 700;
+    font-size: 0.65rem; font-weight: 700;
     background: linear-gradient(135deg, var(--primary), var(--primary-container));
     color: var(--on-primary);
-    padding: 0.25rem 0.7rem; border-radius: 9999px; letter-spacing: 0.02em;
-    white-space: nowrap;
+    padding: 0.2rem 0.6rem; border-radius: 9999px;
   }
   .pc-preview {
     position: relative; aspect-ratio: 16/9; width: 100%;
-    background: var(--surface-container);
-    overflow: hidden;
+    background: var(--surface-container); overflow: hidden;
   }
   .pc-preview iframe {
     position: absolute; top: 0; left: 0;
     width: 1920px; height: 1080px;
-    border: none; transform-origin: top left;
-    pointer-events: none;
+    border: none; transform-origin: top left; pointer-events: none;
   }
   .pc-preview .empty {
     display: flex; align-items: center; justify-content: center;
-    height: 100%; color: var(--on-surface-variant); font-size: 0.85rem;
-    text-align: center; padding: 1rem;
+    height: 100%; color: var(--on-surface-variant); font-size: 0.8rem;
   }
   .pc-foot {
-    padding: 0.85rem 1.4rem;
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 0.78rem; color: var(--on-surface-variant);
+    padding: 0.65rem 1.2rem;
+    display: flex; justify-content: flex-end;
   }
-  .pc-foot .open-link {
-    color: var(--primary); text-decoration: none; font-weight: 600;
+  .pc-foot a {
+    color: var(--primary); text-decoration: none; font-size: 0.78rem; font-weight: 600;
   }
-  .pc-foot .open-link:hover { text-decoration: underline; }
+  .pc-foot a:hover { text-decoration: underline; }
 
-  .note-strip {
-    padding: 1.1rem 1.4rem;
-    background: var(--surface-container-lowest);
-    border-radius: var(--r-md);
-    font-size: 0.85rem; color: var(--on-surface-variant);
-    line-height: 1.6;
-  }
-  .note-strip strong { color: var(--on-surface); font-weight: 600; }
-
-  /* Fullscreen modal — chỉ container đen để TV-1/2/4 hiển thị tròn */
+  /* Modal */
   .modal { display: none; position: fixed; inset: 0; background: #0A1424; z-index: 200; }
   .modal.show { display: flex; align-items: center; justify-content: center; }
   .modal iframe { width: 100vw; height: 100vh; border: none; background: #0A1424; }
   .modal-close {
     position: absolute; top: 1rem; right: 1rem;
     background: rgba(255,255,255,0.12); color: #fff; backdrop-filter: blur(12px);
-    border: none; padding: 0.5rem 1.1rem;
-    border-radius: 9999px; cursor: pointer;
-    font: inherit; font-size: 0.85rem; font-weight: 600;
-    z-index: 201;
+    border: none; padding: 0.5rem 1.1rem; border-radius: 9999px; cursor: pointer;
+    font: inherit; font-size: 0.85rem; font-weight: 600; z-index: 201;
   }
   .modal-info {
     position: absolute; bottom: 1rem; left: 50%; transform: translateX(-50%);
@@ -186,112 +241,93 @@
   <section class="tv-hero">
     <div class="eyebrow">TV Setup</div>
     <h1>Cấu hình màn hình xưởng</h1>
-    <p>Chọn kế hoạch + ngày xem, preview 4 màn (TV-1/2/3/4), bật xoay vòng tự động trên TV.</p>
+    <p>Chọn tổ, chọn đơn hàng, tạo link xem TV xoay vòng 4 màn hình — gửi cho tổ trưởng mở trên TV.</p>
   </section>
 
   <section class="control-grid">
+    <!-- Left: Tổ + Plan list -->
     <div class="control-panel">
-      <h3 class="panel-title">Kế hoạch &amp; ngày xem</h3>
+      <h3 class="panel-title">Chọn đơn hàng</h3>
       <label class="field">
-        <span class="field-label">Kế hoạch (Tổ + MONo)</span>
-        <select id="sel-mono"><option value="">— đang tải —</option></select>
+        <span class="field-label">Tổ</span>
+        <select id="sel-line">
+          <option value="">— Đang tải... —</option>
+        </select>
       </label>
-      <div class="row-2">
-        <label class="field">
-          <span class="field-label">Ngày xem</span>
-          <input type="date" id="inp-date" />
-        </label>
-        <button class="btn btn-primary" id="btn-apply">Áp dụng</button>
+
+      <div class="tab-bar" id="tab-bar" hidden>
+        <button class="active" data-tab="active">Đang sản xuất <span class="count" id="cnt-active">0</span></button>
+        <button data-tab="stopped">Dừng sản xuất <span class="count" id="cnt-stopped">0</span></button>
       </div>
-      <div id="date-hint" class="hint"></div>
+
+      <div class="plan-list" id="plan-list">
+        <div class="empty-msg">Chọn tổ để xem danh sách đơn hàng</div>
+      </div>
     </div>
 
+    <!-- Right: Date + Quick actions -->
     <div class="control-panel">
-      <h3 class="panel-title">Auto rotation</h3>
-      <div class="row-2">
-        <label class="field">
-          <span class="field-label">Khoảng (giây)</span>
-          <input type="number" id="inp-interval" value="30" min="5" max="600" />
-        </label>
-        <button class="btn btn-primary" id="btn-rotate">▶ Bắt đầu</button>
-      </div>
-      <div class="hint">Mở fullscreen (F11) → bấm "Bắt đầu" để xoay 4 TV theo interval đã đặt.</div>
-      <div class="quick-row">
-        <button class="btn-soft" onclick="openOne(1)">Mở TV-1</button>
-        <button class="btn-soft" onclick="openOne(2)">Mở TV-2</button>
-        <button class="btn-soft" onclick="openOne(3)">Mở TV-3</button>
-        <button class="btn-soft" onclick="openOne(4)">Mở TV-4</button>
+      <h3 class="panel-title">Tuỳ chọn xem</h3>
+      <label class="field">
+        <span class="field-label">Ngày xem</span>
+        <input type="date" id="inp-date" />
+      </label>
+      <div class="hint" id="date-hint"></div>
+
+      <div style="margin-top: 1.5rem;">
+        <h3 class="panel-title">Mở nhanh từng TV</h3>
+        <div class="quick-actions">
+          <button class="btn-soft" onclick="openOne(1)">TV-1 Sản lượng</button>
+          <button class="btn-soft" onclick="openOne(2)">TV-2 Cụm</button>
+          <button class="btn-soft" onclick="openOne(3)">TV-3 Chất lượng</button>
+          <button class="btn-soft" onclick="openOne(4)">TV-4 Lộ trình</button>
+        </div>
       </div>
     </div>
   </section>
 
-  <section class="preview-grid">
-    <div class="preview-card" data-tv="1">
-      <div class="pc-head">
-        <div>
-          <div class="ct">Sản lượng &amp; nhịp độ</div>
-          <div class="ce">Hourly output &amp; takt</div>
-        </div>
-        <span class="tv-badge">TV-1</span>
-      </div>
-      <div class="pc-preview"><div class="empty">Chọn kế hoạch + ngày để preview</div></div>
-      <div class="pc-foot">
-        <span>5 mốc giờ · KPI · EHD</span>
-        <a class="open-link" href="#" target="_blank">Mở toàn màn →</a>
+  <!-- Result: Gallery link + preview -->
+  <section class="result-panel" id="result" hidden>
+    <div class="rp-head">
+      <div>
+        <div class="rp-title" id="rp-title">—</div>
+        <div class="rp-sub" id="rp-sub"></div>
       </div>
     </div>
 
-    <div class="preview-card" data-tv="2">
-      <div class="pc-head">
-        <div>
-          <div class="ct">Năng suất theo cụm</div>
-          <div class="ce">Cluster productivity</div>
-        </div>
-        <span class="tv-badge">TV-2</span>
-      </div>
-      <div class="pc-preview"><div class="empty">Chọn kế hoạch + ngày để preview</div></div>
-      <div class="pc-foot">
-        <span>6 cụm · biểu đồ vs mục tiêu</span>
-        <a class="open-link" href="#" target="_blank">Mở toàn màn →</a>
-      </div>
+    <div class="link-box">
+      <input type="text" id="gallery-url" readonly />
+      <button class="btn-copy" id="btn-copy">Copy link</button>
     </div>
 
-    <div class="preview-card" data-tv="3">
-      <div class="pc-head">
-        <div>
-          <div class="ct">Dashboard QC Chất lượng</div>
-          <div class="ce">Defect rate · Phân tích lỗi · QLCL</div>
-        </div>
-        <span class="tv-badge">TV-3</span>
-      </div>
-      <div class="pc-preview"><div class="empty">Chọn kế hoạch + ngày để preview</div></div>
-      <div class="pc-foot">
-        <span>Tỉ lệ lỗi theo giờ · Donut bộ phận · Top 3 · Cảnh báo</span>
-        <a class="open-link" href="#" target="_blank">Mở toàn màn →</a>
-      </div>
+    <div class="quick-actions">
+      <a class="btn-soft" id="btn-open-gallery" href="#" target="_blank">Mở Gallery</a>
+      <button class="btn-soft" id="btn-preview">Preview 4 TV</button>
     </div>
 
-    <div class="preview-card" data-tv="4">
-      <div class="pc-head">
-        <div>
-          <div class="ct">Tiến độ kế hoạch theo ngày</div>
-          <div class="ce">Daily plan progress</div>
-        </div>
-        <span class="tv-badge">TV-4</span>
+    <div class="preview-grid" id="preview-grid" hidden>
+      <div class="preview-card" data-tv="1">
+        <div class="pc-head"><span class="ct">Sản lượng</span><span class="tv-badge">TV-1</span></div>
+        <div class="pc-preview"><div class="empty">—</div></div>
+        <div class="pc-foot"><a href="#" target="_blank">Mở riêng</a></div>
       </div>
-      <div class="pc-preview"><div class="empty">Chọn kế hoạch + ngày để preview</div></div>
-      <div class="pc-foot">
-        <span>Ramp-up curve · % đạt</span>
-        <a class="open-link" href="#" target="_blank">Mở toàn màn →</a>
+      <div class="preview-card" data-tv="2">
+        <div class="pc-head"><span class="ct">Cụm</span><span class="tv-badge">TV-2</span></div>
+        <div class="pc-preview"><div class="empty">—</div></div>
+        <div class="pc-foot"><a href="#" target="_blank">Mở riêng</a></div>
+      </div>
+      <div class="preview-card" data-tv="3">
+        <div class="pc-head"><span class="ct">Chất lượng</span><span class="tv-badge">TV-3</span></div>
+        <div class="pc-preview"><div class="empty">—</div></div>
+        <div class="pc-foot"><a href="#" target="_blank">Mở riêng</a></div>
+      </div>
+      <div class="preview-card" data-tv="4">
+        <div class="pc-head"><span class="ct">Lộ trình</span><span class="tv-badge">TV-4</span></div>
+        <div class="pc-preview"><div class="empty">—</div></div>
+        <div class="pc-foot"><a href="#" target="_blank">Mở riêng</a></div>
       </div>
     </div>
   </section>
-
-  <div class="note-strip">
-    <strong>Cấu hình lưu trên trình duyệt (localStorage).</strong>
-    Mỗi lần mở lại trang sẽ nhớ kế hoạch · ngày · interval rotation lần cuối.
-    Setup một lần trên 1 máy → mở fullscreen (F11) → chạy auto rotate.
-  </div>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </main>
@@ -304,140 +340,191 @@
 
 <script src="/static/js/admin.js"></script>
 <script>
-const STORAGE_KEY = 'tv_setup_v1';
-const TV_LIST = [
-  { id: 1, name: 'TV-1 · Sản lượng & nhịp độ' },
-  { id: 2, name: 'TV-2 · Năng suất cụm' },
-  { id: 3, name: 'TV-3 · Dashboard QC Chất lượng' },
-  { id: 4, name: 'TV-4 · Tiến độ kế hoạch' },
-];
-let cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-let plans = [];
-let rotateTimer = null, rotateIdx = 0, rotateActive = [];
+const selLine = document.getElementById('sel-line');
+const tabBar = document.getElementById('tab-bar');
+const planList = document.getElementById('plan-list');
+const result = document.getElementById('result');
+const inpDate = document.getElementById('inp-date');
 
-function saveCfg() { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); }
+let allPlans = [];
+let selectedMono = '';
+let selectedPlan = null;
+let currentTab = 'active';
+
+function esc(s) { return Admin.escape(s); }
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+inpDate.value = todayStr();
+
+// Load lines
+async function loadLines() {
+  try {
+    const lines = await Admin.fetchJSON('/tv/api/plans/lines');
+    selLine.innerHTML = '<option value="">— Chọn tổ —</option>' +
+      lines.map(l => `<option value="${l.line_no}">Tổ ${l.line_no}</option>`).join('');
+  } catch (e) {
+    selLine.innerHTML = '<option value="">Lỗi tải</option>';
+  }
+}
+
+selLine.addEventListener('change', async () => {
+  const line = selLine.value;
+  selectedMono = '';
+  selectedPlan = null;
+  result.hidden = true;
+  if (!line) {
+    tabBar.hidden = true;
+    planList.innerHTML = '<div class="empty-msg">Chọn tổ để xem danh sách đơn hàng</div>';
+    return;
+  }
+  planList.innerHTML = '<div class="empty-msg">Đang tải...</div>';
+  try {
+    allPlans = await Admin.fetchJSON(`/tv/api/plans?line_no=${line}`);
+    currentTab = 'active';
+    updateTabs();
+    renderPlans();
+  } catch (e) {
+    planList.innerHTML = '<div class="empty-msg">Lỗi tải danh sách</div>';
+  }
+});
+
+function updateTabs() {
+  const active = allPlans.filter(p => p.IsActive).length;
+  const stopped = allPlans.length - active;
+  document.getElementById('cnt-active').textContent = active;
+  document.getElementById('cnt-stopped').textContent = stopped;
+  tabBar.hidden = false;
+  tabBar.querySelectorAll('button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === currentTab);
+  });
+}
+
+tabBar.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-tab]');
+  if (!btn) return;
+  currentTab = btn.dataset.tab;
+  updateTabs();
+  renderPlans();
+});
+
+function renderPlans() {
+  const filtered = allPlans.filter(p =>
+    currentTab === 'active' ? p.IsActive : !p.IsActive
+  );
+  if (!filtered.length) {
+    planList.innerHTML = `<div class="empty-msg">${
+      currentTab === 'active' ? 'Không có đơn hàng đang sản xuất' : 'Không có đơn hàng dừng sản xuất'
+    }</div>`;
+    return;
+  }
+  planList.innerHTML = filtered.map(p => `
+    <div class="plan-item${selectedMono === p.MONo ? ' selected' : ''}" data-mono="${esc(p.MONo)}">
+      <div class="pi-main">
+        <div class="pi-mono">${esc(p.SoDonHang)} — ${esc(p.StyleNo || '')}</div>
+        <div class="pi-sub">${esc(p.Customer || '')} · SLKH: ${(p.SLKH || 0).toLocaleString()} · Data: ${p.DataFrom || '?'} → ${p.DataTo || '?'}</div>
+      </div>
+      <span class="pi-badge ${p.IsActive ? 'active' : 'stopped'}">${p.IsActive ? 'Đang SX' : 'Dừng'}</span>
+    </div>
+  `).join('');
+}
+
+planList.addEventListener('click', (e) => {
+  const item = e.target.closest('.plan-item');
+  if (!item) return;
+  selectedMono = item.dataset.mono;
+  selectedPlan = allPlans.find(p => p.MONo === selectedMono);
+  renderPlans();
+  showResult();
+});
+
+function showResult() {
+  if (!selectedPlan) return;
+  const p = selectedPlan;
+  document.getElementById('rp-title').textContent =
+    `Tổ ${p.LineNoOut} · ${p.SoDonHang} — ${p.StyleNo || ''}`;
+  document.getElementById('rp-sub').textContent =
+    `${p.Customer || ''} · SLKH: ${(p.SLKH || 0).toLocaleString()}`;
+
+  const galleryUrl = `${location.origin}/tv/gallery?mono=${encodeURIComponent(selectedMono)}`;
+  document.getElementById('gallery-url').value = galleryUrl;
+  document.getElementById('btn-open-gallery').href = galleryUrl;
+
+  const hint = document.getElementById('date-hint');
+  hint.textContent = `Data: ${p.DataFrom || '?'} → ${p.DataTo || '?'} · Rải chuyền: ${p.FirstHangDate || '—'}`;
+
+  result.hidden = false;
+  document.getElementById('preview-grid').hidden = true;
+}
+
+document.getElementById('btn-copy').addEventListener('click', () => {
+  const input = document.getElementById('gallery-url');
+  navigator.clipboard.writeText(input.value).then(() => {
+    Admin.toast('Đã copy link!', 'ok');
+  }).catch(() => {
+    input.select();
+    document.execCommand('copy');
+    Admin.toast('Đã copy link!', 'ok');
+  });
+});
+
+document.getElementById('btn-preview').addEventListener('click', () => {
+  const grid = document.getElementById('preview-grid');
+  grid.hidden = !grid.hidden;
+  if (!grid.hidden) updatePreviews();
+});
 
 function buildURL(tvId) {
-  if (!cfg.mono || !cfg.date) return null;
-  return `/tv/${tvId}?mono=${encodeURIComponent(cfg.mono)}&date=${cfg.date}`;
+  if (!selectedMono) return null;
+  const d = inpDate.value || todayStr();
+  return `/tv/${tvId}?mono=${encodeURIComponent(selectedMono)}&date=${d}`;
 }
 
 function updatePreviews() {
-  for (const tv of TV_LIST) {
-    const card = document.querySelector(`.preview-card[data-tv="${tv.id}"]`);
+  for (const tvId of [1, 2, 3, 4]) {
+    const card = document.querySelector(`.preview-card[data-tv="${tvId}"]`);
     const preview = card.querySelector('.pc-preview');
-    const openLink = card.querySelector('.open-link');
-    const url = buildURL(tv.id);
+    const link = card.querySelector('.pc-foot a');
+    const url = buildURL(tvId);
     if (url) {
       preview.innerHTML = `<iframe src="${url}" scrolling="no"></iframe>`;
-      openLink.href = url;
+      link.href = url;
       setTimeout(() => {
         const iframe = preview.querySelector('iframe');
         if (iframe) iframe.style.transform = `scale(${preview.clientWidth / 1920})`;
-      }, 200);
-    } else {
-      preview.innerHTML = '<div class="empty">Chọn kế hoạch + ngày để preview</div>';
-      openLink.href = '#';
+      }, 300);
     }
   }
 }
 
-async function loadPlans() {
-  plans = await fetch('/tv/api/plans').then(r => r.json());
-  const sel = document.querySelector('#sel-mono');
-  if (!plans.length) {
-    sel.innerHTML = '<option value="">— chưa có plan nào đã gắn NhuCauMe —</option>';
-    return;
-  }
-  sel.innerHTML = '<option value="">— chọn —</option>' + plans.map(p => {
-    const cluster = p.ClusterCount === 6 ? '✓ 6 cụm' : `⚠ ${p.ClusterCount}/6 cụm`;
-    return `<option value="${p.MONo}" data-data-from="${p.DataFrom || ''}"
-              data-data-to="${p.DataTo || ''}" data-first="${p.FirstHangDate}">
-              Tổ ${p.LineNoOut} · ${p.SoDonHang} (${cluster})
-            </option>`;
-  }).join('');
-  if (cfg.mono) sel.value = cfg.mono;
-  updateDateHint();
-}
-
-function updateDateHint() {
-  const sel = document.querySelector('#sel-mono');
-  const opt = sel.options[sel.selectedIndex];
-  const hint = document.querySelector('#date-hint');
-  if (!opt || !opt.value) { hint.textContent = ''; return; }
-  const from = opt.dataset.dataFrom || '?';
-  const to = opt.dataset.dataTo || '?';
-  hint.textContent = `Range data: ${from} → ${to} · Ngày bắt đầu: ${opt.dataset.first}`;
-  const inp = document.querySelector('#inp-date');
-  if (!inp.value && opt.dataset.dataTo) inp.value = opt.dataset.dataTo;
-}
-
-document.querySelector('#sel-mono').addEventListener('change', updateDateHint);
-
-document.querySelector('#btn-apply').addEventListener('click', () => {
-  cfg.mono = document.querySelector('#sel-mono').value;
-  cfg.date = document.querySelector('#inp-date').value;
-  if (!cfg.mono || !cfg.date) { Admin.toast('Cần chọn cả kế hoạch và ngày', 'error'); return; }
-  cfg.interval = parseInt(document.querySelector('#inp-interval').value) || 30;
-  saveCfg();
-  updatePreviews();
-  Admin.toast('Đã áp dụng. Click "Mở TV-X" hoặc "Bắt đầu xoay" để xem fullscreen.', 'ok');
-});
-
-document.querySelector('#btn-rotate').addEventListener('click', () => {
-  cfg.mono = document.querySelector('#sel-mono').value;
-  cfg.date = document.querySelector('#inp-date').value;
-  cfg.interval = parseInt(document.querySelector('#inp-interval').value) || 30;
-  if (!cfg.mono || !cfg.date) { Admin.toast('Cần chọn kế hoạch + ngày', 'error'); return; }
-  saveCfg();
-  startRotate();
-});
-
 function openOne(tvId) {
-  cfg.mono = document.querySelector('#sel-mono').value;
-  cfg.date = document.querySelector('#inp-date').value;
-  if (!cfg.mono || !cfg.date) { Admin.toast('Cần chọn kế hoạch + ngày', 'error'); return; }
-  saveCfg();
+  if (!selectedMono) { Admin.toast('Chọn đơn hàng trước', 'error'); return; }
   const url = buildURL(tvId);
   if (!url) return;
   document.getElementById('modal-iframe').src = url;
-  document.getElementById('modal-info').textContent = TV_LIST.find(t => t.id === tvId).name;
+  const names = {1: 'TV-1 Sản lượng', 2: 'TV-2 Cụm', 3: 'TV-3 Chất lượng', 4: 'TV-4 Lộ trình'};
+  document.getElementById('modal-info').textContent = names[tvId];
   document.getElementById('modal').classList.add('show');
 }
 
-function startRotate() {
-  stopRotate();
-  rotateActive = TV_LIST.map(t => t.id);
-  rotateIdx = 0;
-  showSlide();
-  document.getElementById('modal').classList.add('show');
-  rotateTimer = setInterval(() => {
-    rotateIdx = (rotateIdx + 1) % rotateActive.length;
-    showSlide();
-  }, cfg.interval * 1000);
-}
-function showSlide() {
-  const tvId = rotateActive[rotateIdx];
-  const tv = TV_LIST.find(t => t.id === tvId);
-  document.getElementById('modal-iframe').src = buildURL(tvId);
-  document.getElementById('modal-info').textContent =
-    `${tv.name} · (${rotateIdx + 1}/${rotateActive.length}) · auto ${cfg.interval}s`;
-}
-function stopRotate() { if (rotateTimer) { clearInterval(rotateTimer); rotateTimer = null; } }
 function closeModal() {
   document.getElementById('modal').classList.remove('show');
   document.getElementById('modal-iframe').src = '';
-  stopRotate();
 }
+
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
-  if (e.key === 'f' || e.key === 'F') document.documentElement.requestFullscreen?.();
 });
 
-if (cfg.date) document.querySelector('#inp-date').value = cfg.date;
-if (cfg.interval) document.querySelector('#inp-interval').value = cfg.interval;
-loadPlans().then(() => updatePreviews());
-window.addEventListener('resize', updatePreviews);
+loadLines();
+window.addEventListener('resize', () => {
+  if (!document.getElementById('preview-grid').hidden) updatePreviews();
+});
 </script>
 </body>
 </html>
