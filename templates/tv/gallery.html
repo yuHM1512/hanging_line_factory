@@ -94,7 +94,7 @@ function today() {
 }
 
 function buildURL(tvId) {
-  return `/tv/${tvId}?mono=${encodeURIComponent(MONO)}&date=${today()}`;
+  return `/tv/${tvId}?mono=${encodeURIComponent(MONO)}&date=${today()}&_t=${Date.now()}`;
 }
 
 function renderDots() {
