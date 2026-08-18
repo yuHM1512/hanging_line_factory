@@ -289,8 +289,9 @@ function render(d) {
   for (const pct of [0, 33.3, 66.6, 100]) {
     html += `<div class="gl" style="bottom:${pct}%"></div>`;
   }
+  const targetLabel = d.target_cutoff_label ? ` DEN ${d.target_cutoff_label}` : '';
   html += `<div class="tline" style="bottom:${targetPct}%">
-             <span class="tlabel">MUC TIEU ${fmtNum(d.target)}</span>
+             <span class="tlabel">MUC TIEU${targetLabel} ${fmtNum(d.target)}</span>
            </div>`;
   html += '<div class="bars">';
   for (const c of d.clusters) {

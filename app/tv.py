@@ -484,6 +484,32 @@ def _hourly_target(daily_aim: int) -> list[int]:
     return base_4 + [max(slot_5, 0)]
 
 
+def _target_cutoff_slot(the_date: date, now: Optional[datetime] = None) -> tuple[int, str]:
+    """Return the reporting cutoff slot for TV-2 target.
+
+    Today follows the next reporting milestone. Other dates use full-day target
+    so historical/future views do not depend on the current clock.
+    """
+    now = now or datetime.now()
+    if the_date != now.date():
+        return 5, "FULL DAY"
+
+    slot = _slot_from_time(now)
+    if slot is not None:
+        return slot, SLOT_RANGES[slot - 1][1] if slot < 5 else "SAU 16:30"
+
+    hm = now.strftime("%H:%M")
+    if hm < "07:30":
+        return 1, "09:30"
+    return 5, "SAU 16:30"
+
+
+def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
+    slots = _hourly_target(daily_aim)
+    cutoff_slot = max(1, min(cutoff_slot, len(slots)))
+    return sum(slots[:cutoff_slot])
+
+
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
     """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13 AND IsLastSeq=1)."""
     where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1"
@@ -773,10 +799,13 @@ def api_tv2(
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
 
-    # Target line = computed từ curve (end-of-day → ratio đã đầy đủ)
+    # Full-day target comes from the production curve; TV-2 target line shows
+    # cumulative target up to the current reporting milestone.
     tgt = compute_day_target(first_hang_me, the_date, dmkt,
                              plan["PhanLoaiDH"], workers, holidays)
-    target_today = tgt["target"]
+    target_full_day = tgt["target"]
+    target_cutoff_slot, target_cutoff_label = _target_cutoff_slot(the_date)
+    target_current = _target_until_cutoff(target_full_day, target_cutoff_slot)
 
     # Tính qty/ngày + lũy kế cho từng cụm 1..6
     clusters_data = []
@@ -797,11 +826,11 @@ def api_tv2(
             "RouteStepOdr": odr,
             "QtyToday": today_qty,
             "Cumulative": cum_qty,
-            "Pass": today_qty >= target_today,
+            "Pass": today_qty >= target_current,
         })
 
     # Y-axis max cho chart = max(values + target) × 1.15, làm tròn lên 50
-    all_qtys = [c["QtyToday"] for c in clusters_data] + [target_today]
+    all_qtys = [c["QtyToday"] for c in clusters_data] + [target_current]
     max_val = max(all_qtys) if all_qtys else 100
     y_max = ((int(max_val * 1.15) // 50) + 1) * 50
 
@@ -817,10 +846,16 @@ def api_tv2(
             "Customer": plan["Customer"],
             "FirstHangDate": first_hang.isoformat(),
             "Workers": workers,
-            "Target": target_today,
+            "Target": target_current,
+            "TargetFullDay": target_full_day,
+            "TargetCutoffSlot": target_cutoff_slot,
+            "TargetCutoffLabel": target_cutoff_label,
         },
         "clusters": clusters_data,
-        "target": target_today,
+        "target": target_current,
+        "target_full_day": target_full_day,
+        "target_cutoff_slot": target_cutoff_slot,
+        "target_cutoff_label": target_cutoff_label,
         "y_max": y_max,
     }
 
