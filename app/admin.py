@@ -565,11 +565,15 @@ def _enrich_plan_rows(rows: list[dict]) -> list[dict]:
 @router.get("/api/plan")
 def api_plan_list():
     rows = db.query(
-        "SELECT PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo] AS LineNoOut, "
-        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes, "
-        "CreatedBy, "
-        "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
-        "FROM app.tPlanMaster ORDER BY FirstHangDate DESC, [LineNo], SoDonHang"
+        "SELECT pm.PlanMaster_guid, pm.MONo, pm.SoDonHang, pm.StyleNo, "
+        "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
+        "pm.Customer, pm.NhuCauMe, pm.LoaiHang, pm.Notes, "
+        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.Notes AS DemandNotes, "
+        "pm.CreatedBy, "
+        "CONVERT(varchar(19), pm.CreatedAt, 120) AS CreatedAt "
+        "FROM app.tPlanMaster pm "
+        "LEFT JOIN app.tDemandRoot dr ON dr.NhuCauMe = pm.NhuCauMe "
+        "ORDER BY pm.FirstHangDate DESC, pm.[LineNo], pm.SoDonHang"
     )
     return _enrich_plan_rows(rows)
 
@@ -577,9 +581,13 @@ def api_plan_list():
 @router.get("/api/plan/{guid}")
 def api_plan_detail(guid: str):
     rows = db.query(
-        "SELECT PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo] AS LineNoOut, "
-        "FirstHangDate, SLKH, DailyAim, Customer, NhuCauMe, LoaiHang, Notes "
-        "FROM app.tPlanMaster WHERE PlanMaster_guid = ?",
+        "SELECT pm.PlanMaster_guid, pm.MONo, pm.SoDonHang, pm.StyleNo, "
+        "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
+        "pm.Customer, pm.NhuCauMe, pm.LoaiHang, pm.Notes, "
+        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.Notes AS DemandNotes "
+        "FROM app.tPlanMaster pm "
+        "LEFT JOIN app.tDemandRoot dr ON dr.NhuCauMe = pm.NhuCauMe "
+        "WHERE pm.PlanMaster_guid = ?",
         (guid,),
     )
     if not rows:
@@ -676,12 +684,17 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
 
 
 class PlanUpdate(AdminModel):
+    style_no: str = Field(..., alias="StyleNo")
     line_no: int = Field(..., alias="LineNo", ge=1, le=99)
     first_hang_date: date = Field(..., alias="FirstHangDate")
     slkh: int = Field(..., alias="SLKH", gt=0)
     daily_aim: Optional[int] = Field(None, alias="DailyAim", gt=0)
     customer: Optional[str] = Field(None, alias="Customer")
     nhu_cau_me: Optional[str] = Field(None, alias="NhuCauMe")
+    dmkt: float = Field(..., alias="DMKT", gt=0)
+    phan_loai_dh: str = Field(..., alias="PhanLoaiDH")
+    ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+    demand_notes: Optional[str] = Field(None, alias="DemandNotes")
     loai_hang: Optional[str] = Field(None, alias="LoaiHang")
     notes: Optional[str] = Field(None, alias="Notes")
 
@@ -690,12 +703,36 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
     with db.get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
+            "SELECT NhuCauMe FROM app.tPlanMaster WHERE PlanMaster_guid = ?",
+            (guid,),
+        )
+        row = cur.fetchone()
+        if not row:
+            raise HTTPException(404, "Plan khong ton tai")
+        current_nhu_cau_me = row[0]
+        cur.execute(
+            "UPDATE app.tDemandRoot SET "
+            "StyleNo = ?, DMKT = ?, PhanLoaiDH = ?, [LineNo] = ?, "
+            "LDBienChe = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
+            "WHERE NhuCauMe = ?",
+            (
+                body.style_no,
+                body.dmkt,
+                body.phan_loai_dh,
+                body.line_no,
+                body.ld_bien_che,
+                body.demand_notes,
+                _actor_id(user),
+                current_nhu_cau_me,
+            ),
+        )
+        cur.execute(
             "UPDATE app.tPlanMaster SET "
-            "[LineNo] = ?, FirstHangDate = ?, SLKH = ?, DailyAim = ?, "
+            "StyleNo = ?, [LineNo] = ?, FirstHangDate = ?, SLKH = ?, DailyAim = ?, "
             "Customer = ?, NhuCauMe = ?, LoaiHang = ?, Notes = ?, "
             "UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
             "WHERE PlanMaster_guid = ?",
-            (body.line_no, body.first_hang_date, body.slkh, body.daily_aim,
+            (body.style_no, body.line_no, body.first_hang_date, body.slkh, body.daily_aim,
              body.customer, body.nhu_cau_me, body.loai_hang, body.notes, _actor_id(user), guid),
         )
         if cur.rowcount == 0:

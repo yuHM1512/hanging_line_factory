@@ -1,5 +1,5 @@
 # Hanging Conveyor Dashboard - Dev launcher
-# Usage: .\run.ps1            -> chay server tai http://127.0.0.1:8016
+# Usage: .\run.ps1            -> chay server tai http://127.0.0.1:8018
 #        .\run.ps1 -Setup     -> tao venv va cai requirements
 #        .\run.ps1 -CreateDb  -> smoke-test connect + CREATE hanging_app (khong migrate)
 #        .\run.ps1 -Migrate   -> ensure hanging_app + apply tat ca SQL migration
@@ -11,10 +11,10 @@ param(
     [switch]$Migrate,
     [switch]$Reload,
     [string]$BindHost = "127.0.0.1",
-    [int]$Port = 8016
+    [int]$Port = 8018
 )
 
-$CanonicalPort = 8016
+$CanonicalPort = 8018
 
 $ErrorActionPreference = "Stop"
 Set-Location -Path $PSScriptRoot

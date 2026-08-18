@@ -59,7 +59,6 @@
   <form id="form-plan" class="grid-form">
     <input type="hidden" name="MONo" />
     <input type="hidden" name="SoDonHang" />
-    <input type="hidden" name="StyleNo" />
 
     <label class="field">
       <span class="field-label">MONo</span>
@@ -71,7 +70,7 @@
     </label>
     <label class="field">
       <span class="field-label">Mã hàng</span>
-      <input type="text" name="StyleNoDisplay" readonly />
+      <input type="text" name="StyleNo" required />
     </label>
     <label class="field">
       <span class="field-label">Tổ</span>
@@ -491,12 +490,12 @@ async function openCreate(r) {
   editingGuid = null;
   const f = document.querySelector('#form-plan');
   f.reset();
+  f.NhuCauMe.readOnly = false;
   f.MONo.value = r.MONo;
   f.MONoDisplay.value = r.MONo;
   f.SoDonHang.value = r.SoDonHang;
   f.SoDonHangDisplay.value = r.SoDonHang;
   f.StyleNo.value = r.StyleNo;
-  f.StyleNoDisplay.value = r.StyleNo;
   f.LineNo.value = r.LineNo || '';
   f.NhuCauMe.value = r.SoDonHang;
   f.DMKT.value = '';
@@ -516,19 +515,18 @@ async function openEdit(guid) {
   const p = await Admin.fetchJSON(`${API}/${guid}`);
   const f = document.querySelector('#form-plan');
   f.reset();
+  f.NhuCauMe.readOnly = true;
   f.MONo.value = p.MONo;
   f.MONoDisplay.value = p.MONo;
   f.SoDonHang.value = p.SoDonHang;
   f.SoDonHangDisplay.value = p.SoDonHang;
   f.StyleNo.value = p.StyleNo;
-  f.StyleNoDisplay.value = p.StyleNo;
   f.LineNo.value = p.LineNoOut;
   f.NhuCauMe.value = p.NhuCauMe || p.SoDonHang;
-  f.DMKT.value = 1;
-  f.PhanLoaiDH.value = 'Mới';
-  if (!f.PhanLoaiDH.value) f.PhanLoaiDH.selectedIndex = 1;
-  f.LDBienChe.value = 1;
-  f.DemandNotes.value = '';
+  f.DMKT.value = p.DMKT || '';
+  f.PhanLoaiDH.value = p.PhanLoaiDH || '';
+  f.LDBienChe.value = p.LDBienChe || '';
+  f.DemandNotes.value = p.DemandNotes || '';
   f.FirstHangDate.value = p.FirstHangDate;
   f.SLKH.value = p.SLKH;
   f.DailyAim.value = p.DailyAim || '';
@@ -558,6 +556,7 @@ document.querySelector('#btn-cancel').addEventListener('click', () => {
   editingGuid = null;
   document.querySelector('#form-panel').hidden = true;
   document.querySelector('#form-plan').reset();
+  document.querySelector('#form-plan').NhuCauMe.readOnly = false;
   pendingPOs = [];
 });
 
@@ -667,12 +666,17 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
   if (!Admin.validateForm(e.target)) return;
   const fd = new FormData(e.target);
   const baseBody = {
+    StyleNo: fd.get('StyleNo'),
     LineNo: parseInt(fd.get('LineNo')),
     FirstHangDate: fd.get('FirstHangDate'),
     SLKH: parseInt(fd.get('SLKH')),
     DailyAim: fd.get('DailyAim') ? parseInt(fd.get('DailyAim')) : null,
     Customer: fd.get('Customer') || null,
     NhuCauMe: fd.get('NhuCauMe') || null,
+    DMKT: parseFloat(fd.get('DMKT')),
+    PhanLoaiDH: fd.get('PhanLoaiDH'),
+    LDBienChe: parseInt(fd.get('LDBienChe')),
+    DemandNotes: fd.get('DemandNotes') || null,
     LoaiHang: fd.get('LoaiHang') || null,
     Notes: fd.get('Notes') || null,
   };

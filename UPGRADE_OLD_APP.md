@@ -43,44 +43,72 @@ Doi lai ten DB va duong dan `.bak` cho dung may.
 
 Chay SQL nay trong DB app hanging. SQL nay chi don phan setup nhu cau va cache lien quan, khong dung toi user, holiday, SAM.
 
+Luu y:
+
+- DB cu co the chua co `app.tPlanAdjustment`
+- DB cu co the chua co `app.tPlanEmployeeAssignment`
+- vi vay can dung script xoa co kiem tra ton tai bang truoc khi `DELETE`
+
 ```sql
 BEGIN TRAN;
 
-SELECT 'tClusterStationConfig' AS TableName, COUNT(*) AS RowCount FROM app.tClusterStationConfig
-UNION ALL
-SELECT 'tPlanEmployeeAssignment', COUNT(*) FROM app.tPlanEmployeeAssignment
-UNION ALL
-SELECT 'tPlanAdjustment', COUNT(*) FROM app.tPlanAdjustment
-UNION ALL
-SELECT 'tPlanPO', COUNT(*) FROM app.tPlanPO
-UNION ALL
-SELECT 'tPlanMaster', COUNT(*) FROM app.tPlanMaster
-UNION ALL
-SELECT 'tDemandRoot', COUNT(*) FROM app.tDemandRoot;
+IF OBJECT_ID('app.tClusterStationConfig', 'U') IS NOT NULL
+    SELECT 'tClusterStationConfig' AS TableName, COUNT(*) AS RowCount FROM app.tClusterStationConfig;
+IF OBJECT_ID('app.tPlanEmployeeAssignment', 'U') IS NOT NULL
+    SELECT 'tPlanEmployeeAssignment' AS TableName, COUNT(*) AS RowCount FROM app.tPlanEmployeeAssignment;
+IF OBJECT_ID('app.tPlanAdjustment', 'U') IS NOT NULL
+    SELECT 'tPlanAdjustment' AS TableName, COUNT(*) AS RowCount FROM app.tPlanAdjustment;
+IF OBJECT_ID('app.tPlanPO', 'U') IS NOT NULL
+    SELECT 'tPlanPO' AS TableName, COUNT(*) AS RowCount FROM app.tPlanPO;
+IF OBJECT_ID('app.tPlanMaster', 'U') IS NOT NULL
+    SELECT 'tPlanMaster' AS TableName, COUNT(*) AS RowCount FROM app.tPlanMaster;
+IF OBJECT_ID('app.tDemandRoot', 'U') IS NOT NULL
+    SELECT 'tDemandRoot' AS TableName, COUNT(*) AS RowCount FROM app.tDemandRoot;
 
-DELETE FROM app.tClusterStationConfig;
-DELETE FROM app.tPlanEmployeeAssignment;
-DELETE FROM app.tPlanAdjustment;
-DELETE FROM app.tPlanPO;
-DELETE FROM app.tPlanMaster;
-DELETE FROM app.tDemandRoot;
+IF OBJECT_ID('app.tClusterStationConfig', 'U') IS NOT NULL
+    DELETE FROM app.tClusterStationConfig;
+IF OBJECT_ID('app.tPlanEmployeeAssignment', 'U') IS NOT NULL
+    DELETE FROM app.tPlanEmployeeAssignment;
+IF OBJECT_ID('app.tPlanAdjustment', 'U') IS NOT NULL
+    DELETE FROM app.tPlanAdjustment;
+IF OBJECT_ID('app.tPlanPO', 'U') IS NOT NULL
+    DELETE FROM app.tPlanPO;
+IF OBJECT_ID('app.tPlanMaster', 'U') IS NOT NULL
+    DELETE FROM app.tPlanMaster;
+IF OBJECT_ID('app.tDemandRoot', 'U') IS NOT NULL
+    DELETE FROM app.tDemandRoot;
 
-SELECT 'tClusterStationConfig' AS TableName, COUNT(*) AS RowCount FROM app.tClusterStationConfig
-UNION ALL
-SELECT 'tPlanEmployeeAssignment', COUNT(*) FROM app.tPlanEmployeeAssignment
-UNION ALL
-SELECT 'tPlanAdjustment', COUNT(*) FROM app.tPlanAdjustment
-UNION ALL
-SELECT 'tPlanPO', COUNT(*) FROM app.tPlanPO
-UNION ALL
-SELECT 'tPlanMaster', COUNT(*) FROM app.tPlanMaster
-UNION ALL
-SELECT 'tDemandRoot', COUNT(*) FROM app.tDemandRoot;
+IF OBJECT_ID('app.tClusterStationConfig', 'U') IS NOT NULL
+    SELECT 'tClusterStationConfig' AS TableName, COUNT(*) AS RowCount FROM app.tClusterStationConfig;
+IF OBJECT_ID('app.tPlanEmployeeAssignment', 'U') IS NOT NULL
+    SELECT 'tPlanEmployeeAssignment' AS TableName, COUNT(*) AS RowCount FROM app.tPlanEmployeeAssignment;
+IF OBJECT_ID('app.tPlanAdjustment', 'U') IS NOT NULL
+    SELECT 'tPlanAdjustment' AS TableName, COUNT(*) AS RowCount FROM app.tPlanAdjustment;
+IF OBJECT_ID('app.tPlanPO', 'U') IS NOT NULL
+    SELECT 'tPlanPO' AS TableName, COUNT(*) AS RowCount FROM app.tPlanPO;
+IF OBJECT_ID('app.tPlanMaster', 'U') IS NOT NULL
+    SELECT 'tPlanMaster' AS TableName, COUNT(*) AS RowCount FROM app.tPlanMaster;
+IF OBJECT_ID('app.tDemandRoot', 'U') IS NOT NULL
+    SELECT 'tDemandRoot' AS TableName, COUNT(*) AS RowCount FROM app.tDemandRoot;
 
 COMMIT TRAN;
 ```
 
-Neu muon kiem tra truoc khi xoa, chi chay phan `SELECT COUNT(*)`.
+Neu muon kiem tra truoc khi xoa, chi chay phan `SELECT`.
+
+Voi schema cu, thuong phan setup nhu cau me - con se nam chu yeu o:
+
+- `app.tDemandRoot`
+- `app.tPlanMaster`
+- `app.tPlanPO`
+- `app.tClusterStationConfig`
+
+Con 2 bang duoc them sau nay:
+
+- `app.tPlanAdjustment`
+- `app.tPlanEmployeeAssignment`
+
+neu chua co thi script tren se tu bo qua.
 
 ## 4. Pull code moi
 
