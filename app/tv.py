@@ -710,8 +710,8 @@ def api_tv1(
                              plan_guid=plan["PlanMaster_guid"])
     daily_aim = tgt["target"]
 
-    # Cumulative + today output
-    cum = _output_kcs(mono, first_hang, the_date)
+    # Cumulative output: tính từ ngày đầu tiên có data trong MES (không giới hạn bởi FirstHangDate)
+    cum = _output_kcs(mono, None, the_date)
     today = _output_kcs(mono, the_date, the_date)
     last_full_rows = db.query(
         """
@@ -749,7 +749,8 @@ def api_tv1(
         owe_pct = round(sam / rpt * 100, 1) if rpt else 0
 
     # End dates
-    end_target = compute_end_date(first_hang, slkh, daily_aim, holidays)
+    plan_daily_aim = int(plan["DailyAim"] or 0)
+    end_target = compute_end_date(first_hang, slkh, plan_daily_aim, holidays)
     end_actual = _forecast_end_date(first_hang, slkh, last_day_output,
                                     cum["Qty"], the_date, holidays)
 
