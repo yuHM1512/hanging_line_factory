@@ -1,0 +1,181 @@
+{% extends "admin/base.html" %}
+{% set active = 'qc-assignment' %}
+{% block header_breadcrumb %}Phân công QC{% endblock %}
+{% block heading %}Xem phân công QC{% endblock %}
+{% block subheading %}Danh sách nhân sự được phân công theo từng đơn hàng, công đoạn và trạm.{% endblock %}
+
+{% block body %}
+<style>
+  .filter-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; align-items: end; }
+  .filter-row .field { min-width: 180px; }
+  .summary-row { display: flex; gap: 1.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+  .summary-chip {
+    background: var(--surface-container-low); border-radius: var(--r-md);
+    padding: 0.5rem 1rem; font-size: 0.82rem;
+  }
+  .summary-chip strong { color: var(--primary); font-weight: 700; margin-right: 0.25rem; }
+  .group-header {
+    background: var(--surface-container-low); padding: 0.6rem 1rem;
+    font-weight: 600; font-size: 0.88rem; color: var(--on-surface);
+    border-radius: var(--r-md); margin-top: 1rem;
+  }
+  .group-header:first-child { margin-top: 0; }
+  .emp-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 0.6rem; padding: 0.75rem 0;
+  }
+  .emp-card {
+    background: var(--surface-container-lowest);
+    border-radius: var(--r-md); padding: 0.75rem 1rem;
+    display: flex; align-items: center; gap: 0.75rem;
+  }
+  .emp-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--primary); color: var(--on-primary);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 0.72rem; font-weight: 700; flex-shrink: 0;
+  }
+  .emp-info { flex: 1; min-width: 0; }
+  .emp-name { font-weight: 600; font-size: 0.88rem; color: var(--on-surface); }
+  .emp-id { font-size: 0.72rem; color: var(--on-surface-variant); }
+  .emp-qty {
+    font-size: 0.78rem; font-weight: 600; color: var(--primary);
+    white-space: nowrap;
+  }
+</style>
+
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Bộ lọc
+  </h3>
+  <div class="filter-row">
+    <label class="field">
+      <span class="field-label">Tổ</span>
+      <select id="sel-line">
+        <option value="">Tất cả tổ</option>
+      </select>
+    </label>
+    <label class="field">
+      <span class="field-label">Đơn hàng (MONo)</span>
+      <select id="sel-mono">
+        <option value="">Tất cả</option>
+      </select>
+    </label>
+  </div>
+</div>
+
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">groups</span>
+    Danh sách phân công
+  </h3>
+  <div class="summary-row" id="summary" hidden>
+    <div class="summary-chip"><strong id="s-total">0</strong> nhân sự</div>
+    <div class="summary-chip"><strong id="s-seq">0</strong> công đoạn</div>
+    <div class="summary-chip"><strong id="s-qty">0</strong> tổng sản lượng</div>
+  </div>
+  <div id="content">
+    <div class="muted" style="padding:2rem;text-align:center">Đang tải...</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const selLine = document.getElementById('sel-line');
+const selMono = document.getElementById('sel-mono');
+const content = document.getElementById('content');
+const summary = document.getElementById('summary');
+
+async function loadLines() {
+  try {
+    const rows = await Admin.fetchJSON('/admin/api/target-override/lines');
+    selLine.innerHTML = '<option value="">Tất cả tổ</option>' +
+      rows.map(r => `<option value="${r.line_no}">Tổ ${r.line_no}</option>`).join('');
+  } catch (_) {}
+}
+
+async function loadMonos() {
+  const line = selLine.value;
+  const url = '/admin/api/plan-employee-assignments/monos' + (line ? `?line_no=${line}` : '');
+  try {
+    const rows = await Admin.fetchJSON(url);
+    selMono.innerHTML = '<option value="">Tất cả</option>' +
+      rows.map(r => `<option value="${Admin.escape(r.RootMONo)}">Tổ ${r.LineNoOut} · ${Admin.escape(r.SoDonHang || r.RootMONo)} — ${Admin.escape(r.StyleNo || '')}</option>`).join('');
+  } catch (_) {
+    selMono.innerHTML = '<option value="">Tất cả</option>';
+  }
+}
+
+async function loadAssignments() {
+  const line = selLine.value;
+  const mono = selMono.value;
+  let url = '/admin/api/plan-employee-assignments?';
+  if (line) url += `line_no=${line}&`;
+  if (mono) url += `mono=${encodeURIComponent(mono)}&`;
+
+  content.innerHTML = '<div class="muted" style="padding:2rem;text-align:center">Đang tải...</div>';
+  summary.hidden = true;
+
+  try {
+    const rows = await Admin.fetchJSON(url);
+    if (!rows.length) {
+      content.innerHTML = '<div class="muted" style="padding:2rem;text-align:center">Không có dữ liệu phân công.</div>';
+      return;
+    }
+
+    const empSet = new Set(rows.map(r => r.EmpID));
+    const seqSet = new Set(rows.map(r => r.SeqName || r.SeqNo));
+    const totalQty = rows.reduce((s, r) => s + (r.Qty || 0), 0);
+    document.getElementById('s-total').textContent = empSet.size;
+    document.getElementById('s-seq').textContent = seqSet.size;
+    document.getElementById('s-qty').textContent = totalQty.toLocaleString();
+    summary.hidden = false;
+
+    const groups = {};
+    for (const r of rows) {
+      const key = r.SeqName || r.SeqNo || 'Không rõ';
+      if (!groups[key]) groups[key] = { odr: r.Odr || 999, items: [] };
+      groups[key].items.push(r);
+    }
+
+    const sorted = Object.entries(groups).sort((a, b) => a[1].odr - b[1].odr);
+
+    let html = '';
+    for (const [seqName, group] of sorted) {
+      const empCount = new Set(group.items.map(r => r.EmpID)).size;
+      html += `<div class="group-header">${Admin.escape(seqName)} <span class="muted" style="font-weight:400;font-size:0.78rem">(${empCount} người)</span></div>`;
+      html += '<div class="emp-grid">';
+      const seen = new Set();
+      for (const r of group.items) {
+        const k = r.EmpID + '|' + seqName;
+        if (seen.has(k)) continue;
+        seen.add(k);
+        const initials = (r.EmpName || '??').split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
+        html += `<div class="emp-card">
+          <div class="emp-avatar">${Admin.escape(initials)}</div>
+          <div class="emp-info">
+            <div class="emp-name">${Admin.escape(r.EmpName)}</div>
+            <div class="emp-id">${Admin.escape(r.EmpID)}${r.WorkLine ? ' · ' + Admin.escape(r.WorkLine) : ''}</div>
+          </div>
+          <div class="emp-qty">${(r.Qty || 0).toLocaleString()}</div>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    content.innerHTML = html;
+  } catch (err) {
+    content.innerHTML = `<div class="muted" style="padding:2rem;text-align:center">Lỗi: ${Admin.escape(err.message)}</div>`;
+  }
+}
+
+selLine.addEventListener('change', () => {
+  loadMonos();
+  loadAssignments();
+});
+selMono.addEventListener('change', loadAssignments);
+
+loadLines().then(() => loadMonos().then(loadAssignments));
+</script>
+{% endblock %}

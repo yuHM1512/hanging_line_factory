@@ -1090,19 +1090,60 @@ async def api_sync_qc_employees_to_qlcl(request: Request):
         raise HTTPException(status_code=502, detail=f"Không đồng bộ được nhân sự sang QLCL: {exc}")
 
 
+@router.get("/qc-assignment")
+def page_qc_assignment(request: Request):
+    return templates.TemplateResponse(
+        "admin/qc-assignment.html",
+        {"request": request, "user": request.state.current_user},
+    )
+
+
 @router.get("/api/plan-employee-assignments")
-def api_plan_employee_assignments():
+def api_plan_employee_assignments(
+    line_no: Optional[int] = None,
+    mono: Optional[str] = None,
+):
+    where = "1=1"
+    params: list[Any] = []
+    if line_no is not None:
+        where += " AND a.[LineNo] = ?"
+        params.append(line_no)
+    if mono:
+        where += " AND a.RootMONo = ?"
+        params.append(mono)
     return db.query(
-        """
-        SELECT TOP 500
-            RootMONo, SourceMONo, DonVi, BoPhan, WorkLine, StNo, Odr,
-            SeqNo, SeqName, EmpID, EmpName, Qty,
-            CONVERT(varchar(10), FirstWorkDate, 120) AS FirstWorkDate,
-            CONVERT(varchar(10), LastWorkDate, 120) AS LastWorkDate,
-            CONVERT(varchar(19), SyncedAt, 120) AS SyncedAt
-        FROM app.tPlanEmployeeAssignment
-        ORDER BY RootMONo, Odr, EmpID
-        """
+        f"""
+        SELECT a.RootMONo, a.SourceMONo, a.DonVi, a.BoPhan,
+            a.WorkLine, a.StNo, a.Odr, a.SeqNo, a.SeqName,
+            a.EmpID, a.EmpName, a.Qty,
+            CONVERT(varchar(10), a.FirstWorkDate, 120) AS FirstWorkDate,
+            CONVERT(varchar(10), a.LastWorkDate, 120) AS LastWorkDate,
+            CONVERT(varchar(19), a.SyncedAt, 120) AS SyncedAt
+        FROM app.tPlanEmployeeAssignment a
+        WHERE {where}
+        ORDER BY a.Odr, a.SeqName, a.EmpName
+        """,
+        params if params else None,
+    )
+
+
+@router.get("/api/plan-employee-assignments/monos")
+def api_assignment_monos(line_no: Optional[int] = None):
+    where = "1=1"
+    params: list[Any] = []
+    if line_no is not None:
+        where += " AND a.[LineNo] = ?"
+        params.append(line_no)
+    return db.query(
+        f"""
+        SELECT DISTINCT a.RootMONo,
+            pm.SoDonHang, pm.StyleNo, pm.Customer, pm.[LineNo] AS LineNoOut
+        FROM app.tPlanEmployeeAssignment a
+        INNER JOIN app.tPlanMaster pm ON pm.PlanMaster_guid = a.PlanMaster_guid
+        WHERE {where}
+        ORDER BY a.RootMONo
+        """,
+        params if params else None,
     )
 
 
