@@ -42,6 +42,23 @@
     font-size: 0.78rem; font-weight: 600; color: var(--primary);
     white-space: nowrap;
   }
+  .group-header.output-seq {
+    background: var(--primary);
+    color: var(--on-primary);
+    display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+  }
+  .group-header.output-seq .muted { color: rgba(255,255,255,0.7); }
+  .output-badge {
+    font-size: 0.68rem; font-weight: 600;
+    background: rgba(255,255,255,0.2); color: var(--on-primary);
+    padding: 0.15rem 0.5rem; border-radius: 9999px;
+    white-space: nowrap;
+  }
+  .output-total {
+    margin-left: auto;
+    font-size: 0.82rem; font-weight: 700;
+    color: var(--on-primary); white-space: nowrap;
+  }
 </style>
 
 <div class="panel">
@@ -142,10 +159,22 @@ async function loadAssignments() {
 
     const sorted = Object.entries(groups).sort((a, b) => a[1].odr - b[1].odr);
 
+    const maxOdr = Math.max(...sorted.map(([, g]) => g.odr));
+
     let html = '';
     for (const [seqName, group] of sorted) {
       const empCount = new Set(group.items.map(r => r.EmpID)).size;
-      html += `<div class="group-header">${Admin.escape(seqName)} <span class="muted" style="font-weight:400;font-size:0.78rem">(${empCount} người)</span></div>`;
+      const isOutput = group.odr === maxOdr;
+      if (isOutput) {
+        const groupQty = group.items.reduce((s, r) => s + (r.Qty || 0), 0);
+        html += `<div class="group-header output-seq">
+          ${Admin.escape(seqName)} <span class="muted" style="font-weight:400;font-size:0.78rem">(${empCount} người)</span>
+          <span class="output-badge">Công đoạn xác định pcs ra chuyền</span>
+          <span class="output-total">${groupQty.toLocaleString()} pcs</span>
+        </div>`;
+      } else {
+        html += `<div class="group-header">${Admin.escape(seqName)} <span class="muted" style="font-weight:400;font-size:0.78rem">(${empCount} người)</span></div>`;
+      }
       html += '<div class="emp-grid">';
       const seen = new Set();
       for (const r of group.items) {
