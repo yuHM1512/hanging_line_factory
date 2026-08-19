@@ -4,6 +4,7 @@ from __future__ import annotations
 import csv
 import io
 import json
+import logging
 import math
 import os
 import re
@@ -13,6 +14,8 @@ import uuid
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -812,6 +815,38 @@ def api_dm_loai_hang_proxy():
         return {"rows": [], "error": f"Không kết nối được QLCL: {exc}"}
 
 
+def _push_daily_output_to_qlcl(monos: list[str]) -> dict | None:
+    """Push daily MES output (StRole=13, IsLastSeq=1) for given MONos to QLCL."""
+    if not monos:
+        return None
+    today_str = date.today().strftime("%Y-%m-%d")
+    placeholders = ",".join(["?"] * len(monos))
+    rows = db.query(
+        f"""
+        SELECT rw.MONo, COALESCE(SUM(rw.Qty), 0) AS Qty
+        FROM {{MES_DB}}.dbo.tRecentWork rw
+        JOIN {{MES_DB}}.dbo.tStation st ON st.StNo = rw.StNo
+        WHERE rw.MONo IN ({placeholders})
+          AND st.StRole = 13
+          AND rw.IsLastSeq = 1
+          AND CONVERT(DATE, rw.ShtDate) = ?
+        GROUP BY rw.MONo
+        """,
+        (*monos, today_str),
+    )
+    mono_qty = {str(r["MONo"]): int(r["Qty"]) for r in rows}
+    outputs = [{"mono": m, "qty": mono_qty.get(m, 0)} for m in monos]
+
+    body = json.dumps({
+        "don_vi": QLCL_DON_VI,
+        "date": today_str,
+        "outputs": outputs,
+    }).encode()
+    req = _qlcl_request("/api/qc/hanging-output/push", data=body, method="POST")
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        return json.loads(resp.read())
+
+
 def _do_sync_to_qlcl() -> dict:
     """Core logic: đọc tPlanMaster → push sang QLCL. Gọi được từ cả endpoint lẫn background thread."""
     plan_rows = db.query(
@@ -861,7 +896,15 @@ def _do_sync_to_qlcl() -> dict:
     body = json.dumps({"don_vi": QLCL_DON_VI, "plans": plans}).encode()
     req = _qlcl_request("/api/prod-plan/push-from-hl", data=body, method="POST")
     with urllib.request.urlopen(req, timeout=15) as resp:
-        return json.loads(resp.read())
+        result = json.loads(resp.read())
+
+    # Push daily MES output alongside plan sync
+    try:
+        _push_daily_output_to_qlcl([p["mono"] for p in plans if p.get("mono")])
+    except Exception:
+        logger.exception("Failed to push daily output to QLCL")
+
+    return result
 
 
 def _refresh_plan_employee_assignments(plan_master_guid: str | None = None) -> dict:
