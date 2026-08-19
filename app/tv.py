@@ -433,7 +433,7 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         t = bt.time() if hasattr(bt, "time") else bt
         hm = t.strftime("%H:%M")
         slot = None
-        if "07:30" <= hm < "09:30":
+        if hm < "09:30":
             slot = 1
         elif "09:30" <= hm < "11:30":
             slot = 2
@@ -449,13 +449,13 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
 
 
 def _slot_from_time(t) -> Optional[int]:
-    """Map 1 thời điểm (time/datetime) → slot 1..5. None nếu ngoài giờ."""
+    """Map 1 thời điểm (time/datetime) → slot 1..5. Trước 09:30 gom vào slot 1."""
     if t is None:
         return None
     if hasattr(t, "time"):
         t = t.time()
     hm = t.strftime("%H:%M")
-    if "07:30" <= hm < "09:30":
+    if hm < "09:30":
         return 1
     if "09:30" <= hm < "11:30":
         return 2
@@ -493,7 +493,7 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
         t = bt.time() if hasattr(bt, "time") else bt
         hm = t.strftime("%H:%M")
         slot = None
-        if "07:30" <= hm < "09:30":
+        if hm < "09:30":
             slot = 1
         elif "09:30" <= hm < "11:30":
             slot = 2
@@ -530,14 +530,8 @@ def _target_cutoff_slot(the_date: date, now: Optional[datetime] = None) -> tuple
     if the_date != now.date():
         return 5, "FULL DAY"
 
-    slot = _slot_from_time(now)
-    if slot is not None:
-        return slot, SLOT_RANGES[slot - 1][1] if slot < 5 else "SAU 16:30"
-
-    hm = now.strftime("%H:%M")
-    if hm < "07:30":
-        return 1, "09:30"
-    return 5, "SAU 16:30"
+    slot = _slot_from_time(now) or 1
+    return slot, SLOT_RANGES[slot - 1][1] if slot < 5 else "SAU 16:30"
 
 
 def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
