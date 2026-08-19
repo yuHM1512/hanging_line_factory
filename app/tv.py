@@ -757,13 +757,19 @@ def api_tv1(
     )
     last_day_output = int(last_full_rows[0]["Qty"]) if last_full_rows else 0
 
-    # WIP = qty(first cluster cumulative) − qty(KCS cumulative golden formula)
-    # Last cluster bắt buộc dùng StRole=13 + IsLastSeq=1 (vì SP có thể chốt nhiều SeqNo)
+    # WIP = luỹ kế cụm đầu (được chọn) − luỹ kế cụm cuối (được chọn)
     wip = 0
     first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
+    last_cluster = _configured_last_cluster(plan)
     if first_cluster:
         in_qty = _scan_count_for_cluster(mono, first_cluster["RouteStepOdr"], first_hang, the_date)
-        wip = max(in_qty - cum["Qty"], 0)   # cum["Qty"] = golden KCS
+        if last_cluster and last_cluster["Role"] == "last":
+            out_qty = cum["Qty"]
+        elif last_cluster:
+            out_qty = _scan_count_for_cluster(mono, last_cluster["RouteStepOdr"], first_hang, the_date)
+        else:
+            out_qty = cum["Qty"]
+        wip = max(in_qty - out_qty, 0)
 
     # Takt
     takt_kh = round(WORK_SECONDS_PER_DAY / daily_aim) if daily_aim else 0
