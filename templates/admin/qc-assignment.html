@@ -90,7 +90,7 @@ const summary = document.getElementById('summary');
 
 async function loadLines() {
   try {
-    const rows = await Admin.fetchJSON('/admin/api/target-override/lines');
+    const rows = await Admin.fetchJSON('/admin/api/plan-employee-assignments/lines');
     selLine.innerHTML = '<option value="">Tất cả tổ</option>' +
       rows.map(r => `<option value="${r.line_no}">Tổ ${r.line_no}</option>`).join('');
   } catch (_) {}

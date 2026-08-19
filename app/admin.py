@@ -1127,6 +1127,17 @@ def api_plan_employee_assignments(
     )
 
 
+@router.get("/api/plan-employee-assignments/lines")
+def api_assignment_lines():
+    rows = db.query(
+        "SELECT DISTINCT a.[LineNo] "
+        "FROM app.tPlanEmployeeAssignment a "
+        "WHERE a.[LineNo] IS NOT NULL "
+        "ORDER BY a.[LineNo]"
+    )
+    return [{"line_no": r["LineNo"]} for r in rows]
+
+
 @router.get("/api/plan-employee-assignments/monos")
 def api_assignment_monos(line_no: Optional[int] = None):
     where = "1=1"
