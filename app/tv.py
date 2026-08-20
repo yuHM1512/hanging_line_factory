@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import math
 import os
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
@@ -52,6 +52,32 @@ router = APIRouter(prefix="/tv", tags=["tv"])
 # ============================================================
 WORK_SECONDS_PER_DAY = 29520           # 8h12m hữu ích (đã trừ break)
 WORK_MINUTES_PER_DAY = WORK_SECONDS_PER_DAY / 60   # = 492 phút
+
+# Các khung giờ làm việc thực (đã trừ break), dùng để tính elapsed working seconds.
+# 7:30-9:00 (90m), 9:09-11:30 (141m), 12:30-15:00 (150m), 15:09-17:00 (111m) = 492m
+_WORK_PERIODS = [
+    (time(7, 30), time(9, 0)),
+    (time(9, 9), time(11, 30)),
+    (time(12, 30), time(15, 0)),
+    (time(15, 9), time(17, 0)),
+]
+
+
+def _elapsed_work_seconds(now: Optional[datetime] = None) -> int:
+    """Số giây làm việc đã trôi qua tính đến thời điểm hiện tại, trừ break."""
+    if now is None:
+        now = datetime.now()
+    t = now.time()
+    elapsed = 0
+    for start, end in _WORK_PERIODS:
+        if t <= start:
+            break
+        if t >= end:
+            elapsed += (datetime.combine(date.min, end) - datetime.combine(date.min, start)).seconds
+        else:
+            elapsed += (datetime.combine(date.min, t) - datetime.combine(date.min, start)).seconds
+            break
+    return min(elapsed, WORK_SECONDS_PER_DAY)
 TAKT_WEIGHTS = [1.85, 2.0, 2.0, 1.85]  # 4 slot đầu /8.2 — slot 5 = phần dư
 SLOT_LABELS = [
     ("7:30 - 9:30", "7:30 → 9:30"),
@@ -773,7 +799,8 @@ def api_tv1(
 
     # Takt
     takt_kh = round(WORK_SECONDS_PER_DAY / daily_aim) if daily_aim else 0
-    takt_real = round(WORK_SECONDS_PER_DAY / today["Qty"]) if today["Qty"] else 0
+    elapsed = _elapsed_work_seconds() if the_date == date.today() else WORK_SECONDS_PER_DAY
+    takt_real = round(elapsed / today["Qty"]) if today["Qty"] else 0
 
     # TPT (phút) = (WIP+1) × takt_real / 60
     tpt_min = round((wip + 1) * takt_real / 60) if takt_real else 0
