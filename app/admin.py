@@ -815,36 +815,183 @@ def api_dm_loai_hang_proxy():
         return {"rows": [], "error": f"Không kết nối được QLCL: {exc}"}
 
 
-def _push_daily_output_to_qlcl(monos: list[str]) -> dict | None:
-    """Push daily MES output (StRole=13, IsLastSeq=1) for given MONos to QLCL."""
-    if not monos:
-        return None
-    today_str = date.today().strftime("%Y-%m-%d")
+def _upsert_output_sync_log(entries: list[tuple[str, str, int]]) -> None:
+    """Record successfully-pushed output quantities in tOutputSyncLog."""
+    if not entries:
+        return
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        for mono, work_date, qty in entries:
+            cur.execute(
+                """
+                MERGE app.tOutputSyncLog AS tgt
+                USING (SELECT ? AS MONo, ? AS WorkDate, ? AS LastQty) AS src
+                    ON tgt.MONo = src.MONo AND tgt.WorkDate = src.WorkDate
+                WHEN MATCHED THEN
+                    UPDATE SET LastQty = src.LastQty, SyncedAt = SYSDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (MONo, WorkDate, LastQty)
+                    VALUES (src.MONo, src.WorkDate, src.LastQty);
+                """,
+                (mono, work_date, qty),
+            )
+
+
+def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> list[dict]:
+    """Query MES output grouped by MONo + date. Optional date filter for incremental."""
     placeholders = ",".join(["?"] * len(monos))
-    rows = db.query(
+    date_filter = ""
+    params: tuple[Any, ...] = (*monos,)
+    if since_date:
+        date_filter = "AND rw.ShtDate >= ?"
+        params = (*monos, since_date)
+    return db.query(
         f"""
-        SELECT rw.MONo, COALESCE(SUM(rw.Qty), 0) AS Qty
+        SELECT rw.MONo,
+               CONVERT(VARCHAR(10), rw.ShtDate, 120) AS work_date,
+               COALESCE(SUM(rw.Qty), 0) AS Qty
         FROM {{MES_DB}}.dbo.tRecentWork rw
-        JOIN {{MES_DB}}.dbo.tStation st ON st.StNo = rw.StNo
+        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo IN ({placeholders})
           AND st.StRole = 13
           AND rw.IsLastSeq = 1
-          AND CONVERT(DATE, rw.ShtDate) = ?
-        GROUP BY rw.MONo
+          {date_filter}
+        GROUP BY rw.MONo, CONVERT(VARCHAR(10), rw.ShtDate, 120)
         """,
-        (*monos, today_str),
+        params,
     )
-    mono_qty = {str(r["MONo"]): int(r["Qty"]) for r in rows}
-    outputs = [{"mono": m, "qty": mono_qty.get(m, 0)} for m in monos]
 
+
+def _push_one_date_to_qlcl(work_date: str, mono_qty: dict[str, int]) -> dict:
+    """Push output for a single date to QLCL. Returns response dict."""
+    outputs = [{"mono": m, "qty": q} for m, q in mono_qty.items()]
     body = json.dumps({
         "don_vi": QLCL_DON_VI,
-        "date": today_str,
+        "date": work_date,
         "outputs": outputs,
     }).encode()
     req = _qlcl_request("/api/qc/hanging-output/push", data=body, method="POST")
-    with urllib.request.urlopen(req, timeout=10) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read())
+
+
+def _push_output_incremental(lookback_days: int = 1) -> dict:
+    """Push only changed output data for recent dates to QLCL."""
+    mono_rows = db.query(
+        "SELECT MONo FROM app.tPlanMaster WHERE MONo IS NOT NULL AND MONo <> ''"
+    )
+    monos = [str(r["MONo"]).strip() for r in mono_rows if str(r["MONo"]).strip()]
+    if not monos:
+        return {"dates_checked": 0, "dates_pushed": 0, "errors": []}
+
+    since = (date.today() - timedelta(days=lookback_days)).strftime("%Y-%m-%d")
+
+    mes_rows = _query_mes_output(monos, since_date=since)
+    mes_data: dict[tuple[str, str], int] = {}
+    for r in mes_rows:
+        mes_data[(str(r["MONo"]), str(r["work_date"]))] = int(r["Qty"])
+
+    synced_rows = db.query(
+        "SELECT MONo, CONVERT(VARCHAR(10), WorkDate, 120) AS WorkDate, LastQty "
+        "FROM app.tOutputSyncLog WHERE WorkDate >= ?",
+        (since,),
+    )
+    synced_data: dict[tuple[str, str], int] = {}
+    for r in synced_rows:
+        synced_data[(str(r["MONo"]), str(r["WorkDate"])) ] = int(r["LastQty"])
+
+    changed_by_date: dict[str, dict[str, int]] = {}
+    for (mono, work_date), qty in mes_data.items():
+        if synced_data.get((mono, work_date)) != qty:
+            if work_date not in changed_by_date:
+                changed_by_date[work_date] = {}
+            changed_by_date[work_date][mono] = qty
+
+    errors: list[str] = []
+    dates_pushed = 0
+    for work_date, mono_qty in changed_by_date.items():
+        try:
+            _push_one_date_to_qlcl(work_date, mono_qty)
+            _upsert_output_sync_log(
+                [(m, work_date, q) for m, q in mono_qty.items()]
+            )
+            dates_pushed += 1
+        except Exception as exc:
+            errors.append(f"{work_date}: {exc}")
+            logger.warning("Output sync failed for %s: %s", work_date, exc)
+
+    return {
+        "dates_checked": len({d for _, d in mes_data}),
+        "dates_pushed": dates_pushed,
+        "errors": errors,
+    }
+
+
+def _backfill_output_to_qlcl(monos: list[str] | None = None) -> dict:
+    """One-time push of ALL historical output data to QLCL. Idempotent."""
+    if monos is None:
+        mono_rows = db.query(
+            "SELECT MONo FROM app.tPlanMaster WHERE MONo IS NOT NULL AND MONo <> ''"
+        )
+        monos = [str(r["MONo"]).strip() for r in mono_rows if str(r["MONo"]).strip()]
+    if not monos:
+        return {"total_dates": 0, "pushed_ok": 0, "pushed_fail": 0, "already_synced": 0}
+
+    mes_rows = _query_mes_output(monos)
+    mes_by_date: dict[str, dict[str, int]] = {}
+    for r in mes_rows:
+        d = str(r["work_date"])
+        if d not in mes_by_date:
+            mes_by_date[d] = {}
+        mes_by_date[d][str(r["MONo"])] = int(r["Qty"])
+
+    synced_rows = db.query(
+        "SELECT MONo, CONVERT(VARCHAR(10), WorkDate, 120) AS WorkDate, LastQty "
+        "FROM app.tOutputSyncLog"
+    )
+    synced_data: dict[tuple[str, str], int] = {}
+    for r in synced_rows:
+        synced_data[(str(r["MONo"]), str(r["WorkDate"]))] = int(r["LastQty"])
+
+    total_dates = len(mes_by_date)
+    pushed_ok = 0
+    pushed_fail = 0
+    already_synced = 0
+
+    for i, (work_date, mono_qty) in enumerate(sorted(mes_by_date.items()), 1):
+        needs_push = any(
+            synced_data.get((m, work_date)) != q for m, q in mono_qty.items()
+        )
+        if not needs_push:
+            already_synced += 1
+            continue
+
+        logger.info("Backfill: pushing date %d/%d %s (%d monos)", i, total_dates, work_date, len(mono_qty))
+        try:
+            _push_one_date_to_qlcl(work_date, mono_qty)
+            _upsert_output_sync_log(
+                [(m, work_date, q) for m, q in mono_qty.items()]
+            )
+            pushed_ok += 1
+        except Exception as exc:
+            pushed_fail += 1
+            logger.warning("Backfill failed for %s: %s", work_date, exc)
+        time.sleep(0.5)
+
+    return {
+        "total_dates": total_dates,
+        "pushed_ok": pushed_ok,
+        "pushed_fail": pushed_fail,
+        "already_synced": already_synced,
+    }
+
+
+def _push_daily_output_to_qlcl(monos: list[str]) -> list[dict] | None:
+    """Push daily MES output to QLCL — delegates to incremental sync."""
+    if not monos:
+        return None
+    result = _push_output_incremental(lookback_days=1)
+    return [result]
 
 
 def _do_sync_to_qlcl() -> dict:
@@ -1114,6 +1261,19 @@ def api_sync_to_qlcl():
         raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Không kết nối được QLCL: {exc}")
+
+
+@router.post("/api/backfill-output-to-qlcl")
+def api_backfill_output_to_qlcl(request: Request):
+    """One-time push of ALL historical output data to QLCL. Idempotent."""
+    auth.require_admin(request)
+    try:
+        return _backfill_output_to_qlcl()
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")[:300]
+        raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Backfill thất bại: {exc}")
 
 
 @router.post("/api/sync-qc-employees-to-qlcl")

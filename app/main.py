@@ -24,6 +24,16 @@ _AUTO_SYNC_INTERVAL = max(1, int(os.getenv("QLCL_AUTO_SYNC_INTERVAL_MINUTES", "6
 _auto_sync_started  = False
 _auto_sync_lock     = threading.Lock()
 
+# Output sync riêng — chu kỳ ngắn hơn, chỉ push dữ liệu thay đổi
+_OUTPUT_SYNC_ENABLED_RAW = os.getenv("QLCL_OUTPUT_SYNC_ENABLED", "").lower()
+_OUTPUT_SYNC_ENABLED = (
+    _OUTPUT_SYNC_ENABLED_RAW in ("1", "true", "yes")
+    if _OUTPUT_SYNC_ENABLED_RAW
+    else _AUTO_SYNC_ENABLED
+)
+_OUTPUT_SYNC_INTERVAL = max(30, int(os.getenv("QLCL_OUTPUT_SYNC_INTERVAL_SECONDS", "120")))
+_output_sync_started = False
+
 
 def _auto_sync_loop() -> None:
     logger.info("QLCL auto-sync started, interval=%s minutes", _AUTO_SYNC_INTERVAL)
@@ -40,6 +50,22 @@ def _auto_sync_loop() -> None:
         except Exception:
             logger.exception("QLCL auto-sync failed")
 
+
+def _output_sync_loop() -> None:
+    logger.info("QLCL output sync started, interval=%s seconds", _OUTPUT_SYNC_INTERVAL)
+    while True:
+        time.sleep(_OUTPUT_SYNC_INTERVAL)
+        try:
+            result = admin._push_output_incremental(lookback_days=1)
+            pushed = result.get("dates_pushed", 0)
+            if pushed:
+                logger.info(
+                    "QLCL output sync — dates_checked=%s dates_pushed=%s",
+                    result.get("dates_checked", 0), pushed,
+                )
+        except Exception:
+            logger.exception("QLCL output sync failed")
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -55,16 +81,21 @@ app.include_router(entry.router)
 
 @app.on_event("startup")
 def startup_auto_sync() -> None:
-    global _auto_sync_started
-    if not _AUTO_SYNC_ENABLED:
-        return
-    with _auto_sync_lock:
-        if _auto_sync_started:
-            return
-        t = threading.Thread(target=_auto_sync_loop, name="qlcl-auto-sync", daemon=True)
-        t.start()
-        _auto_sync_started = True
-        logger.info("QLCL auto-sync thread started")
+    global _auto_sync_started, _output_sync_started
+    if _AUTO_SYNC_ENABLED:
+        with _auto_sync_lock:
+            if not _auto_sync_started:
+                t = threading.Thread(target=_auto_sync_loop, name="qlcl-auto-sync", daemon=True)
+                t.start()
+                _auto_sync_started = True
+                logger.info("QLCL auto-sync thread started")
+    if _OUTPUT_SYNC_ENABLED:
+        with _auto_sync_lock:
+            if not _output_sync_started:
+                t = threading.Thread(target=_output_sync_loop, name="qlcl-output-sync", daemon=True)
+                t.start()
+                _output_sync_started = True
+                logger.info("QLCL output sync thread started (interval=%ss)", _OUTPUT_SYNC_INTERVAL)
 
 
 def _default_range() -> tuple[date, date]:
