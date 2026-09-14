@@ -16,15 +16,7 @@
   };
 
   async function api(url, opts = {}) {
-    try {
-      return await Admin.fetchJSON(url, opts);
-    } catch (err) {
-      if (err.message === 'Chưa đăng nhập' || err.message === 'Chua dang nhap') {
-        window.location.href = '/login';
-        throw err;
-      }
-      throw err;
-    }
+    return Admin.fetchJSON(url, opts);
   }
 
   function setUserText() {

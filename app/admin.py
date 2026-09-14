@@ -311,7 +311,7 @@ def api_demand_candidates():
 def api_demand_list():
     return db.query(
         "SELECT NhuCauMe, StyleNo, SLKH, ChildCount, DMKT, PhanLoaiDH, "
-        "[LineNo] AS LineNoOut, LDBienChe, Notes, CreatedBy, "
+        "[LineNo] AS LineNoOut, LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy, "
         "CONVERT(varchar(10), EarliestFirstHangDate, 120) AS EarliestFirstHangDate, "
         "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt, "
         "CONVERT(varchar(19), UpdatedAt, 120) AS UpdatedAt "
@@ -328,6 +328,7 @@ class DemandIn(AdminModel):
     dmkt: float = Field(..., alias="DMKT", gt=0)
     phan_loai: str = Field(..., alias="PhanLoaiDH")
     ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+    luy_ke_chuyen_tiep: int = Field(0, alias="LuyKeChuyenTiep", ge=0)
     notes: Optional[str] = Field(None, alias="Notes")
 
 @router.post("/api/demand")
@@ -353,10 +354,11 @@ def api_demand_create(body: DemandIn, user: dict = Depends(auth.require_admin)):
             cur.execute(
                 "INSERT INTO app.tDemandRoot "
                 "(NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], "
-                "LDBienChe, Notes, CreatedBy) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (body.nhu_cau_me, c["StyleNo"], body.dmkt, body.phan_loai,
-                 c["LineNoOut"], body.ld_bien_che, body.notes, _actor_id(user)),
+                 c["LineNoOut"], body.ld_bien_che, body.luy_ke_chuyen_tiep,
+                 body.notes, _actor_id(user)),
             )
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, f"Lưu thất bại: {exc}") from exc
@@ -368,6 +370,7 @@ class DemandUpdate(AdminModel):
     dmkt: float = Field(..., alias="DMKT", gt=0)
     phan_loai: str = Field(..., alias="PhanLoaiDH")
     ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+    luy_ke_chuyen_tiep: Optional[int] = Field(None, alias="LuyKeChuyenTiep", ge=0)
     notes: Optional[str] = Field(None, alias="Notes")
 
 @router.put("/api/demand/{nhu_cau_me}")
@@ -376,10 +379,12 @@ def api_demand_update(nhu_cau_me: str, body: DemandUpdate, user: dict = Depends(
         cur = conn.cursor()
         cur.execute(
             "UPDATE app.tDemandRoot SET "
-            "DMKT = ?, PhanLoaiDH = ?, LDBienChe = ?, Notes = ?, "
+            "DMKT = ?, PhanLoaiDH = ?, LDBienChe = ?, "
+            "LuyKeChuyenTiep = COALESCE(?, LuyKeChuyenTiep), Notes = ?, "
             "UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
             "WHERE NhuCauMe = ?",
-            (body.dmkt, body.phan_loai, body.ld_bien_che, body.notes,
+            (body.dmkt, body.phan_loai, body.ld_bien_che,
+             body.luy_ke_chuyen_tiep, body.notes,
              _actor_id(user), nhu_cau_me),
         )
         if cur.rowcount == 0:
@@ -515,6 +520,7 @@ class DemandPlanIn(PlanIn):
     dmkt: float = Field(..., alias="DMKT", gt=0)
     phan_loai_dh: str = Field(..., alias="PhanLoaiDH")
     ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+    luy_ke_chuyen_tiep: int = Field(0, alias="LuyKeChuyenTiep", ge=0)
 
 
 class AdjustmentIn(AdminModel):
@@ -571,7 +577,7 @@ def api_plan_list():
         "SELECT pm.PlanMaster_guid, pm.MONo, pm.SoDonHang, pm.StyleNo, "
         "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
         "pm.Customer, pm.NhuCauMe, pm.LoaiHang, pm.Notes, "
-        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.Notes AS DemandNotes, "
+        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.LuyKeChuyenTiep, dr.Notes AS DemandNotes, "
         "pm.CreatedBy, "
         "CONVERT(varchar(19), pm.CreatedAt, 120) AS CreatedAt "
         "FROM app.tPlanMaster pm "
@@ -587,7 +593,7 @@ def api_plan_detail(guid: str):
         "SELECT pm.PlanMaster_guid, pm.MONo, pm.SoDonHang, pm.StyleNo, "
         "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
         "pm.Customer, pm.NhuCauMe, pm.LoaiHang, pm.Notes, "
-        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.Notes AS DemandNotes "
+        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.LuyKeChuyenTiep, dr.Notes AS DemandNotes "
         "FROM app.tPlanMaster pm "
         "LEFT JOIN app.tDemandRoot dr ON dr.NhuCauMe = pm.NhuCauMe "
         "WHERE pm.PlanMaster_guid = ?",
@@ -652,10 +658,11 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
             cur.execute(
                 "INSERT INTO app.tDemandRoot "
                 "(NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], "
-                "LDBienChe, Notes, CreatedBy) "
-                "VALUES (?,?,?,?,?,?,?,?)",
+                "LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy) "
+                "VALUES (?,?,?,?,?,?,?,?,?)",
                 (body.nhu_cau_me, body.style_no, body.dmkt, body.phan_loai_dh,
-                 body.line_no, body.ld_bien_che, body.demand_notes, _actor_id(user)),
+                 body.line_no, body.ld_bien_che, body.luy_ke_chuyen_tiep,
+                 body.demand_notes, _actor_id(user)),
             )
             cur.execute(
                 "INSERT INTO app.tPlanMaster "
@@ -697,6 +704,7 @@ class PlanUpdate(AdminModel):
     dmkt: float = Field(..., alias="DMKT", gt=0)
     phan_loai_dh: str = Field(..., alias="PhanLoaiDH")
     ld_bien_che: int = Field(..., alias="LDBienChe", gt=0)
+    luy_ke_chuyen_tiep: Optional[int] = Field(None, alias="LuyKeChuyenTiep", ge=0)
     demand_notes: Optional[str] = Field(None, alias="DemandNotes")
     loai_hang: Optional[str] = Field(None, alias="LoaiHang")
     notes: Optional[str] = Field(None, alias="Notes")
@@ -716,7 +724,8 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
         cur.execute(
             "UPDATE app.tDemandRoot SET "
             "StyleNo = ?, DMKT = ?, PhanLoaiDH = ?, [LineNo] = ?, "
-            "LDBienChe = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
+            "LDBienChe = ?, LuyKeChuyenTiep = COALESCE(?, LuyKeChuyenTiep), Notes = ?, "
+            "UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
             "WHERE NhuCauMe = ?",
             (
                 body.style_no,
@@ -724,6 +733,7 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
                 body.phan_loai_dh,
                 body.line_no,
                 body.ld_bien_che,
+                body.luy_ke_chuyen_tiep,
                 body.demand_notes,
                 _actor_id(user),
                 current_nhu_cau_me,
@@ -1473,7 +1483,12 @@ def api_cluster_groups(nhu_cau_me: str):
         raise HTTPException(404, f"Không tìm thấy NhuCauCon '{nhu_cau_me}'")
     return {
         "MONo": mono,
-        "Groups": db.query(_CLUSTER_GROUP_SQL, (mono,)),
+        "Groups": db.query(_CLUSTER_GROUP_SQL, (mono,)) + db.query(
+            "SELECT -o.ID AS RouteStepOdr, o.Name AS GroupLabel, "
+            "'flat' AS Source, N'Chuyền bệt' AS StationNos "
+            "FROM app.tFlatOperation o JOIN app.tDemandRoot d ON d.NhuCauMe=o.NhuCauMe "
+            "WHERE o.NhuCauMe=? AND o.IsActive=1 AND d.TrackFlatLine=1 "
+            "ORDER BY o.SortOrder,o.ID", (nhu_cau_me,)),
     }
 
 
@@ -1511,9 +1526,16 @@ def api_cluster_save(nhu_cau_me: str, body: ClusterIn, user: dict = Depends(auth
     if by_order[6].role != "last":
         raise HTTPException(400, "Cụm order 6 phải có Role='last'")
     # Production-order check: RouteStepOdr strictly increasing
-    rs_seq = [by_order[i].route_step_odr for i in range(1, 7)]
-    if rs_seq != sorted(set(rs_seq)) or len(set(rs_seq)) != 6:
+    # Negative keys identify manual operations; MSD Odr values stay positive.
+    all_keys = [by_order[i].route_step_odr for i in range(1, 7)]
+    rs_seq = [key for key in all_keys if key >= 0]
+    if rs_seq != sorted(set(rs_seq)) or len(set(all_keys)) != 6:
         raise HTTPException(400, "RouteStepOdr phải tăng dần theo thứ tự sản xuất, không trùng")
+    available = {g['RouteStepOdr']: g for g in api_cluster_groups(nhu_cau_me)['Groups']}
+    for pick in body.picks:
+        if pick.route_step_odr not in available:
+            raise HTTPException(400, "Công đoạn không còn khả dụng cho nhu cầu này")
+        pick.group_label = available[pick.route_step_odr]['GroupLabel']
 
     # Verify mẹ tồn tại
     if not db.query(
@@ -1872,4 +1894,99 @@ def api_target_override_delete(
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Override không tồn tại")
+    return {"ok": True}
+
+
+# ============================================================
+# M9 — Phân bổ sản lượng ngày cũ (Historical Output Allocation)
+# ============================================================
+@router.get("/historical-output-allocation")
+def page_historical_output_allocation(request: Request):
+    return templates.TemplateResponse(
+        "admin/historical-output-allocation.html",
+        {"request": request, "user": request.state.current_user},
+    )
+
+
+@router.get("/api/historical-output-allocation/lines")
+def api_historical_output_allocation_lines():
+    rows = db.query(
+        "SELECT DISTINCT [LineNo] FROM app.tDemandRoot "
+        "WHERE [LineNo] IS NOT NULL ORDER BY [LineNo]"
+    )
+    return [{"line_no": r["LineNo"]} for r in rows]
+
+
+@router.get("/api/historical-output-allocation/demands")
+def api_historical_output_allocation_demands(line_no: int):
+    return db.query(
+        "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
+        "ISNULL(v.SLKH, 0) AS SLKH, a.OvertimePercent "
+        "FROM app.tDemandRoot dr "
+        "LEFT JOIN app.vDemandRoot v ON v.NhuCauMe = dr.NhuCauMe "
+        "LEFT JOIN app.tHistoricalOutputAllocation a ON a.NhuCauMe = dr.NhuCauMe "
+        "WHERE dr.[LineNo] = ? "
+        "ORDER BY dr.NhuCauMe",
+        (line_no,),
+    )
+
+
+@router.get("/api/historical-output-allocation")
+def api_historical_output_allocation_detail(nhu_cau_me: str):
+    rows = db.query(
+        "SELECT a.NhuCauMe, a.OvertimePercent, a.Notes, a.UpdatedBy, "
+        "CONVERT(varchar(19), a.UpdatedAt, 120) AS UpdatedAt "
+        "FROM app.tHistoricalOutputAllocation a WHERE a.NhuCauMe = ?",
+        (nhu_cau_me,),
+    )
+    return rows[0] if rows else None
+
+
+class HistoricalOutputAllocationIn(AdminModel):
+    nhu_cau_me: str = Field(..., alias="NhuCauMe")
+    overtime_percent: float = Field(..., alias="OvertimePercent", ge=0, le=100)
+    notes: Optional[str] = Field(None, alias="Notes", max_length=200)
+
+
+@router.post("/api/historical-output-allocation")
+def api_historical_output_allocation_save(
+    body: HistoricalOutputAllocationIn,
+    user: dict = Depends(auth.require_admin),
+):
+    actor = _actor_id(user)
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE app.tHistoricalOutputAllocation SET "
+            "OvertimePercent = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
+            "WHERE NhuCauMe = ?",
+            (body.overtime_percent, body.notes, actor, body.nhu_cau_me),
+        )
+        action = "updated"
+        if cur.rowcount == 0:
+            try:
+                cur.execute(
+                    "INSERT INTO app.tHistoricalOutputAllocation "
+                    "(NhuCauMe, OvertimePercent, Notes, UpdatedBy) VALUES (?, ?, ?, ?)",
+                    (body.nhu_cau_me, body.overtime_percent, body.notes, actor),
+                )
+                action = "created"
+            except Exception as exc:  # noqa: BLE001
+                raise HTTPException(400, f"Lưu tỷ lệ thất bại: {exc}") from exc
+    return {"ok": True, "action": action}
+
+
+@router.delete("/api/historical-output-allocation/{nhu_cau_me}")
+def api_historical_output_allocation_delete(
+    nhu_cau_me: str,
+    user: dict = Depends(auth.require_admin),
+):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM app.tHistoricalOutputAllocation WHERE NhuCauMe = ?",
+            (nhu_cau_me,),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Nhu cầu mẹ chưa có cấu hình phân bổ")
     return {"ok": True}

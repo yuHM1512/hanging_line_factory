@@ -65,6 +65,10 @@
       <span class="field-label">LĐ biên chế</span>
       <input type="number" name="LDBienChe" required min="1" step="1" placeholder="VD: 65" />
     </label>
+    <label class="field">
+      <span class="field-label">Luỹ kế chuyển tiếp</span>
+      <input type="number" name="LuyKeChuyenTiep" required min="0" step="1" value="0" placeholder="VD: 200" />
+    </label>
     <label class="field full-row">
       <span class="field-label">Ghi chú</span>
       <input type="text" name="Notes" maxlength="500" />
@@ -92,11 +96,12 @@
         <th>ĐMKT</th>
         <th>Phân loại</th>
         <th>LĐ</th>
+        <th>Luỹ kế chuyển tiếp</th>
         <th class="col-action">Hành động</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="9" class="muted">Đang tải...</td></tr>
+      <tr><td colspan="10" class="muted">Đang tải...</td></tr>
     </tbody>
   </table>
 </div>
@@ -138,10 +143,10 @@ async function loadCands() {
 
 async function loadDemand() {
   const tbody = document.querySelector('#tbl-demand tbody');
-  tbody.innerHTML = '<tr><td colspan="9" class="muted">Đang tải...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="10" class="muted">Đang tải...</td></tr>';
   const rows = await Admin.fetchJSON(API);
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted">Chưa có Nhu cầu mẹ.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">Chưa có Nhu cầu mẹ.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => `
@@ -154,6 +159,7 @@ async function loadDemand() {
       <td>${r.DMKT}</td>
       <td>${Admin.escape(r.PhanLoaiDH)}</td>
       <td>${r.LDBienChe}</td>
+      <td>${Number(r.LuyKeChuyenTiep || 0).toLocaleString('vi-VN')}</td>
       <td class="col-action">
         <button class="btn-icon" data-edit='${JSON.stringify(r).replace(/&#39;/g, "&#39;")}' title="Sửa">
           <span class="material-symbols-outlined">edit</span>
@@ -189,6 +195,7 @@ function openEdit(r) {
   f.DMKT.value = r.DMKT;
   f.PhanLoaiDH.value = r.PhanLoaiDH;
   f.LDBienChe.value = r.LDBienChe;
+  f.LuyKeChuyenTiep.value = r.LuyKeChuyenTiep || 0;
   f.Notes.value = r.Notes || '';
   document.querySelector('#form-panel h3').textContent = 'Sửa Nhu cầu mẹ: ' + r.NhuCauMe;
   document.querySelector('#form-demand button[type="submit"]').textContent = 'Cập nhật';
@@ -215,6 +222,7 @@ document.querySelector('#form-demand').addEventListener('submit', async (e) => {
     DMKT: parseFloat(fd.get('DMKT')),
     PhanLoaiDH: fd.get('PhanLoaiDH'),
     LDBienChe: parseInt(fd.get('LDBienChe')),
+    LuyKeChuyenTiep: parseInt(fd.get('LuyKeChuyenTiep'), 10),
     Notes: fd.get('Notes') || null,
   };
   try {

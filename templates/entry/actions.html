@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Nguyên nhân &amp; HĐKP{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/entry-actions.css?v=2">
+<main class="actions-page"><header class="actions-header"><a class="back-link" href="/entry">← Cổng tổ trưởng</a><div class="actions-user">{{ user.DisplayName or user.UserID }} · Tổ {{ user.Dept if user.Dept is not none else "?" }}</div></header><section class="actions-intro"><p class="entry-kicker">CẬP NHẬT THEO MỐC GIỜ</p><h1>Nguyên nhân &amp; HĐKP</h1><p>Ghi nhận nguyên nhân không đạt năng suất và hành động khắc phục theo mốc trong ngày.</p></section><section class="actions-context"><label><span>Nhu cầu</span><select id="actions-plan"><option value="">Đang tải...</option></select></label><label><span>Ngày báo</span><input id="actions-date" type="date" value="{{ today }}" max="{{ today }}"></label></section><div class="actions-metrics" id="actions-metrics"><span>Mục tiêu <b id="metric-target">—</b></span><span>Thực hiện <b id="metric-actual">—</b></span></div><div class="slot-picker" id="slot-picker"></div><div id="actions-status" class="actions-status" role="status"></div><form id="actions-form" class="actions-slots"></form><div class="actions-footer"><button class="btn btn-primary" id="actions-save" type="submit" form="actions-form">Lưu cập nhật</button></div></main>
+{% endblock %}
+{% block scripts %}<script src="/static/js/admin.js"></script><script src="/static/js/actions.js?v=2"></script>{% endblock %}

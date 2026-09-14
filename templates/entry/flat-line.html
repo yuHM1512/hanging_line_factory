@@ -1,0 +1,158 @@
+{% extends 'base.html' %}
+{% block title %}Báo sản lượng chuyền bệt{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/admin.css">
+<link rel="stylesheet" href="/static/css/flat-line.css">
+
+<main class="fl-main">
+  <!-- ── Header ── -->
+  <header class="fl-header">
+    <a class="fl-back" href="/entry" aria-label="Quay lại">
+      <span class="material-symbols-outlined">arrow_back</span>
+    </a>
+    <div class="fl-header-title">
+      <div class="fl-header-badge">XN2</div>
+      <div>
+        <strong>Báo Sản Lượng</strong>
+        <div class="fl-header-sub">{{ user.DisplayName or user.UserID }}</div>
+      </div>
+    </div>
+    <button class="fl-header-btn" id="logout" type="button" aria-label="Đăng xuất">
+      <span class="material-symbols-outlined">logout</span>
+    </button>
+  </header>
+
+  <!-- ── User chip ── -->
+  <section class="fl-user-chip">
+    <span class="material-symbols-outlined fl-user-icon">badge</span>
+    <div>
+      <strong>{{ user.DisplayName or user.UserID }}</strong>
+      <div class="fl-user-meta">{{ user.UserID }} · Tổ {{ user.Dept if user.Dept is not none else "?" }}</div>
+    </div>
+  </section>
+
+  <!-- ── Step 1: Nhu cầu mẹ ── -->
+  <section class="fl-step">
+    <div class="fl-step-head">
+      <span class="fl-step-num">1</span>
+      <h2 class="fl-step-title">Nhu cầu mẹ</h2>
+    </div>
+    <select id="demand" class="fl-select">
+      <option value="">Đang tải…</option>
+    </select>
+  </section>
+
+  <!-- ── Step 2: Ngày ── -->
+  <section class="fl-step">
+    <div class="fl-step-head">
+      <span class="fl-step-num">2</span>
+      <h2 class="fl-step-title">Ngày báo sản lượng</h2>
+    </div>
+    <div class="fl-date-row">
+      <input id="day" type="date" class="fl-select" value="{{ today }}" max="{{ today }}" required>
+      <span class="fl-date-hint" id="date-label">Hôm nay</span>
+    </div>
+  </section>
+
+  <!-- ── Demand info card (shown after selection) ── -->
+  <section class="fl-demand-card" id="demand-info" hidden>
+    <div class="fl-demand-head">
+      <span class="fl-demand-ncm" id="info-ncm"></span>
+      <span class="fl-demand-line" id="info-line"></span>
+    </div>
+    <div class="fl-demand-totals-head">Luỹ kế theo từng công đoạn</div>
+    <div class="fl-demand-totals" id="info-operations" aria-live="polite"></div>
+  </section>
+
+  <!-- ── Waiting prompt ── -->
+  <section class="fl-prompt" id="prompt">
+    <span class="material-symbols-outlined">touch_app</span>
+    <div>
+      <strong>Chờ chọn Nhu cầu mẹ</strong>
+      <p>Chọn nhu cầu mẹ và ngày để tải danh sách công đoạn chuyền bệt.</p>
+    </div>
+  </section>
+
+  <!-- ── Operations input ── -->
+  <section id="ops-section" hidden>
+    <div class="fl-section-head">
+      <h3>Công đoạn chuyền bệt</h3>
+      <span class="fl-unit">Đơn vị: SP</span>
+    </div>
+    <div id="operations" class="fl-ops"></div>
+
+    <!-- Running total -->
+    <div class="fl-summary" id="summary" hidden>
+      <span class="material-symbols-outlined">check_circle</span>
+      <span>Tổng lần báo này: <strong id="summary-total">0</strong> sp (<span id="summary-count">0</span> công đoạn)</span>
+    </div>
+
+    <button class="fl-save-btn" id="save" type="button" disabled>
+      <span class="material-symbols-outlined">save</span>
+      LƯU LẦN BÁO
+    </button>
+  </section>
+
+  <!-- ── History ── -->
+  <section class="fl-history">
+    <div class="fl-section-head">
+      <h3><span class="material-symbols-outlined">schedule</span> Lịch sử báo trong ngày</h3>
+      <span class="fl-badge" id="log-count">0 lần</span>
+    </div>
+    <div id="logs" class="fl-timeline">
+      <div class="fl-empty">
+        <span class="material-symbols-outlined">edit_note</span>
+        <strong>Chưa có lần báo nào</strong>
+        <p>Dữ liệu các lần lưu sản lượng sẽ hiển thị tại đây kèm thời gian chi tiết.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Edit bottom sheet ── -->
+  <div class="fl-sheet-backdrop" id="sheet-backdrop" hidden></div>
+  <div class="fl-sheet" id="sheet" hidden>
+    <div class="fl-sheet-handle"></div>
+    <div class="fl-sheet-header">
+      <span class="material-symbols-outlined">edit_note</span>
+      <h3>Chỉnh sửa lần báo</h3>
+      <button class="fl-sheet-close" id="sheet-close" type="button">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="fl-sheet-notice">
+      <span class="material-symbols-outlined">info</span>
+      Mọi điều chỉnh được ghi nhận vào Nhật ký kiểm toán (Audit Trail).
+    </div>
+    <div class="fl-sheet-meta" id="edit-meta"></div>
+    <label class="fl-sheet-label">
+      Ngày báo sản lượng
+      <input type="date" id="edit-day" class="fl-select" max="{{ today }}" required>
+    </label>
+    <div class="fl-sheet-qty-head">
+      <span>Số lượng sản phẩm</span>
+      <span class="fl-old-qty" id="edit-old"></span>
+    </div>
+    <div class="fl-sheet-qty-row">
+      <button class="fl-qty-adj" id="edit-minus" type="button">
+        <span class="material-symbols-outlined">remove</span>
+      </button>
+      <input type="number" id="edit-qty" class="fl-qty-input-big" min="0" max="2147483647" step="1" inputmode="numeric" required>
+      <button class="fl-qty-adj" id="edit-plus" type="button">
+        <span class="material-symbols-outlined">add</span>
+      </button>
+    </div>
+    <p class="fl-sheet-diff" id="edit-diff"></p>
+    <button class="fl-save-btn" id="edit-save" type="button">
+      <span class="material-symbols-outlined">save</span>
+      Lưu thay đổi
+    </button>
+  </div>
+
+  <div id="toast" class="toast" role="status"></div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/admin.js"></script>
+<script>window.FL_USER = {{ user|tojson }};</script>
+<script src="/static/js/flat-line.js?v=20260909a"></script>
+{% endblock %}

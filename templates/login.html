@@ -57,6 +57,7 @@
       if (!userId) return;
       error.textContent = '';
       try {
+        const next = {{ next_url|tojson }};
         const resp = await fetch('/auth/api/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -66,7 +67,7 @@
         if (!resp.ok) {
           throw new Error(data && data.detail ? data.detail : `HTTP ${resp.status}`);
         }
-        window.location.href = data.next_url || '/';
+        window.location.href = next || data.next_url || '/';
       } catch (err) {
         error.textContent = err.message || 'Đăng nhập thất bại';
       }

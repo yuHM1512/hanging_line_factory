@@ -8,13 +8,14 @@ import time
 from datetime import date, timedelta
 from pathlib import Path
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import admin, auth, db, entry, queries, tv
+from . import admin, auth, db, entry, queries, tv, flat_line
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(tv.router)
 app.include_router(entry.router)
+app.include_router(flat_line.router)
 
 
 @app.on_event("startup")
@@ -242,3 +244,21 @@ def api_final_stations(
 @app.exception_handler(Exception)
 async def unhandled_exc(_request, exc):  # noqa: ANN001
     return JSONResponse(status_code=500, content={"detail": str(exc)})
+
+
+@app.exception_handler(HTTPException)
+async def http_exc(request: Request, exc: HTTPException):
+    """Redirect browser page requests to login while keeping API errors JSON."""
+    accepts_html = "text/html" in request.headers.get("accept", "")
+    if exc.status_code == 401 and accepts_html:
+        destination = request.url.path
+        if request.url.query:
+            destination += "?" + request.url.query
+        return RedirectResponse(
+            "/login?next=" + quote(destination, safe=""), status_code=303
+        )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=exc.headers,
+    )

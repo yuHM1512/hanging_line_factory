@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 import os
 from datetime import date, datetime, time, timedelta
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any, Optional
 
@@ -79,6 +80,7 @@ def _elapsed_work_seconds(now: Optional[datetime] = None) -> int:
             break
     return min(elapsed, WORK_SECONDS_PER_DAY)
 TAKT_WEIGHTS = [1.85, 2.0, 2.0, 1.85]  # 4 slot đầu /8.2 — slot 5 = phần dư
+IN_HOURS_TOTAL = Decimal("7.70")
 SLOT_LABELS = [
     ("7:30 - 9:30", "7:30 → 9:30"),
     ("9:30 - 11:30", "9:30 → 11:30"),
@@ -232,15 +234,18 @@ def _resolve_plan_full(mono: str) -> dict:
         raise HTTPException(400, "Plan này chưa gắn NhuCauMe")
 
     mother = db.query(
-        "SELECT DMKT, PhanLoaiDH, LDBienChe FROM app.tDemandRoot WHERE NhuCauMe = ?",
+        "SELECT DMKT, PhanLoaiDH, LDBienChe, LuyKeChuyenTiep "
+        "FROM app.tDemandRoot WHERE NhuCauMe = ?",
         (p["NhuCauMe"],),
     )
     if mother:
         p["DMKT"] = float(mother[0]["DMKT"])
         p["PhanLoaiDH"] = mother[0]["PhanLoaiDH"]
         p["LDBienChe"] = mother[0]["LDBienChe"]
+        p["LuyKeChuyenTiep"] = int(mother[0]["LuyKeChuyenTiep"] or 0)
     else:
         p["DMKT"] = p["PhanLoaiDH"] = p["LDBienChe"] = None
+        p["LuyKeChuyenTiep"] = 0
 
     cluster = db.query(
         "SELECT ClusterOrder, RouteStepOdr, GroupLabel, Role "
@@ -472,6 +477,52 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         if slot:
             counts[slot] += int(r["Qty"] or 0)
     return counts
+
+
+def _historical_overtime_percent(nhu_cau_me: str) -> Optional[Decimal]:
+    """Tỷ lệ sản lượng sau 16:30 của Nhu cầu mẹ; None nếu chưa cấu hình."""
+    rows = db.query(
+        "SELECT OvertimePercent FROM app.tHistoricalOutputAllocation "
+        "WHERE NhuCauMe = ?",
+        (nhu_cau_me,),
+    )
+    if not rows:
+        return None
+    return Decimal(str(rows[0]["OvertimePercent"]))
+
+
+def _round_qty(value: Decimal) -> int:
+    """Làm tròn sản lượng dương đến đơn vị theo quy tắc 0.5 làm tròn lên."""
+    return int(value.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
+
+
+def _allocate_historical_output(
+    total_qty: int,
+    overtime_percent: Decimal,
+) -> dict[int, int]:
+    """Phân bổ tổng ngày vào 4 mốc trong giờ và 1 mốc ngoài giờ.
+
+    Mốc 1-3 được làm tròn theo tỷ trọng thời gian. Mốc 4 nhận phần còn lại
+    của sản lượng trong giờ để tổng 5 mốc luôn bằng chính xác total_qty.
+    """
+    total_qty = max(int(total_qty or 0), 0)
+    overtime_percent = min(max(overtime_percent, Decimal("0")), Decimal("100"))
+    overtime_qty = _round_qty(
+        Decimal(total_qty) * overtime_percent / Decimal("100")
+    )
+    in_hours_qty = total_qty - overtime_qty
+    first_three = [
+        _round_qty(Decimal(in_hours_qty) * Decimal(str(weight)) / IN_HOURS_TOTAL)
+        for weight in TAKT_WEIGHTS[:3]
+    ]
+    slot_4 = in_hours_qty - sum(first_three)
+    return {
+        1: first_three[0],
+        2: first_three[1],
+        3: first_three[2],
+        4: slot_4,
+        5: overtime_qty,
+    }
 
 
 def _slot_from_time(t) -> Optional[int]:
@@ -768,6 +819,7 @@ def api_tv1(
 
     # Cumulative output: tính từ ngày đầu tiên có data trong MES (không giới hạn bởi FirstHangDate)
     cum = _output_kcs(mono, None, the_date)
+    cumulative_display = cum["Qty"] + plan["LuyKeChuyenTiep"]
     today = _output_kcs(mono, the_date, the_date)
     last_full_rows = db.query(
         """
@@ -815,11 +867,15 @@ def api_tv1(
     plan_daily_aim = int(plan["DailyAim"] or 0)
     end_target = compute_end_date(first_hang, slkh, plan_daily_aim, holidays)
     end_actual = _forecast_end_date(first_hang, slkh, last_day_output,
-                                    cum["Qty"], the_date, holidays)
+                                    cumulative_display, the_date, holidays)
 
     # Hourly target + actual
     target_slots = _hourly_target(daily_aim)
     actual_slots = _hourly_actual(mono, the_date)
+    if the_date < date.today():
+        overtime_percent = _historical_overtime_percent(plan["NhuCauMe"])
+        if overtime_percent is not None:
+            actual_slots = _allocate_historical_output(today["Qty"], overtime_percent)
 
     # placeholder anchor: HĐKP for date
     hdkp = db.query(
@@ -852,9 +908,9 @@ def api_tv1(
         },
         "hero": {
             "SLKH": slkh,
-            "TH": cum["Qty"],
-            "Remain": max(slkh - cum["Qty"], 0),
-            "Pct": round(cum["Qty"] / slkh * 100, 1) if slkh else 0,
+            "TH": cumulative_display,
+            "Remain": max(slkh - cumulative_display, 0),
+            "Pct": round(cumulative_display / slkh * 100, 1) if slkh else 0,
         },
         "stats": {
             "DayQty": {"KH": daily_aim, "TH": today["Qty"],
@@ -894,6 +950,7 @@ def api_tv2(
     dmkt = plan["DMKT"] or 0
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
+    cumulative_carryover = plan["LuyKeChuyenTiep"]
 
     # Full-day target comes from the production curve; TV-2 target line shows
     # cumulative target up to the current reporting milestone.
@@ -909,7 +966,16 @@ def api_tv2(
     for c in sorted(plan["Cluster"], key=lambda x: x["ClusterOrder"]):
         odr = c["RouteStepOdr"]
         role = c["Role"]
-        if role == "last":
+        if odr < 0:
+            quantities = db.query(
+                "SELECT ISNULL(SUM(CASE WHEN r.ReportDate=? THEN r.Qty ELSE 0 END),0) AS DayQty, "
+                "ISNULL(SUM(r.Qty),0) AS CumQty FROM app.tFlatReport r "
+                "JOIN app.tFlatOperation o ON o.ID=r.OperationID "
+                "WHERE o.ID=? AND o.NhuCauMe=? AND r.ReportDate<=?",
+                (the_date, -odr, plan['NhuCauMe'], the_date),
+            )[0]
+            today_qty, cum_qty = quantities['DayQty'], quantities['CumQty']
+        elif role == "last":
             # Cụm KCS: dùng golden formula
             today_qty = _output_kcs(mono, the_date, the_date)["Qty"]
             cum_qty = _output_kcs(mono, first_hang, the_date)["Qty"]
@@ -919,10 +985,10 @@ def api_tv2(
         clusters_data.append({
             "Order": c["ClusterOrder"],
             "Role": role,
-            "Label": c["GroupLabel"] or f"Cụm {c['ClusterOrder']}",
+            "Label": (c["GroupLabel"] or f"Cụm {c['ClusterOrder']}") + (" · Chuyền bệt" if odr < 0 else ""),
             "RouteStepOdr": odr,
             "QtyToday": today_qty,
-            "Cumulative": cum_qty,
+            "Cumulative": cum_qty + (0 if odr < 0 else cumulative_carryover),
             "Pass": today_qty >= target_current,
         })
 

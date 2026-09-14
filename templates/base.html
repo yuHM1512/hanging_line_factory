@@ -9,9 +9,25 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    #global-loading{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;align-items:center;gap:8px;padding:8px 14px;border:1px solid #bfdbfe;border-radius:999px;background:#eff6ff;color:#1e3a8a;font:600 13px Inter,system-ui,sans-serif;box-shadow:0 4px 14px #1e3a8a22;opacity:0;pointer-events:none;transition:opacity .15s}
+    #global-loading.show{opacity:1}
+    #global-loading i{width:13px;height:13px;border:2px solid #93c5fd;border-top-color:#1e3a8a;border-radius:50%;animation:global-spin .7s linear infinite}
+    @keyframes global-spin{to{transform:rotate(360deg)}}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <div id="global-loading" role="status" aria-live="polite"><i></i><span>Đang tải dữ liệu…</span></div>
+  <script>
+    (() => {
+      const el = document.getElementById('global-loading'); let pending = 0, timer;
+      const update = () => { if (!el) return; el.classList.toggle('show', pending > 0); };
+      window.AppLoading = { begin(){ pending++; clearTimeout(timer); update(); }, end(){ pending = Math.max(0, pending - 1); timer = setTimeout(update, 120); } };
+      const nativeFetch = window.fetch.bind(window);
+      window.fetch = (...args) => { window.AppLoading.begin(); return nativeFetch(...args).finally(() => window.AppLoading.end()); };
+    })();
+  </script>
   {% block content %}{% endblock %}
   {% block scripts %}{% endblock %}
 </body>

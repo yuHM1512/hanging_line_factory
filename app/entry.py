@@ -64,6 +64,119 @@ def page_entry(request: Request, user: dict = Depends(auth.require_user)):
     )
 
 
+@router.get("/actions")
+def page_actions(request: Request, user: dict = Depends(auth.require_user)):
+    return templates.TemplateResponse(
+        "entry/actions.html", {"request": request, "user": user, "today": date.today().isoformat()}
+    )
+
+
+def _entry_plan_for_user(mono: str, user: dict) -> dict:
+    plan = _resolve_plan(mono)
+    if (user.get("Role") or "").lower() == "admin":
+        return plan
+    if user.get("Unit", "").upper() != "XN2" or user.get("Dept") is None or user["Dept"] != plan["LineNo"]:
+        raise HTTPException(403, "Kế hoạch không thuộc tổ của bạn")
+    return plan
+
+
+@router.get("/api/hourly-actions/plans")
+def api_hourly_action_plans(user: dict = Depends(auth.require_user)):
+    is_admin = (user.get("Role") or "").lower() == "admin"
+    params: tuple[Any, ...] = ()
+    where = ""
+    if not is_admin:
+        if user.get("Unit", "").upper() != "XN2" or user.get("Dept") is None:
+            raise HTTPException(403, "Tài khoản chưa được gắn tổ XN2")
+        where = " AND pm.[LineNo] = ?"
+        params = (user["Dept"],)
+    return db.query(
+        "SELECT pm.MONo, pm.NhuCauMe, pm.StyleNo, pm.[LineNo] AS LineNoOut "
+        "FROM app.tPlanMaster pm WHERE pm.NhuCauMe IS NOT NULL" + where +
+        " ORDER BY pm.FirstHangDate DESC, pm.MONo", params
+    )
+
+
+@router.get("/api/hourly-actions")
+def api_hourly_action_list(
+    mono: str = Query(...),
+    sht_date: date = Query(..., alias="date"),
+    user: dict = Depends(auth.require_user),
+):
+    plan = _entry_plan_for_user(mono, user)
+    rows = db.query(
+        "SELECT Slot, RootCause, CAPAction, CreatedBy, "
+        "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
+        "FROM app.tHourlyAction WHERE PlanMaster_guid = ? AND ShtDate = ? ORDER BY Slot",
+        (plan["PlanMaster_guid"], sht_date),
+    )
+    by_slot = {int(row["Slot"]): row for row in rows}
+    return [
+        {"Slot": slot, **by_slot[slot]} if slot in by_slot else {"Slot": slot, "RootCause": "", "CAPAction": ""}
+        for slot in range(1, 6)
+    ]
+
+
+class HourlyActionItemIn(EntryModel):
+    slot: int = Field(..., alias="Slot", ge=1, le=5)
+    root_cause: str = Field("", alias="RootCause", max_length=500)
+    cap_action: Optional[str] = Field(None, alias="CAPAction", max_length=500)
+
+
+class HourlyActionBatchIn(EntryModel):
+    mono: str = Field(..., alias="MONo")
+    sht_date: date = Field(..., alias="ShtDate")
+    items: list[HourlyActionItemIn] = Field(..., alias="Items", min_length=1)
+
+
+@router.put("/api/hourly-actions")
+@router.post("/api/hourly-actions")
+def api_hourly_action_save(
+    body: HourlyActionBatchIn,
+    user: dict = Depends(auth.require_user),
+):
+    plan = _entry_plan_for_user(body.mono, user)
+    if body.sht_date > date.today() or len({item.slot for item in body.items}) != len(body.items):
+        raise HTTPException(422, "Ngày tương lai hoặc mốc giờ trùng không hợp lệ")
+    for item in body.items:
+        if (item.cap_action or '').strip() and not item.root_cause.strip():
+            raise HTTPException(422, f"Mốc {item.slot}: cần nhập nguyên nhân")
+    with db.get_conn() as conn:
+        conn.autocommit = False
+        cur = conn.cursor()
+        for item in body.items:
+            root = item.root_cause.strip()
+            cap = (item.cap_action or "").strip() or None
+            cur.execute(
+                "SELECT HourlyAction_guid FROM app.tHourlyAction "
+                "WHERE PlanMaster_guid = ? AND ShtDate = ? AND Slot = ?",
+                (plan["PlanMaster_guid"], body.sht_date, item.slot),
+            )
+            existing = cur.fetchone()
+            if not root and not cap:
+                if existing:
+                    cur.execute("DELETE FROM app.tHourlyAction WHERE HourlyAction_guid = ?", (existing[0],))
+                continue
+            if not root:
+                raise HTTPException(422, f"Mốc {item.slot}: cần nhập nguyên nhân")
+            if existing:
+                cur.execute(
+                    "UPDATE app.tHourlyAction SET RootCause = ?, CAPAction = ?, "
+                    "CreatedBy = ?, CreatedAt = SYSDATETIME() WHERE HourlyAction_guid = ?",
+                    (root, cap, user["UserID"], existing[0]),
+                )
+            else:
+                cur.execute(
+                    "INSERT INTO app.tHourlyAction "
+                    "(ShtDate, [LineNo], PlanMaster_guid, Slot, RootCause, CAPAction, CreatedBy) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    (body.sht_date, plan["LineNo"], plan["PlanMaster_guid"], item.slot,
+                     root, cap, user["UserID"]),
+                )
+        conn.commit()
+    return {"ok": True}
+
+
 # ============================================================
 # Plans / Stations / Catalogs
 # ============================================================

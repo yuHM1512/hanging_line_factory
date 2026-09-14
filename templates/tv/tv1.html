@@ -97,6 +97,10 @@
   .rc .rc-t { font-family: var(--font-mono); font-weight: 700; color: var(--warn-ink); font-size: 17px; min-width: 58px; }
   .rc .rc-item b { color: var(--brand-ink); }
   .rc .rc-empty { font-size: 14px; color: var(--ink-3); font-style: italic; }
+  .rc .rc-slot { align-items: flex-start; }
+  .rc .rc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); flex: 1; }
+  .rc .rc-fields > span { min-width: 0; }
+  @media (max-width: 700px) { .rc .rc-item { gap: var(--s-2); } .rc .rc-t { min-width: 92px; font-size: 14px; } .rc .rc-fields { grid-template-columns: 1fr; gap: var(--s-2); } }
 
   .ehd { background: var(--surface); border: 1px solid var(--divider); border-radius: var(--r-md); box-shadow: var(--sh-1); display: flex; flex-direction: column; overflow: hidden; }
   .ehd .e-head { background: linear-gradient(120deg, var(--brand-800), var(--brand-600)); color: #fff; padding: var(--s-4) var(--s-5); }
@@ -301,6 +305,10 @@ function fmtNum(n) {
   if (n == null) return '—';
   return Number(n).toLocaleString('vi-VN');
 }
+function escHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
 function passFail(pass) { return pass ? 'fill-pass' : 'fill-fail'; }
 function passFailText(pass) { return pass ? 'c-pass' : 'c-fail'; }
 
@@ -441,16 +449,12 @@ function render(d) {
 
   // HĐKP
   const rcList = document.getElementById('rc-list');
-  if (d.hdkp.length === 0) {
-    rcList.innerHTML = '<div class="rc-empty">Chưa có ghi nhận HĐKP cho ngày này.</div>';
-  } else {
-    const slotLabels = ['', '9:30', '11:30', '14:30', '16:30', 'Sau 16:30'];
-    rcList.innerHTML = d.hdkp.map(h => `
-      <div class="rc-item">
-        <span class="rc-t">${slotLabels[h.Slot] || h.Slot}</span>
-        <span><b>Nguyên nhân:</b> ${h.RootCause || '—'} ${h.CAPAction ? '&nbsp; <b>HĐKP:</b> ' + h.CAPAction : ''}</span>
-      </div>`).join('');
-  }
+  const slotLabels = ['', '7:30 – 9:30', '9:30 – 11:30', '12:30 – 14:30', '14:30 – 16:30', 'Sau 16:30'];
+  const hdkpBySlot = Object.fromEntries(d.hdkp.map(h => [Number(h.Slot), h]));
+  rcList.innerHTML = slotLabels.slice(1).map((label, i) => {
+    const h = hdkpBySlot[i + 1] || {};
+    return `<div class="rc-item rc-slot"><span class="rc-t">${escHtml(label)}</span><div class="rc-fields"><span><b>Nguyên nhân</b><br>${escHtml(h.RootCause || '—')}</span><span><b>HĐKP</b><br>${escHtml(h.CAPAction || '—')}</span></div></div>`;
+  }).join('');
 
   // EHD
   const ehdEl = document.getElementById('ehd-list');

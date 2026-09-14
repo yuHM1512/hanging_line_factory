@@ -4,7 +4,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
@@ -49,6 +49,13 @@ def role_home(user: dict) -> str:
     return "/admin" if (user.get("Role") or "").lower() == "admin" else "/entry"
 
 
+def safe_next_url(value: Optional[str]) -> Optional[str]:
+    """Accept only an internal absolute path for post-login redirects."""
+    if value and value.startswith("/") and not value.startswith("//"):
+        return value
+    return None
+
+
 def require_user(request: Request) -> dict:
     user = get_session_user(request)
     if not user:
@@ -78,17 +85,20 @@ def attach_session(response: Response, user: dict) -> None:
 
 @router.get("/login")
 def page_login(request: Request):
+    next_url = safe_next_url(request.query_params.get("next"))
     user = get_session_user(request)
     if user:
-        return RedirectResponse(role_home(user), status_code=303)
-    return templates.TemplateResponse("login.html", {"request": request})
+        return RedirectResponse(next_url or role_home(user), status_code=303)
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "next_url": next_url or ""}
+    )
 
 
 @router.post("/auth/api/login")
-def api_login(body: LoginIn):
+def api_login(body: LoginIn, next_url: Optional[str] = Query(None)):
     user = get_user_by_id(body.user_id)
-    next_url = role_home(user)
-    response = JSONResponse({"ok": True, "user": user, "next_url": next_url})
+    destination = safe_next_url(next_url) or role_home(user)
+    response = JSONResponse({"ok": True, "user": user, "next_url": destination})
     attach_session(response, user)
     return response
 

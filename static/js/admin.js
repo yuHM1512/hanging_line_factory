@@ -11,6 +11,10 @@ window.Admin = (() => {
     }
     if (!resp.ok) {
       const msg = data && data.detail ? data.detail : `HTTP ${resp.status}`;
+      if (resp.status === 401 || msg === 'Chưa đăng nhập' || msg === 'Chua dang nhap') {
+        const current = window.location.pathname + window.location.search + window.location.hash;
+        window.location.href = '/login?next=' + encodeURIComponent(current);
+      }
       throw new Error(msg);
     }
     return data;

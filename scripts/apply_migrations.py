@@ -16,6 +16,7 @@ chỉ chứa `GO` vì pyodbc không hiểu batch separator của sqlcmd.
 from __future__ import annotations
 
 import re
+import argparse
 import sys
 from pathlib import Path
 
@@ -73,7 +74,15 @@ def ensure_app_db_exists() -> None:
 
 
 def main() -> int:
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, 'reconfigure'):
+            stream.reconfigure(encoding='utf-8')
+    parser = argparse.ArgumentParser(description='Apply SQL migrations to the app database.')
+    parser.add_argument('--from-version', type=int, default=1)
+    parser.add_argument('--to-version', type=int, default=999)
+    args = parser.parse_args()
     files = sorted(MIG_DIR.glob("*.sql"))
+    files = [f for f in files if args.from_version <= int(f.name.split('_')[0]) <= args.to_version]
     if not files:
         print(f"No migrations found in {MIG_DIR}")
         return 1

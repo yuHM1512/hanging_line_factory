@@ -1,0 +1,219 @@
+{% extends "admin/base.html" %}
+{% set active = 'historical-output-allocation' %}
+{% block header_breadcrumb %}Phân bổ sản lượng ngày cũ{% endblock %}
+{% block heading %}Phân bổ sản lượng ngày cũ{% endblock %}
+{% block subheading %}Thiết lập tỷ lệ sản lượng ngoài giờ riêng cho từng Nhu cầu mẹ. Cấu hình chỉ áp dụng khi xem ngày quá khứ trên TV-1.{% endblock %}
+
+{% block body %}
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Chọn Nhu cầu mẹ
+  </h3>
+  <div class="row-form">
+    <label class="field">
+      <span class="field-label">Tổ</span>
+      <select id="sel-line">
+        <option value="">— Đang tải... —</option>
+      </select>
+    </label>
+    <label class="field flex-grow">
+      <span class="field-label">Nhu cầu mẹ</span>
+      <select id="sel-demand" disabled>
+        <option value="">— Chọn tổ trước —</option>
+      </select>
+    </label>
+  </div>
+  <div id="demand-info" class="muted" style="margin-top:.5rem" hidden></div>
+</div>
+
+<div class="panel" id="panel-config" hidden>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">lock_clock</span>
+    Tỷ lệ quy đổi ngoài giờ
+  </h3>
+  <form id="form-config" class="row-form">
+    <label class="field">
+      <span class="field-label">Ngoài giờ (%)</span>
+      <input type="number" name="OvertimePercent" min="0" max="100" step="0.01" required style="width:10rem" />
+    </label>
+    <label class="field flex-grow">
+      <span class="field-label">Ghi chú</span>
+      <input type="text" name="Notes" maxlength="200" placeholder="Lý do hoặc căn cứ quy đổi..." />
+    </label>
+    <button class="btn btn-primary" type="submit">Lưu tỷ lệ</button>
+    <button class="btn btn-danger" type="button" id="btn-delete" hidden>Xoá cấu hình</button>
+  </form>
+  <p class="muted small" id="audit-info"></p>
+</div>
+
+<div class="panel" id="panel-preview" hidden>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">calculate</span>
+    Minh hoạ với tổng 1.000 pcs/ngày
+  </h3>
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>Mốc</th>
+        <th>Giờ làm việc</th>
+        <th>Cách phân bổ</th>
+        <th>Sản lượng minh hoạ</th>
+      </tr>
+    </thead>
+    <tbody id="preview-body"></tbody>
+    <tfoot>
+      <tr>
+        <td colspan="3"><strong>Tổng</strong></td>
+        <td><strong>1.000 pcs</strong></td>
+      </tr>
+    </tfoot>
+  </table>
+  <p class="muted small" style="margin-top:.75rem">Mốc 1–3 làm tròn đến đơn vị. Mốc 4 nhận phần dư để tổng bốn mốc trong giờ luôn khớp; mốc 5 là sản lượng ngoài giờ.</p>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<script>
+const API = '/admin/api/historical-output-allocation';
+const selLine = document.getElementById('sel-line');
+const selDemand = document.getElementById('sel-demand');
+const demandInfo = document.getElementById('demand-info');
+const panelConfig = document.getElementById('panel-config');
+const panelPreview = document.getElementById('panel-preview');
+const formConfig = document.getElementById('form-config');
+const btnDelete = document.getElementById('btn-delete');
+let currentDemand = '';
+
+async function loadLines() {
+  try {
+    const lines = await Admin.fetchJSON(`${API}/lines`);
+    selLine.innerHTML = '<option value="">— Chọn tổ —</option>' +
+      lines.map(l => `<option value="${l.line_no}">Tổ ${l.line_no}</option>`).join('');
+  } catch (err) {
+    selLine.innerHTML = '<option value="">Lỗi tải danh sách tổ</option>';
+  }
+}
+
+selLine.addEventListener('change', async () => {
+  const line = selLine.value;
+  currentDemand = '';
+  selDemand.disabled = true;
+  demandInfo.hidden = true;
+  panelConfig.hidden = true;
+  panelPreview.hidden = true;
+  if (!line) {
+    selDemand.innerHTML = '<option value="">— Chọn tổ trước —</option>';
+    return;
+  }
+  selDemand.innerHTML = '<option value="">— Đang tải... —</option>';
+  try {
+    const demands = await Admin.fetchJSON(`${API}/demands?line_no=${line}`);
+    if (!demands.length) {
+      selDemand.innerHTML = '<option value="">Không có Nhu cầu mẹ</option>';
+      return;
+    }
+    selDemand.innerHTML = '<option value="">— Chọn Nhu cầu mẹ —</option>' +
+      demands.map(d => {
+        const configured = d.OvertimePercent == null ? '' : ` · Đã cài ${d.OvertimePercent}%`;
+        return `<option value="${Admin.escape(d.NhuCauMe)}" data-style="${Admin.escape(d.StyleNo || '')}" data-slkh="${d.SLKH || 0}">${Admin.escape(d.NhuCauMe)} — ${Admin.escape(d.StyleNo || '')}${configured}</option>`;
+      }).join('');
+    selDemand.disabled = false;
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+    selDemand.innerHTML = '<option value="">Lỗi tải danh sách</option>';
+  }
+});
+
+selDemand.addEventListener('change', async () => {
+  currentDemand = selDemand.value;
+  if (!currentDemand) {
+    demandInfo.hidden = true;
+    panelConfig.hidden = true;
+    panelPreview.hidden = true;
+    return;
+  }
+  const opt = selDemand.selectedOptions[0];
+  demandInfo.innerHTML = `<strong>${Admin.escape(currentDemand)}</strong> · Mã hàng ${Admin.escape(opt.dataset.style || '—')} · SLKH ${Number(opt.dataset.slkh || 0).toLocaleString('vi-VN')} pcs`;
+  demandInfo.hidden = false;
+  panelConfig.hidden = false;
+  panelPreview.hidden = false;
+  await loadConfig();
+});
+
+async function loadConfig() {
+  const config = await Admin.fetchJSON(`${API}?nhu_cau_me=${encodeURIComponent(currentDemand)}`);
+  formConfig.reset();
+  formConfig.OvertimePercent.value = config ? Number(config.OvertimePercent) : 0;
+  formConfig.Notes.value = config?.Notes || '';
+  btnDelete.hidden = !config;
+  document.getElementById('audit-info').textContent = config
+    ? `Cập nhật bởi ${config.UpdatedBy || '—'} lúc ${config.UpdatedAt || '—'}`
+    : 'Chưa có cấu hình. TV-1 đang dùng giờ quét thực tế cho các ngày cũ.';
+  renderPreview();
+}
+
+function allocatePreview(total, percent) {
+  const overtime = Math.round(total * percent / 100);
+  const inHours = total - overtime;
+  const first = [1.85, 2, 2].map(hours => Math.round(inHours * hours / 7.7));
+  return [...first, inHours - first.reduce((sum, qty) => sum + qty, 0), overtime];
+}
+
+function renderPreview() {
+  const percent = Math.min(100, Math.max(0, Number(formConfig.OvertimePercent.value) || 0));
+  const qty = allocatePreview(1000, percent);
+  const rows = [
+    ['07:30–09:30', '1,85 giờ', 'Trong giờ × 1,85 / 7,7'],
+    ['09:30–11:30', '2 giờ', 'Trong giờ × 2 / 7,7'],
+    ['12:30–14:30', '2 giờ', 'Trong giờ × 2 / 7,7'],
+    ['14:30–16:30', '1,85 giờ', 'Phần còn lại trong giờ'],
+    ['Sau 16:30', 'Theo thực tế', `${percent.toLocaleString('vi-VN')}% tổng ngày`],
+  ];
+  document.getElementById('preview-body').innerHTML = rows.map((row, index) => `
+    <tr>
+      <td><strong>${row[0]}</strong></td>
+      <td>${row[1]}</td>
+      <td>${row[2]}</td>
+      <td class="mono">${qty[index].toLocaleString('vi-VN')} pcs</td>
+    </tr>
+  `).join('');
+}
+
+formConfig.OvertimePercent.addEventListener('input', renderPreview);
+
+formConfig.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!currentDemand || !Admin.validateForm(formConfig)) return;
+  const fd = new FormData(formConfig);
+  try {
+    const result = await Admin.fetchJSON(API, {
+      method: 'POST',
+      body: JSON.stringify({
+        NhuCauMe: currentDemand,
+        OvertimePercent: Number(fd.get('OvertimePercent')),
+        Notes: fd.get('Notes') || null,
+      }),
+    });
+    Admin.toast(result.action === 'created' ? 'Đã tạo cấu hình.' : 'Đã cập nhật tỷ lệ.', 'ok');
+    await loadConfig();
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+});
+
+btnDelete.addEventListener('click', async () => {
+  if (!currentDemand) return;
+  if (!await Admin.confirmDelete(`Xoá cấu hình phân bổ của "${currentDemand}"?`)) return;
+  try {
+    await Admin.fetchJSON(`${API}/${encodeURIComponent(currentDemand)}`, { method: 'DELETE' });
+    Admin.toast('Đã xoá cấu hình. TV-1 sẽ dùng giờ quét thực tế.', 'ok');
+    await loadConfig();
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+});
+
+loadLines();
+</script>
+{% endblock %}

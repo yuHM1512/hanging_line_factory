@@ -176,7 +176,7 @@ async function openConfig(nhuCauMe) {
   const optionsHTML = '<option value="">— chọn —</option>' +
     groupsCache.map(g => `<option value="${g.RouteStepOdr}"
       data-stations="${g.StationNos || ''}">
-      Odr ${g.RouteStepOdr} · ${(g.GroupLabel || '').substring(0, 55)}
+      ${g.Source === 'flat' ? 'Chuyền bệt' : 'Odr ' + g.RouteStepOdr} · ${Admin.escape((g.GroupLabel || '').substring(0, 55))}
     </option>`).join('');
 
   document.querySelectorAll('.slot-pick').forEach(sel => {
@@ -201,7 +201,7 @@ function updateStationHints() {
     const opt = sel.options[sel.selectedIndex];
     const stations = opt && opt.dataset.stations ? opt.dataset.stations : '';
     slot.querySelector('.slot-stations').textContent =
-      stations ? `Trạm vật lý: ${stations}` : '';
+      stations === 'Chuyền bệt' ? 'Chuyền bệt · Sản lượng do tổ trưởng báo' : (stations ? `Trạm vật lý: ${stations}` : '');
   });
 }
 
@@ -241,8 +241,11 @@ document.querySelector('#btn-save').addEventListener('click', async () => {
     return;
   }
   // Check production order
-  const odrs = picks.map(p => p.RouteStepOdr);
-  for (let i = 1; i < 6; i++) {
+  if (new Set(picks.map(p => p.RouteStepOdr)).size !== 6) {
+    Admin.toast('Không chọn trùng công đoạn.', 'error'); return;
+  }
+  const odrs = picks.map(p => p.RouteStepOdr).filter(odr => odr >= 0);
+  for (let i = 1; i < odrs.length; i++) {
     if (odrs[i] <= odrs[i - 1]) {
       Admin.toast(`Cụm ${i + 1} (Odr ${odrs[i]}) phải đứng SAU cụm ${i} (Odr ${odrs[i - 1]}).`, 'error');
       return;

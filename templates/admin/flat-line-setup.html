@@ -1,0 +1,57 @@
+<div class="panel">
+  <h3 class="panel-title">Theo dõi chuyền bệt</h3>
+  <p class="muted">Chọn Nhu cầu mẹ đã lưu để thiết lập các công đoạn ngoài hệ thống treo.</p>
+  <label class="field">Nhu cầu mẹ <select id="flat-demand"><option value="">— Chọn nhu cầu —</option></select></label>
+  <form id="flat-config" hidden>
+    <p><label><input type="checkbox" id="flat-enabled"> Theo dõi chuyền bệt</label></p>
+    <div id="flat-ops" class="grid-form"></div>
+    <div class="form-actions">
+      <button type="button" class="btn btn-soft" id="flat-add">+ Thêm công đoạn</button>
+      <button class="btn btn-primary">Lưu cấu hình chuyền bệt</button>
+    </div>
+    <p class="muted" id="flat-message" role="status"></p>
+  </form>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const select = document.getElementById('flat-demand');
+  const form = document.getElementById('flat-config');
+  const ops = document.getElementById('flat-ops');
+  const enabled = document.getElementById('flat-enabled');
+  const message = document.getElementById('flat-message');
+  const add = (op = {}) => {
+    const row = document.createElement('label'); row.className = 'field';
+    row.innerHTML = '<span class="field-label">Tên công đoạn</span><input maxlength="200" required><button type="button" class="btn btn-soft">Bỏ công đoạn</button>';
+    row.dataset.id = op.id || ''; row.querySelector('input').value = op.name || '';
+    row.querySelector('button').onclick = () => row.remove(); ops.append(row);
+  };
+  async function refreshDemands() {
+    const value = select.value;
+    const rows = await Admin.fetchJSON('/admin/api/demand');
+    select.replaceChildren(new Option('— Chọn nhu cầu —', ''));
+    rows.forEach(r => select.add(new Option(`${r.NhuCauMe} · ${r.StyleNo} · Tổ ${r.LineNoOut}`, r.NhuCauMe)));
+    select.value = value;
+  }
+  refreshDemands().catch(e => Admin.toast(e.message, 'error'));
+  select.addEventListener('focus', () => refreshDemands().catch(e => Admin.toast(e.message, 'error')));
+  select.onchange = async () => {
+    form.hidden = true; message.textContent = ''; ops.replaceChildren();
+    const key = select.value; if (!key) return;
+    try {
+      const data = await Admin.fetchJSON('/admin/api/flat-line?key=' + encodeURIComponent(key));
+      if (key !== select.value) return;
+      enabled.checked = data.enabled; data.operations.forEach(add); form.hidden = false;
+    } catch(e) { Admin.toast(e.message, 'error'); }
+  };
+  document.getElementById('flat-add').onclick = () => { enabled.checked = true; add(); };
+  form.onsubmit = async e => {
+    e.preventDefault(); const key = select.value;
+    const operations = [...ops.children].map(row => ({id: row.dataset.id ? Number(row.dataset.id) : null, name: row.querySelector('input').value.trim()}));
+    const button = form.querySelector('button.btn-primary'); button.disabled = true;
+    try {
+      await Admin.fetchJSON('/admin/api/flat-line?key=' + encodeURIComponent(key), {method: 'PUT', body: JSON.stringify({enabled: enabled.checked, operations})});
+      await select.onchange(); message.textContent = 'Đã lưu cấu hình chuyền bệt.';
+    } catch(e) { Admin.toast(e.message, 'error'); } finally { button.disabled = false; }
+  };
+});
+</script>

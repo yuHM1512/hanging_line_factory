@@ -5,6 +5,8 @@
 {% block subheading %}Chọn MONo để khai báo một nhu cầu mẹ xuyên suốt, gồm thông tin kế hoạch, sản lượng, PO/EHD và các lần cập nhật tăng giảm SLKH.{% endblock %}
 
 {% block body %}
+{% include "admin/flat-line-setup.html" %}
+{% include 'admin/flat-line-setup.html' %}
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">search</span>
@@ -98,6 +100,10 @@
     <label class="field">
       <span class="field-label">LD bien che</span>
       <input type="number" name="LDBienChe" required min="1" step="1" />
+    </label>
+    <label class="field">
+      <span class="field-label">Luỹ kế chuyển tiếp</span>
+      <input type="number" name="LuyKeChuyenTiep" required min="0" step="1" value="0" placeholder="VD: 200" />
     </label>
 
     <label class="field">
@@ -501,6 +507,7 @@ async function openCreate(r) {
   f.DMKT.value = '';
   f.PhanLoaiDH.value = '';
   f.LDBienChe.value = '';
+  f.LuyKeChuyenTiep.value = 0;
   f.DemandNotes.value = '';
   pendingPOs = [];
   renderPOs();
@@ -526,6 +533,7 @@ async function openEdit(guid) {
   f.DMKT.value = p.DMKT || '';
   f.PhanLoaiDH.value = p.PhanLoaiDH || '';
   f.LDBienChe.value = p.LDBienChe || '';
+  f.LuyKeChuyenTiep.value = p.LuyKeChuyenTiep || 0;
   f.DemandNotes.value = p.DemandNotes || '';
   f.FirstHangDate.value = p.FirstHangDate;
   f.SLKH.value = p.SLKH;
@@ -676,6 +684,7 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
     DMKT: parseFloat(fd.get('DMKT')),
     PhanLoaiDH: fd.get('PhanLoaiDH'),
     LDBienChe: parseInt(fd.get('LDBienChe')),
+    LuyKeChuyenTiep: parseInt(fd.get('LuyKeChuyenTiep'), 10),
     DemandNotes: fd.get('DemandNotes') || null,
     LoaiHang: fd.get('LoaiHang') || null,
     Notes: fd.get('Notes') || null,
@@ -697,6 +706,7 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
         DMKT: parseFloat(fd.get('DMKT')),
         PhanLoaiDH: fd.get('PhanLoaiDH'),
         LDBienChe: parseInt(fd.get('LDBienChe')),
+        LuyKeChuyenTiep: parseInt(fd.get('LuyKeChuyenTiep'), 10),
         DemandNotes: fd.get('DemandNotes') || null,
         POs: pendingPOs,
       };
