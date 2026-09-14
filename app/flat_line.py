@@ -49,24 +49,29 @@ def save_config(key: str, body: ConfigIn, user: dict = Depends(auth.require_admi
     check_demand(key, user, False)
     if body.enabled and not body.operations:
         raise HTTPException(422, 'Thêm ít nhất một công đoạn')
+    with db.get_conn() as conn:
+        conn.autocommit = False
+        apply_config(conn.cursor(), key, body)
+        conn.commit()
+    return {'ok': True}
+
+
+def apply_config(cur, key: str, body: ConfigIn):
+    if body.enabled and not body.operations:
+        raise HTTPException(422, 'Thêm ít nhất một công đoạn')
     names = [op.name.strip() for op in body.operations]
     ids = [op.id for op in body.operations if op.id is not None]
     if any(not name for name in names) or len(set(ids)) != len(ids):
         raise HTTPException(422, 'Tên công đoạn hoặc ID không hợp lệ')
-    with db.get_conn() as conn:
-        conn.autocommit = False
-        cur = conn.cursor()
-        cur.execute('UPDATE app.tDemandRoot SET TrackFlatLine=? WHERE NhuCauMe=?', (body.enabled, key))
-        cur.execute('UPDATE app.tFlatOperation SET IsActive=0 WHERE NhuCauMe=?', (key,))
-        for index, op in enumerate(body.operations):
-            if op.id is None:
-                cur.execute('INSERT INTO app.tFlatOperation (NhuCauMe,Name,SortOrder) VALUES (?,?,?)', (key, op.name.strip(), index))
-            else:
-                cur.execute('UPDATE app.tFlatOperation SET Name=?,SortOrder=?,IsActive=1 WHERE ID=? AND NhuCauMe=?', (op.name.strip(), index, op.id, key))
-                if cur.rowcount != 1:
-                    raise HTTPException(422, 'Công đoạn không thuộc nhu cầu')
-        conn.commit()
-    return {'ok': True}
+    cur.execute('UPDATE app.tDemandRoot SET TrackFlatLine=? WHERE NhuCauMe=?', (body.enabled, key))
+    cur.execute('UPDATE app.tFlatOperation SET IsActive=0 WHERE NhuCauMe=?', (key,))
+    for index, op in enumerate(body.operations):
+        if op.id is None:
+            cur.execute('INSERT INTO app.tFlatOperation (NhuCauMe,Name,SortOrder) VALUES (?,?,?)', (key, op.name.strip(), index))
+        else:
+            cur.execute('UPDATE app.tFlatOperation SET Name=?,SortOrder=?,IsActive=1 WHERE ID=? AND NhuCauMe=?', (op.name.strip(), index, op.id, key))
+            if cur.rowcount != 1:
+                raise HTTPException(422, 'Công đoạn không thuộc nhu cầu')
 
 
 @router.get('/entry/flat-line')

@@ -514,7 +514,11 @@ class PlanIn(AdminModel):
     pos: list[POIn] = Field(default_factory=list, alias="POs")
 
 
+from .flat_line import ConfigIn, apply_config
+
+
 class DemandPlanIn(PlanIn):
+    flat_line: Optional[ConfigIn] = Field(None, alias="FlatLine")
     nhu_cau_me: str = Field(..., alias="NhuCauMe")
     demand_notes: Optional[str] = Field(None, alias="DemandNotes")
     dmkt: float = Field(..., alias="DMKT", gt=0)
@@ -679,6 +683,8 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
                     "Notes, CreatedBy) VALUES (?,?,?,?,?,?)",
                     (new_guid, po.po_no, po.qty, po.ship_date, po.notes, _actor_id(user)),
                 )
+            if body.flat_line is not None:
+                apply_config(cur, body.nhu_cau_me, body.flat_line)
             cur.execute("COMMIT TRAN")
     except HTTPException:
         raise
@@ -694,6 +700,7 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
 
 
 class PlanUpdate(AdminModel):
+    flat_line: Optional[ConfigIn] = Field(None, alias="FlatLine")
     style_no: str = Field(..., alias="StyleNo")
     line_no: int = Field(..., alias="LineNo", ge=1, le=99)
     first_hang_date: date = Field(..., alias="FirstHangDate")
@@ -712,6 +719,7 @@ class PlanUpdate(AdminModel):
 @router.put("/api/plan/{guid}")
 def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
+        conn.autocommit = False
         cur = conn.cursor()
         cur.execute(
             "SELECT NhuCauMe FROM app.tPlanMaster WHERE PlanMaster_guid = ?",
@@ -750,6 +758,9 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Plan không tồn tại")
+        if body.flat_line is not None:
+            apply_config(cur, current_nhu_cau_me, body.flat_line)
+        conn.commit()
     _clear_plan_candidate_cache()
     return {"ok": True}
 
@@ -799,7 +810,7 @@ def api_plan_adjustment_create(guid: str, body: AdjustmentIn, user: dict = Depen
 
 
 @router.delete("/api/plan-adjustments/{adjustment_guid}")
-def api_plan_adjustment_delete(adjustment_guid: str):
+def api_plan_adjustment_delete(adjustment_guid: str, user: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
@@ -808,6 +819,20 @@ def api_plan_adjustment_delete(adjustment_guid: str):
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Dieu chinh khong ton tai")
+    return {"ok": True}
+
+
+@router.put("/api/plan-adjustments/{adjustment_guid}")
+def api_plan_adjustment_update(adjustment_guid: str, body: AdjustmentIn,
+                               user: dict = Depends(auth.require_admin)):
+    if body.delta_qty == 0 or not body.reason.strip():
+        raise HTTPException(422, "Số lượng phải khác 0 và cần nhập lý do.")
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE app.tPlanAdjustment SET DeltaQty=?, Reason=?, Notes=? WHERE Adjustment_guid=?",
+                    (body.delta_qty, body.reason.strip(), body.notes, adjustment_guid))
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Không tìm thấy lần điều chỉnh.")
     return {"ok": True}
 
 
