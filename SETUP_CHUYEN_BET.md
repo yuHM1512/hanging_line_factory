@@ -52,8 +52,9 @@ FLAT_LINE_DATA_RANGE="A1:BV"
 FLAT_LINE_SYNC_ENABLED=true
 FLAT_LINE_SYNC_INTERVAL_SECONDS=120
 
-# 6. Kết nối read-only đến database của app QLCL
-FLAT_LINE_QLCL_DATABASE_URL="postgresql://USER:PASSWORD@SERVER:5432/DATABASE"
+# 6. API QLCL dùng chung cho TV treo, TV bệt và gửi sản lượng
+QLCL_API_URL="https://qlcl.hachibavn.com"
+QLCL_API_KEY="DIEN_CUNG_KEY_VOI_APP_QLCL"
 ```
 
 Không commit `.env` hoặc JSON lên Git. Thư mục `secrets/` và các tên
@@ -69,7 +70,7 @@ Không commit `.env` hoặc JSON lên Git. Thư mục `secrets/` và các tên
 | `FLAT_LINE_DATA_SPREADSHEET_URL` | Link file data XN2 | Link file data XN3 |
 | `FLAT_LINE_DATA_WORKSHEET` | `Data-U2` | `Data-U3` |
 | `FLAT_LINE_GOOGLE_SERVICE_ACCOUNT_FILE` | JSON XN2 đang dùng | JSON được cấp quyền ở XN mới |
-| `FLAT_LINE_QLCL_DATABASE_URL` | Database QLCL hiện tại | Database QLCL của môi trường mới |
+| `QLCL_API_URL`, `QLCL_API_KEY` | URL và key của dịch vụ QLCL | Dùng chung nếu cùng dịch vụ QLCL |
 
 Các range chỉ giữ nguyên khi cấu trúc file mới giống mẫu:
 
@@ -152,7 +153,9 @@ Trạng thái gửi sẽ báo số nhu cầu chưa khai báo nếu chưa tìm đ
 Trang nhập QC tự lấy BP của đúng ngày, ẩn nút cộng sản lượng đạt thủ công.
 Tỷ lệ lỗi của chuyền bệt = số sản phẩm lỗi / BP × 100; BP bằng 0 hoặc chưa có
 thì không đánh giá tỷ lệ. QLCL đọc lại sản lượng mỗi 30 giây và sau khi lưu lỗi.
-TV3 đọc lỗi từ QLCL qua kết nối chỉ đọc `FLAT_LINE_QLCL_DATABASE_URL`;
+TV3 đọc lỗi qua `GET /api/tv3/flat-qc-data` trên `QLCL_API_URL`, xác thực bằng
+`X-API-Key` từ `QLCL_API_KEY`. Cần cập nhật QLCL trước hanging; biến cũ
+`FLAT_LINE_QLCL_DATABASE_URL` không còn dùng và có thể xóa khỏi `.env`;
 phân mốc theo giờ ghi sản phẩm lỗi tại Việt Nam. Nhiều mã lỗi trên cùng một
 sản phẩm không làm tăng số sản phẩm lỗi trong mốc. Ngày hiển thị trên TV là
 ngày báo cáo thực tế ở chân màn hình.

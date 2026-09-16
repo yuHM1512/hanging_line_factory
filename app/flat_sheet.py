@@ -7,7 +7,6 @@ import os
 import re
 import threading
 import unicodedata
-from contextlib import closing
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -286,49 +285,23 @@ def headcount(reports, fallback):
 
 
 def quality(demand, day):
-    dsn = os.getenv("FLAT_LINE_QLCL_DATABASE_URL")
-    if not dsn:
-        return {"status": "unavailable", "message": "Chưa cấu hình kết nối QC"}
-    import psycopg2
-    import psycopg2.extras
+    """Read QC through the same authenticated QLCL service as hanging TVs."""
+    import httpx
     try:
-        with closing(psycopg2.connect(dsn, connect_timeout=4)) as conn:
-            conn.set_session(readonly=True)
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("SET LOCAL statement_timeout=4000")
-                qlcl_unit = 'XN1-V1' if unit() == 'XN1' else unit()
-                cur.execute("SELECT id FROM public.prod_plan WHERE source_system='flat_line_sheet' AND source_record_id=%s", (f"{qlcl_unit}:{demand}",))
-                plan = cur.fetchone()
-                if not plan:
-                    return {"status": "empty", "message": "Chưa có kế hoạch mẹ trong QLCL"}
-                cur.execute("SELECT COUNT(*) AS records, COALESCE(SUM(defect_count),0) AS defects FROM public.qc_error_log_sp WHERE plan_id=%s AND date=%s AND BTRIM(station)='Trạm cuối chuyền'", (plan['id'], day))
-                summary = dict(cur.fetchone())
-                cur.execute("""SELECT COALESCE(bp.ten_bo_phan,'Chưa phân loại') AS department,
-                    COALESCE(ct.ten_chi_tiet,'') AS detail, COALESCE(ml.ten_ma,'Chưa phân loại') AS defect, COUNT(*) AS quantity
-                    FROM public.qc_defect d JOIN public.qc_error_log_sp sp ON sp.id=d.error_log_sp_id
-                    LEFT JOIN public.dm_bo_phan bp ON bp.id=d.bo_phan_id
-                    LEFT JOIN public.dm_chi_tiet ct ON ct.id=d.chi_tiet_id
-                    LEFT JOIN public.dm_ma_loi ml ON ml.id=d.ma_loi_id
-                    WHERE sp.plan_id=%s AND sp.date=%s AND BTRIM(sp.station)='Trạm cuối chuyền' GROUP BY bp.ten_bo_phan,ct.ten_chi_tiet,ml.ten_ma ORDER BY COUNT(*) DESC""", (plan['id'], day))
-                details = [dict(r) for r in cur.fetchall()]
-                cur.execute("""WITH garments AS (
-                    SELECT d.error_log_sp_id, d.sp_index, MIN(d.created_at) AS created_at
-                    FROM public.qc_defect d JOIN public.qc_error_log_sp sp ON sp.id=d.error_log_sp_id
-                    WHERE sp.plan_id=%s AND sp.date=%s AND BTRIM(sp.station)='Trạm cuối chuyền'
-                    GROUP BY d.error_log_sp_id,d.sp_index
-                ) SELECT CASE
-                    WHEN timezone('Asia/Ho_Chi_Minh',created_at)::time < '09:30' THEN 1
-                    WHEN timezone('Asia/Ho_Chi_Minh',created_at)::time < '11:30' THEN 2
-                    WHEN timezone('Asia/Ho_Chi_Minh',created_at)::time < '14:30' THEN 3
-                    WHEN timezone('Asia/Ho_Chi_Minh',created_at)::time < '16:30' THEN 4 ELSE 5 END AS slot,
-                    COUNT(*) AS defects FROM garments GROUP BY slot""", (plan['id'], day))
-                slots = [dict(r) for r in cur.fetchall()]
-                cur.execute("SELECT time,bo_phan,chi_tiet,ma_loi FROM public.qc_defect_multi WHERE plan_id=%s AND date=%s AND BTRIM(station)='Trạm cuối chuyền' ORDER BY time", (plan['id'], day))
-                alerts = [dict(time=str(r['time'])[:5], text=' · '.join(str(r[k]) for k in ('bo_phan','chi_tiet','ma_loi') if r[k])) for r in cur.fetchall()]
-                return dict(status="ok" if summary['records'] else "empty", **summary,
-                    plan_id=plan['id'], details=details, slots=slots, alerts=alerts)
+        response = httpx.get(
+            os.getenv('QLCL_API_URL', 'http://localhost:8008').strip().rstrip('/') + '/api/tv3/flat-qc-data',
+            params={'demand': demand, 'don_vi': unit(), 'date': str(day)},
+            headers={'X-API-Key': os.getenv('QLCL_API_KEY', '')},
+            timeout=5.0,
+        )
+        response.raise_for_status()
+        result = response.json()
+        if not isinstance(result, dict) or result.get('status') not in ('ok', 'empty'):
+            raise ValueError('Invalid QLCL QC response')
+        return result
     except Exception:
-        return {"status": "unavailable", "message": "Tạm thời không kết nối được QLCL"}
+        log.warning('Flat-line QC API unavailable')
+        return {'status': 'unavailable', 'message': 'Không đọc được QC qua API QLCL; kiểm tra URL, API key và phiên bản QLCL.'}
 
 
 @router.get("/api/plans")
