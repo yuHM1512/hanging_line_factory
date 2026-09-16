@@ -65,6 +65,13 @@
     display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem;
     padding-top: 0.85rem;
   }
+  .flat-sync {
+    margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--outline-variant, #e2e8f0);
+    display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap;
+  }
+  .flat-sync-status { font-size: 0.78rem; color: var(--on-surface-variant); line-height: 1.45; }
+  .flat-sync-status.ok { color: #14693f; }
+  .flat-sync-status.error { color: #a6332f; }
 
   /* Tab bar for Active / Stopped */
   .tab-bar {
@@ -223,7 +230,7 @@
       </div>
 
       <label class="field">
-        <span class="field-label">Kế hoạch (MONo)</span>
+        <span class="field-label">Kế hoạch / Nhu cầu mẹ · (B) Chuyền bệt</span>
         <select id="sel-mono"><option value="">— Chọn tổ trước —</option></select>
       </label>
 
@@ -257,6 +264,10 @@
         <button class="btn-soft" onclick="openOne(2)">Mở TV-2</button>
         <button class="btn-soft" onclick="openOne(3)">Mở TV-3</button>
         <button class="btn-soft" onclick="openOne(4)">Mở TV-4</button>
+      </div>
+      <div class="flat-sync">
+        <button class="btn-soft" id="btn-flat-sync">↻ Sync ngay · Chuyền bệt</button>
+        <span class="flat-sync-status" id="flat-sync-status">Đang đọc trạng thái đồng bộ...</span>
       </div>
     </div>
   </section>
@@ -327,6 +338,57 @@ let rotateTimer = null, rotateIdx = 0;
 
 function saveCfg() { localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg)); }
 
+function formatSyncTime(value) {
+  return value ? new Date(value).toLocaleString('vi-VN', { timeZone: 'Asia/Ho_Chi_Minh' }) : 'chưa có';
+}
+
+function qlclSyncMessage(s) {
+  if (!s) return ' · QLCL: chưa có lần gửi';
+  if (!s.ok) return ' · ' + s.message;
+  return ` · Đã gửi QLCL: ${s.rows} ngày/nhu cầu` + (s.missing_plans?.length ? ` · ${s.missing_plans.length} nhu cầu chưa khai báo trong QLCL` : '');
+}
+
+async function loadFlatSyncStatus() {
+  const el = document.getElementById('flat-sync-status');
+  try {
+    const s = await Admin.fetchJSON('/tv/flat/api/status');
+    el.className = 'flat-sync-status ' + (s.sync_error ? 'error' : 'ok');
+    el.textContent = s.sync_error
+      ? `Lần thử gần nhất lỗi: ${s.sync_error} · Dữ liệu tốt: ${formatSyncTime(s.synced_at)}`
+      : `Đã sync: ${formatSyncTime(s.synced_at)} · Tự động mỗi ${s.interval_seconds} giây`;
+    el.textContent += qlclSyncMessage(s.qlcl_sync);
+    if (s.qlcl_sync && (!s.qlcl_sync.ok || s.qlcl_sync.missing_plans?.length)) el.className = 'flat-sync-status error';
+  } catch (e) {
+    el.className = 'flat-sync-status error';
+    el.textContent = 'Không đọc được trạng thái sync: ' + e.message;
+  }
+}
+
+document.getElementById('btn-flat-sync').addEventListener('click', async function () {
+  const button = this;
+  const el = document.getElementById('flat-sync-status');
+  button.disabled = true;
+  button.textContent = '⏳ Đang sync...';
+  el.className = 'flat-sync-status';
+  el.textContent = 'Đang đọc Google Sheets và cập nhật database...';
+  try {
+    const result = await Admin.fetchJSON('/tv/flat/api/sync', { method: 'POST' });
+    el.className = 'flat-sync-status ok';
+    el.textContent = `Sync thành công ${result.plans} nhu cầu mẹ · ${formatSyncTime(result.synced_at)}`;
+    el.textContent += qlclSyncMessage(result.qlcl_sync);
+    if (!result.qlcl_sync?.ok || result.qlcl_sync.missing_plans?.length) el.className = 'flat-sync-status error';
+    await loadLines();
+    Admin.toast('Đã đồng bộ Chuyền bệt từ Google Sheets.', 'ok');
+  } catch (e) {
+    el.className = 'flat-sync-status error';
+    el.textContent = e.message;
+    Admin.toast('Sync chuyền bệt thất bại: ' + e.message, 'error');
+  } finally {
+    button.disabled = false;
+    button.textContent = '↻ Sync ngay · Chuyền bệt';
+  }
+});
+
 // ── Load lines (dynamic) ──
 async function loadLines() {
   const sel = document.getElementById('sel-line');
@@ -394,7 +456,7 @@ function renderMonoOptions() {
               data-data-from="${p.DataFrom || ''}"
               data-data-to="${p.DataTo || ''}"
               data-first="${p.FirstHangDate || ''}">
-              ${Admin.escape(p.SoDonHang)} — ${Admin.escape(p.StyleNo || '')} (${cluster})
+              ${p.IsFlat ? '(B) ' : ''}${Admin.escape(p.SoDonHang)} — ${Admin.escape(p.StyleNo || '')} (${cluster})
             </option>`;
   }).join('');
   if (cfg.mono) sel.value = cfg.mono;
@@ -534,6 +596,7 @@ document.addEventListener('keydown', (e) => {
 if (cfg.date) document.getElementById('inp-date').value = cfg.date;
 if (cfg.interval) document.getElementById('inp-interval').value = cfg.interval;
 loadLines().then(() => updatePreviews());
+loadFlatSyncStatus();
 window.addEventListener('resize', updatePreviews);
 </script>
 </body>

@@ -29,6 +29,10 @@ notepad .env
 
 Trong `.env` sửa 4 biến cho khớp môi trường:
 
+Riêng phần Google Sheets cho chuyền bệt, xem
+[SETUP_CHUYEN_BET.md](SETUP_CHUYEN_BET.md). File này đánh dấu rõ **Vùng A** cho mã
+xí nghiệp và **Vùng B** cho link kế hoạch, link data, JSON phân quyền và QLCL.
+
 ```ini
 HANGING_SQL_SERVER=.\SQLEXPRESS         # hoặc TENMAY\INSTANCE
 HANGING_APP_DB=hanging_app              # DB riêng cho app, migration sẽ tự tạo

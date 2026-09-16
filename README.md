@@ -45,6 +45,24 @@ App chỉ chạy port **8016**. Đừng chạy bản sao trên port khác.
 | `GET /api/workers?from&to[&line]` | Năng suất công nhân × Số trạm |
 | `GET /api/stations/final?from&to` | Trạm chốt sản lượng (StRole=13, IsLastSeq=1) |
 
+## Dashboard chuyền bệt
+
+Mở `/tv`, chọn tổ và kế hoạch có ký hiệu **(B)** để xem 4 TV theo **Nhu cầu mẹ**.
+Chuyền bệt dùng chung template, preview và xoay vòng TV1–TV4 với chuyền treo.
+Các link `/tv/flat/1?demand=...&day=...` cũ chuyển về màn hình chung.
+App đồng bộ định kỳ hai Google
+Sheets được khai báo bằng nhóm biến `FLAT_LINE_*` trong `.env`, lưu bản dữ liệu
+đã kiểm tra vào `hanging_app`, rồi giao diện chỉ đọc database. Chạy migration 016
+trước khi bật `FLAT_LINE_SYNC_ENABLED=true`.
+
+Xem [hướng dẫn thiết lập và vùng điền link chuyền bệt](SETUP_CHUYEN_BET.md) để
+nhân rộng cấu hình sang xí nghiệp khác.
+
+- TV1: sản lượng quy đổi BP, nhịp độ, OWE và PO/EHD.
+- TV2: 6 cụm; tên cụm lấy từ tab `XN2`, cụm 6 dùng BP.
+- TV3: QC theo kế hoạch mẹ trong QLCL.
+- TV4: tiến độ mẹ theo đường cong năng suất.
+
 Tất cả endpoint sản lượng dùng công thức vàng:
 
 ```sql

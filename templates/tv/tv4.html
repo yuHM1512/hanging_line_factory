@@ -155,6 +155,7 @@
   }
   .err-overlay.show { transform: translateY(0); opacity: 1; }
 </style>
+<link rel="stylesheet" href="/static/css/tv/readability.css">
 </head>
 <body class="tv">
 <div class="stage-wrap">
@@ -224,6 +225,7 @@
          font-size:15px;font-family:inherit;letter-spacing:.03em;
          backdrop-filter:blur(4px);">↺ Refresh</button>
 
+<script src="/static/js/tv-source.js"></script>
 <script>
 const INIT_MONO = {{ init_mono | tojson }};
 const INIT_DATE = {{ init_date | tojson }};
@@ -288,6 +290,7 @@ async function loadData() {
     return;
   }
   render(data);
+  TVSource.apply(data);
   _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
   setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
 }
@@ -304,7 +307,7 @@ function render(d) {
   document.getElementById('h-soca').textContent = h.SoCaKH ? h.SoCaKH + ' ngày' : '—';
   document.getElementById('h-day100').textContent = h.DayRatio1 ? 'Ngày ' + h.DayRatio1 : '—';
 
-  const day = new Date(INIT_DATE);
+  const day = new Date(h.ReportDate || INIT_DATE);
   const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   document.getElementById('h-date').textContent =
     days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
@@ -321,7 +324,7 @@ function render(d) {
     const cls = [];
     if (day.DayN === dayRatio1) cls.push('d100');
     if (day.IsCurrent) cls.push('current');
-    thead += `<th class="${cls.join(' ')}" title="${day.Date}">${day.DayN}</th>`;
+    thead += `<th class="${cls.join(' ')}" title="${day.Date}">${day.DayLabel ?? day.DayN}</th>`;
   }
   document.getElementById('tr-header').innerHTML = thead;
 
@@ -346,7 +349,7 @@ function render(d) {
     cls.push('mix-cell');
     if (day.Pct == null) {
       cls.push('muted');
-      rowMix += `<td class="${cls.join(' ')}"><div class="mix-wrap"><div class="mix-main">—/<span class="mix-target">${fmtNum(day.TargetNS)}</span></div><div class="mix-pct muted">—</div></div></td>`;
+      rowMix += `<td class="${cls.join(' ')}"><div class="mix-wrap"><div class="mix-main">${fmtNum(day.Actual)}/<span class="mix-target">${fmtNum(day.TargetNS)}</span></div><div class="mix-pct muted">—</div></div></td>`;
     } else {
       const pctClass = day.Pct >= 100 ? 'pass' : 'fail';
       rowMix += `<td class="${cls.join(' ')}"><div class="mix-wrap"><div class="mix-main"><span class="mix-actual">${fmtNum(day.Actual)}</span>/<span class="mix-target">${fmtNum(day.TargetNS)}</span></div><div class="mix-pct ${pctClass}">${day.Pct}%</div></div></td>`;

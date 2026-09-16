@@ -100,7 +100,6 @@
   .rc .rc-slot { align-items: flex-start; }
   .rc .rc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-5); flex: 1; }
   .rc .rc-fields > span { min-width: 0; }
-  @media (max-width: 700px) { .rc .rc-item { gap: var(--s-2); } .rc .rc-t { min-width: 92px; font-size: 14px; } .rc .rc-fields { grid-template-columns: 1fr; gap: var(--s-2); } }
 
   .ehd { background: var(--surface); border: 1px solid var(--divider); border-radius: var(--r-md); box-shadow: var(--sh-1); display: flex; flex-direction: column; overflow: hidden; }
   .ehd .e-head { background: linear-gradient(120deg, var(--brand-800), var(--brand-600)); color: #fff; padding: var(--s-4) var(--s-5); }
@@ -140,6 +139,7 @@
   }
   .err-overlay.show { transform: translateY(0); opacity: 1; }
 </style>
+<link rel="stylesheet" href="/static/css/tv/readability.css">
 </head>
 <body class="va">
 <div class="stage-wrap">
@@ -271,10 +271,13 @@
          font-size:15px;font-family:inherit;letter-spacing:.03em;
          backdrop-filter:blur(4px);">↺ Refresh</button>
 
+<script src="/static/js/tv-source.js"></script>
+<script src="/static/js/tv-actions.js"></script>
 <script>
 const INIT_MONO = {{ init_mono | tojson }};
 const INIT_DATE = {{ init_date | tojson }};
 const REFRESH_MS = 5 * 60 * 1000;
+let actionData = null;
 
 function fit() {
   const s = document.getElementById('stage');
@@ -287,6 +290,7 @@ function tick() {
   if (!el) return;
   const now = new Date();
   el.textContent = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
+  if (actionData) renderActions(actionData);
 }
 tick();
 setInterval(tick, 15000);
@@ -341,6 +345,7 @@ async function loadData() {
     return;
   }
   render(data);
+  TVSource.apply(data);
   _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
   setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
 }
@@ -358,7 +363,7 @@ function render(d) {
   document.getElementById('h-tpt').textContent = fmtNum(h.TPT);
 
   // Date label
-  const day = new Date(INIT_DATE);
+  const day = new Date(h.ReportDate || INIT_DATE);
   const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
   document.getElementById('h-date').textContent =
     days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
@@ -430,7 +435,7 @@ function render(d) {
   // Hours
   const hoursEl = document.getElementById('hours-grid');
   hoursEl.innerHTML = d.hours.map(h => {
-    const hasActual = h.th != null && h.th > 0;
+    const hasActual = h.th != null && (d.source === 'flat_line_sheet' || h.th > 0);
     let actClass = 'is-empty';
     let thDisp = '—';
     if (hasActual) {
@@ -448,22 +453,17 @@ function render(d) {
   }).join('');
 
   // HĐKP
-  const rcList = document.getElementById('rc-list');
-  const slotLabels = ['', '7:30 – 9:30', '9:30 – 11:30', '12:30 – 14:30', '14:30 – 16:30', 'Sau 16:30'];
-  const hdkpBySlot = Object.fromEntries(d.hdkp.map(h => [Number(h.Slot), h]));
-  rcList.innerHTML = slotLabels.slice(1).map((label, i) => {
-    const h = hdkpBySlot[i + 1] || {};
-    return `<div class="rc-item rc-slot"><span class="rc-t">${escHtml(label)}</span><div class="rc-fields"><span><b>Nguyên nhân</b><br>${escHtml(h.RootCause || '—')}</span><span><b>HĐKP</b><br>${escHtml(h.CAPAction || '—')}</span></div></div>`;
-  }).join('');
+  actionData = d;
+  renderActions(d);
 
   // EHD
   const ehdEl = document.getElementById('ehd-list');
   if (d.pos.length === 0) {
-    ehdEl.innerHTML = '<div class="e-empty">Chưa có PO. Nhập trong Admin → Nhu cầu con.</div>';
+    ehdEl.innerHTML = d.source === 'flat_line_sheet' ? '<div class="e-empty">Chưa có PO/EHD cho nhu cầu mẹ.</div>' : '<div class="e-empty">Chưa có PO. Nhập trong Admin → Nhu cầu con.</div>';
   } else {
     ehdEl.innerHTML = d.pos.map(p => `
       <div class="e-item">
-        <div><div class="e-po">${p.PONo}</div><div class="e-date">${p.ShipDate}</div></div>
+        <div><div class="e-po">${escHtml(p.PONo)}</div><div class="e-date">${escHtml(p.ShipDate)}</div></div>
         <div class="e-qty">${fmtNum(p.Qty)}<small>PCS</small></div>
       </div>`).join('');
   }
@@ -472,6 +472,14 @@ function render(d) {
 
 const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
 const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
+function renderActions(d) {
+  const labels = ['', '7:30 – 9:30', '9:30 – 11:30', '12:30 – 14:30', '14:30 – 16:30', 'Sau 16:30'];
+  const rows = TVActions.select(d.hdkp, d.header.ReportDate || INIT_DATE);
+  document.getElementById('rc-list').innerHTML = rows.length ? rows.map(h =>
+    `<div class="rc-item rc-slot"><span class="rc-t">${labels[Number(h.Slot)]}</span><div class="rc-fields"><span><b>Nguyên nhân</b><br>${escHtml(h.RootCause?.trim() || '—')}</span><span><b>HĐKP</b><br>${escHtml(h.CAPAction?.trim() || '—')}</span></div></div>`
+  ).join('') : '<div class="rc-empty">Chưa có ghi nhận Nguyên nhân / HĐKP.</div>';
+}
+
 document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
 
 loadData();

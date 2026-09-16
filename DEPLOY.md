@@ -66,7 +66,7 @@ HANGING_MES_DB=MSD
 HANGING_SQL_DRIVER=ODBC Driver 17 for SQL Server
 
 # Đơn vị XN — mỗi xưởng đặt khác nhau
-QLCL_DON_VI=XN3                       # XN1, XN2, XN3, XN1-V1 ...
+QLCL_DON_VI=XN2                       # XN1, XN2, XN3, XN1-V1 ...
 
 # URL QLCL server
 QLCL_API_URL=https://qlcl.hachibavn.com
@@ -74,6 +74,10 @@ QLCL_API_URL=https://qlcl.hachibavn.com
 # API key — lấy từ quản trị QLCL server (phải trùng với key bên QLCL)
 QLCL_API_KEY=<key_do_admin_QLCL_cung_cap>
 ```
+
+Nếu triển khai Dashboard chuyền bệt, điền thêm **Vùng B** trong `.env.example`.
+Xem [SETUP_CHUYEN_BET.md](SETUP_CHUYEN_BET.md) để biết đúng hai link Google
+Sheets cần dùng, tên tab, JSON phân quyền và cách kiểm tra sau triển khai.
 
 **Kiểm tra SQL Server instance**:
 ```powershell

@@ -15,3 +15,8 @@ Thumbs.db
 .vscode/
 .idea/
 .claude/
+
+# Google service-account credentials (use secrets/ for arbitrary JSON filenames)
+secrets/
+credentials*.json
+service-account*.json

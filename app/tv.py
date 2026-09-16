@@ -35,6 +35,7 @@ def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
         resp = httpx.get(
             f"{QLCL_API_URL}/api/tv3/qc-data",
             params={"mono": mono, "date": str(the_date)},
+            headers={"X-API-Key": os.getenv("QLCL_API_KEY", "")},
             timeout=QLCL_TIMEOUT,
         )
         resp.raise_for_status()
@@ -205,7 +206,8 @@ def api_tv_plans(line_no: Optional[int] = None):
             r["IsActive"] = last >= cutoff
         else:
             r["IsActive"] = False
-    return rows
+    from .flat_tv import plans
+    return rows + plans(line_no)
 
 
 @router.get("/api/plans/lines")
@@ -215,7 +217,9 @@ def api_tv_plan_lines():
         "WHERE NhuCauMe IS NOT NULL AND [LineNo] IS NOT NULL "
         "ORDER BY [LineNo]"
     )
-    return [{"line_no": r["LineNo"]} for r in rows]
+    from .flat_tv import plans
+    lines = {r['LineNo'] for r in rows} | {p['LineNoOut'] for p in plans()}
+    return [{"line_no": n} for n in sorted(lines)]
 
 
 def _resolve_plan_full(mono: str) -> dict:
@@ -798,6 +802,9 @@ def api_tv1(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(1, mono, the_date)
     plan = _resolve_plan_full(mono)
     holidays = get_holidays()
     first_hang = plan["FirstHangDate"]
@@ -943,6 +950,9 @@ def api_tv2(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(2, mono, the_date)
     plan = _resolve_plan_full(mono)
     holidays = get_holidays()
     first_hang = plan["FirstHangDate"]
@@ -1032,6 +1042,9 @@ def api_tv3(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(3, mono, the_date)
     plan = _resolve_plan_full(mono)
     # FirstHangDate có thể là datetime.date, datetime.datetime, hoặc None
     first_hang_raw = plan["FirstHangDate"]
@@ -1216,6 +1229,9 @@ def api_tv4(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(4, mono, the_date)
     plan = _resolve_plan_full(mono)
     nhu_cau_me_id = plan["NhuCauMe"]
     holidays = get_holidays()

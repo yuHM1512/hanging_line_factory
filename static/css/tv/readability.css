@@ -1,0 +1,36 @@
+/* TV viewing distance: stronger labels, same four-screen layout. */
+.stat .s-k, .hero .h-title, .kp-head .k { font-size: 22px; line-height: 1.2; }
+.stat .s-en, .kp-head .en { font-size: 13px; }
+.stat .s-sub { flex-wrap: wrap; gap: 8px 14px; }
+.stat .s-sub .ssk, .hero .h-rows .r .rk { font-size: 15px; }
+.stat .s-sub .ssv { font-size: 20px; }
+.cl .cl-name { font-size: 22px; min-height: 82px; max-height: 82px; }
+.cl .cl-sub .l, .day-tbl .rowname { font-size: 20px; }
+.sec-label, .rc .rc-h { font-size: 17px; }
+.rc .rc-item.rc-slot {
+  display: grid;
+  grid-template-columns: 190px minmax(0, 1fr);
+  align-items: start;
+  gap: 20px;
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 6px 0;
+  font-size: 20px;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+.rc .rc-t { font-size: 20px; min-width: 0; white-space: nowrap; }
+.rc .rc-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 24px;
+  min-width: 0;
+}
+.rc .rc-empty { font-size: 18px; }
+.rc .rc-fields > span { white-space: pre-wrap; }
+.va .main { grid-template-rows: auto minmax(210px, 1fr) auto; }
+.rc { max-height: 340px; }
+#rc-list { overflow-y: auto; min-height: 0; scrollbar-gutter: stable; }
+.fld .k { font-size: 15px; letter-spacing: .02em; }
+.fld { min-width: 0; }

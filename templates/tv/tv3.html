@@ -279,6 +279,7 @@
   font-size: 15px; color: var(--ink-3); font-style: italic;
 }
 </style>
+<link rel="stylesheet" href="/static/css/tv/readability.css">
 </head>
 <body class="tv">
 
@@ -317,7 +318,7 @@
   <!-- ── KPI ROW ── -->
   <div class="kpis">
     <div class="card kp">
-      <div class="kp-head"><div class="k">Tổng kiểm (MSD)</div><div class="en">Output cụm cuối · theo ngày chọn</div></div>
+      <div class="kp-head"><div class="k" id="qc-output-label">Tổng kiểm (MSD)</div><div class="en">Output cụm cuối · theo ngày chọn</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-kiem">—</span>
         <div class="kp-meta"><span class="chip neu">Cụm cuối</span></div>
@@ -356,7 +357,7 @@
     <div class="card" style="display:flex;flex-direction:column;">
       <div class="panel-title">
         Tỉ lệ lỗi theo mốc giờ
-        <span class="pt-en">Lỗi QC / output MSD cụm cuối từng mốc</span>
+        <span class="pt-en" id="qc-slot-source">Lỗi QC / output MSD cụm cuối từng mốc</span>
       </div>
       <div class="left-body">
         <div class="bar-area">
@@ -469,6 +470,7 @@
          font-size:15px;font-family:inherit;letter-spacing:.03em;
          backdrop-filter:blur(4px);">↺ Refresh</button>
 
+<script src="/static/js/tv-source.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    TV-3 — Data init từ Jinja2
@@ -514,7 +516,7 @@ fit(); addEventListener('resize', fit);
 function tick() {
   const now = new Date();
   $('clock').textContent  = pad(now.getHours()) + ':' + pad(now.getMinutes());
-  $('h-date').textContent = formatSelectedDate(INIT_DATE);
+  $('h-date').textContent = formatSelectedDate(window.tvReportDate || INIT_DATE);
   $('ftr-time').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
 }
 tick(); setInterval(tick, 1000);
@@ -538,6 +540,9 @@ async function loadData() {
     const data = await resp.json();
     $('dc-overlay').classList.remove('show');
     render(data);
+    window.tvReportDate = data.header.ReportDate || INIT_DATE;
+    tick();
+    TVSource.apply(data);
     _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
     setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
   } catch(e) {
@@ -641,7 +646,7 @@ function renderBars(slots, kpi) {
     const isCur   = s.slot === curSlot;
     const isFail  = s.pct > tgt;
     const hPct    = Math.min((s.pct / BAR_MAX) * 100, 100);
-    const hasData = s.kiem > 0;
+    const hasData = s.kiem > 0 && s.pct != null;
 
     const barCls = hasData
       ? ((isFail ? 'fail' : 'pass') + (isCur ? ' cur' : ''))

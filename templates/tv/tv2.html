@@ -116,6 +116,7 @@
   }
   .err-overlay.show { transform: translateY(0); opacity: 1; }
 </style>
+<link rel="stylesheet" href="/static/css/tv/readability.css">
 </head>
 <body class="tv">
 <div class="stage-wrap">
@@ -173,6 +174,7 @@
          font-size:15px;font-family:inherit;letter-spacing:.03em;
          backdrop-filter:blur(4px);">↺ Refresh</button>
 
+<script src="/static/js/tv-source.js"></script>
 <script>
 const INIT_MONO = {{ init_mono | tojson }};
 const INIT_DATE = {{ init_date | tojson }};
@@ -242,11 +244,13 @@ async function loadData() {
     return;
   }
   render(data);
+  TVSource.apply(data);
   _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
   setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
 }
 
 function render(d) {
+  const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const h = d.header;
   document.getElementById('h-line').textContent = 'To ' + h['Tổ'];
   document.getElementById('h-style').textContent = 'Style ' + (h.StyleNo || '—');
@@ -257,7 +261,7 @@ function render(d) {
   document.getElementById('h-firstday').textContent = h.FirstHangDate ? h.FirstHangDate.substring(5) : '—';
   document.getElementById('h-target').textContent = fmtNum(h.Target);
 
-  const day = new Date(INIT_DATE);
+  const day = new Date(h.ReportDate || INIT_DATE);
   const days = ['Chu Nhat', 'Thu Hai', 'Thu Ba', 'Thu Tu', 'Thu Nam', 'Thu Sau', 'Thu Bay'];
   document.getElementById('h-date').textContent =
     days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
@@ -266,12 +270,12 @@ function render(d) {
   const cgrid = document.getElementById('clusters-grid');
   cgrid.innerHTML = d.clusters.map((c) => `
     <div class="card cl">
-      <div class="cl-name" title="${c.Label.replace(/"/g, '&quot;')}">${c.Label}</div>
+      <div class="cl-name" title="${esc(c.Label)}">${esc(c.Label)}</div>
       <div class="cl-mid">
         <span class="cl-big ${c.Pass ? 'c-pass' : 'c-fail'}">${fmtNum(c.QtyToday)}</span>
         <span class="cl-unit">sp<br>/ngay</span>
       </div>
-      <span class="cl-chip pct-chip ${c.Pass ? 'fill-pass' : 'fill-fail'}">${c.Pass ? 'DAT' : 'CHUA DAT'}</span>
+      <span class="cl-chip pct-chip ${c.Pass == null ? '' : c.Pass ? 'fill-pass' : 'fill-fail'}">${c.Pass == null ? 'CHƯA CÓ DỮ LIỆU' : c.Pass ? 'DAT' : 'CHUA DAT'}</span>
       <div class="cl-sub">
         <span class="l">Luy ke</span>
         <span class="v">${fmtNum(c.Cumulative)}</span>
@@ -309,7 +313,7 @@ function render(d) {
   plot.innerHTML = html;
 
   document.getElementById('xax').innerHTML = d.clusters.map((c) =>
-    `<div class="xl" title="${c.Label.replace(/"/g, '&quot;')}">${c.Label}</div>`
+    `<div class="xl" title="${esc(c.Label)}">${esc(c.Label)}</div>`
   ).join('');
 }
 

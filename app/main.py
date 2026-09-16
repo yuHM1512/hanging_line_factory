@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import admin, auth, db, entry, queries, tv, flat_line
+from . import admin, auth, db, entry, queries, tv, flat_line, flat_sheet
 
 logger = logging.getLogger(__name__)
 
@@ -79,11 +79,13 @@ app.include_router(admin.router)
 app.include_router(tv.router)
 app.include_router(entry.router)
 app.include_router(flat_line.router)
+app.include_router(flat_sheet.router)
 
 
 @app.on_event("startup")
 def startup_auto_sync() -> None:
     global _auto_sync_started, _output_sync_started
+    flat_sheet.start_sync()
     if _AUTO_SYNC_ENABLED:
         with _auto_sync_lock:
             if not _auto_sync_started:
