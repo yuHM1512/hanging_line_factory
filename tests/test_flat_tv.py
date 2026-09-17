@@ -32,7 +32,8 @@ class SharedTVTests(unittest.TestCase):
         with patch('app.flat_sheet.dashboard_api',return_value=payload):
             result=flat_tv.dashboard(3,'flat:mother',date(2026,9,15))
         self.assertEqual(result['header']['ReportDate'],'2026-09-12')
-        self.assertEqual(result['kpi']['TongKiem'],10)
+        self.assertEqual(result['kpi']['TongDat'],10)
+        self.assertIsNone(result['kpi']['TongKiem'])
         self.assertIsNone(result['kpi']['TongLoi'])
         self.assertIsNone(result['kpi']['DefectStatus'])
         self.assertIsNone(result['kpi']['CanhBaoCount'])

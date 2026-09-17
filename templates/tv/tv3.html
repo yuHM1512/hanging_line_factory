@@ -318,10 +318,10 @@
   <!-- ── KPI ROW ── -->
   <div class="kpis">
     <div class="card kp">
-      <div class="kp-head"><div class="k" id="qc-output-label">Tổng kiểm (MSD)</div><div class="en">Output cụm cuối · theo ngày chọn</div></div>
+      <div class="kp-head"><div class="k" id="qc-output-label">Tổng kiểm (Đạt + Lỗi)</div><div class="en" id="qc-output-description">Đạt từ MSD + sản phẩm lỗi QLCL</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-kiem">—</span>
-        <div class="kp-meta"><span class="chip neu">Cụm cuối</span></div>
+        <div class="kp-meta"><span class="chip neu" id="kpi-dat">Đạt: —</span></div>
       </div>
     </div>
     <div class="card kp">
@@ -357,7 +357,7 @@
     <div class="card" style="display:flex;flex-direction:column;">
       <div class="panel-title">
         Tỉ lệ lỗi theo mốc giờ
-        <span class="pt-en" id="qc-slot-source">Lỗi QC / output MSD cụm cuối từng mốc</span>
+        <span class="pt-en" id="qc-slot-source">Lỗi / (Đạt MSD + Lỗi QLCL) từng mốc</span>
       </div>
       <div class="left-body">
         <div class="bar-area">
@@ -595,15 +595,16 @@ function renderKPI(k) {
   const isPass = k.DefectStatus === 'pass';
 
   $('kpi-kiem').textContent = k.TongKiem != null ? k.TongKiem : '—';
+  $('kpi-dat').textContent = 'Đạt: ' + (k.TongDat != null ? k.TongDat : '—');
   $('kpi-loi').textContent  = k.TongLoi  != null ? k.TongLoi  : '—';
 
   const rateEl = $('kpi-ty-le');
   rateEl.textContent = k.TyLeLoi != null ? k.TyLeLoi + '%' : '—';
-  rateEl.style.color = isPass ? 'var(--pass-ink)' : 'var(--fail-ink)';
+  rateEl.style.color = k.TyLeLoi == null ? 'var(--ink-2)' : isPass ? 'var(--pass-ink)' : 'var(--fail-ink)';
 
   const chip = $('kpi-status-chip');
-  chip.textContent = isPass ? 'ĐẠT MỤC TIÊU' : 'DƯỚI TARGET';
-  chip.className   = 'chip ' + (isPass ? 'pass' : 'fail');
+  chip.textContent = k.TyLeLoi == null ? 'CHƯA CÓ DỮ LIỆU' : isPass ? 'ĐẠT MỤC TIÊU' : 'DƯỚI TARGET';
+  chip.className   = 'chip ' + (k.TyLeLoi == null ? 'neu' : isPass ? 'pass' : 'fail');
 
   $('kpi-target').textContent = (k.DefectTarget ?? 5.0) + '%';
 
@@ -618,7 +619,7 @@ function renderKPI(k) {
   $('sb-target').textContent = (k.DefectTarget ?? 5.0) + '%';
   const sbRate = $('sb-rate');
   sbRate.textContent = k.TyLeLoi != null ? k.TyLeLoi + '%' : '—';
-  sbRate.className   = 'v ' + (isPass ? 'pass' : 'fail');
+  sbRate.className   = 'v ' + (k.TyLeLoi == null ? '' : isPass ? 'pass' : 'fail');
 
   /* Donut center */
   $('donut-total').textContent = k.TongLoi != null ? k.TongLoi : '—';

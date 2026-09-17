@@ -7,6 +7,7 @@ from datetime import date, timedelta
 from fastapi import HTTPException
 
 from . import flat_sheet
+from .quality import inspection
 
 PREFIX = "flat:"
 
@@ -83,8 +84,7 @@ def dashboard(screen, mono, the_date):
             y_max=max(50,math.ceil(max([v or 0 for v in d['daily']]+[target_slot or 0])/50)*50))
     elif screen == 3:
         qc_slots = {s['slot']:s['defects'] for s in q.get('slots',[])}
-        slots = [dict(slot=i+1,label=s['label'],kiem=s['actual'],loi=qc_slots.get(i+1,0),
-            pct=pct(qc_slots.get(i+1,0),s['actual']) if s['actual'] is not None and s['actual']>0 else None)
+        slots = [dict(slot=i+1,label=s['label'],**inspection(s['actual'],qc_slots.get(i+1,0)))
             for i,s in enumerate(d['slots'])] if q['status']=='ok' else []
         departments, errors = Counter(), Counter()
         combo = []
@@ -92,8 +92,9 @@ def dashboard(screen, mono, the_date):
             departments[row['department']] += row['quantity']
             errors[row['defect']] += row['quantity']
             combo.append(dict(bp=row['department'],ct=row['detail'],ma_loi=row['defect'],n=row['quantity']))
-        out.update(kpi=dict(TongKiem=qty,TongLoi=q.get('defects') if q['status']=='ok' else None,TyLeLoi=q['rate'],
-            DefectTarget5=5,DefectStatus=('pass' if q['rate']<=5 else 'fail') if q['rate'] is not None else None,
+        counts = inspection(qty, q.get('defects') if q['status']=='ok' else None)
+        out.update(kpi=dict(TongDat=qty,TongKiem=counts['kiem'],TongLoi=counts['loi'],TyLeLoi=counts['pct'],
+            DefectTarget5=5,DefectStatus=('pass' if counts['pct']<=5 else 'fail') if counts['pct'] is not None else None,
             CanhBaoCount=len(q['alerts']) if 'alerts' in q else None,CurrentSlot=slot,MES_KCS_Qty=qty,FinalClusterQty=qty),
             slots=slots,bo_phan=[dict(name=k,count=v) for k,v in departments.items()],
             top3=[dict(ma_loi=k,n=v) for k,v in errors.most_common(3)],combo=combo,canh_bao=q.get('alerts',[]),qc_source='qlcl')

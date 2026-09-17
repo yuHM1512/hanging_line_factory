@@ -1055,7 +1055,7 @@ def api_tv3(
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
 
-    # ── MES/MSD: Tổng kiểm theo cụm cuối cấu hình ───────────────────
+    # ── MES/MSD: Số đạt theo cụm cuối cấu hình ──────────────────────
     today_kcs = _output_kcs(mono, the_date, the_date)
     kcs_qty   = today_kcs["Qty"]   # số SP qua KCS của ngày chọn để cross-check
     final_cluster_qty = _daily_output_for_configured_last_cluster(plan, mono, the_date)
@@ -1086,14 +1086,13 @@ def api_tv3(
             detail="Không lấy được dữ liệu QC thật từ QLCL /api/tv3/qc-data",
         )
 
-    # KPI lỗi: Tổng kiểm luôn là MES/MSD cụm cuối cấu hình; QLCL chỉ cấp số lỗi.
-    total_kiem = final_cluster_qty
-    total_loi  = qc.get("total_loi",  0)
-    ty_le_loi = round(total_loi / total_kiem * 100, 1) if total_kiem else 0.0
+    from .quality import inspection
+    counts = inspection(final_cluster_qty, qc.get("total_loi"))
+    total_kiem, total_loi, ty_le_loi = counts['kiem'], counts['loi'], counts['pct']
 
     # Determine defect KPI status
     defect_target = 5.0  # %
-    defect_status = "pass" if ty_le_loi <= defect_target else "fail"
+    defect_status = ("pass" if ty_le_loi <= defect_target else "fail") if ty_le_loi is not None else None
 
     # Số cảnh báo hàng loạt
     canh_bao_list = qc.get("canh_bao", []) if qc_found else []
@@ -1106,14 +1105,12 @@ def api_tv3(
 
     slots = []
     for i, (label, _) in enumerate(SLOT_LABELS, start=1):
-        kiem = int(final_cluster_slots.get(i, 0) or 0)
+        dat = int(final_cluster_slots.get(i, 0) or 0)
         loi = int(qc_slot_errors.get(i, 0) or 0)
         slots.append({
             "slot": i,
             "label": label,
-            "kiem": kiem,
-            "loi": loi,
-            "pct": round(loi / kiem * 100, 1) if kiem else 0.0,
+            **inspection(dat, loi),
         })
 
     # Null-safe: SoDonHang và FirstHangDate có thể NULL trên một số plan
@@ -1131,7 +1128,8 @@ def api_tv3(
             "Workers":        workers,
         },
         "kpi": {
-            # Tổng kiểm: output MSD/MES của cụm cuối cấu hình
+            # Tổng kiểm = số đạt MSD/MES + số sản phẩm lỗi QLCL.
+            "TongDat":       final_cluster_qty,
             "TongKiem":      total_kiem,
             "TongLoi":       total_loi,
             "TyLeLoi":       ty_le_loi,
@@ -1143,7 +1141,7 @@ def api_tv3(
             "MES_KCS_Qty":   kcs_qty,
             "FinalClusterQty": final_cluster_qty,
         },
-        # Biểu đồ lỗi theo giờ: mẫu số MSD cụm cuối, tử số QLCL.
+        # Biểu đồ theo giờ dùng cùng công thức đạt + lỗi như KPI ngày.
         "slots": slots,
         # Phân bổ bộ phận (donut)
         "bo_phan": qc.get("bo_phan", []),

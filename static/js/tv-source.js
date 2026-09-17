@@ -28,8 +28,9 @@ window.TVSource = {
       }
     }
     if (d.kpi) {
-      text('qc-output-label', 'Tổng kiểm (BP)');
-      text('qc-slot-source', 'Lỗi QC / sản lượng quy đổi từng mốc');
+      text('qc-output-label', 'Tổng kiểm (Đạt + Lỗi)');
+      text('qc-output-description', 'Đạt từ Sheet + sản phẩm lỗi QLCL');
+      text('qc-slot-source', 'Lỗi / (Đạt Sheet + Lỗi QLCL) từng mốc');
       text('src-badge', d.qc_status === 'ok' ? 'Dữ liệu QC' : 'Chưa có dữ liệu QC');
       if (d.qc_status !== 'ok') neutral('src-badge', 'Chưa có dữ liệu QC', 'src-badge');
       if (d.kpi.TyLeLoi == null) {

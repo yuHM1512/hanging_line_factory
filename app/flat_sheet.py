@@ -376,7 +376,8 @@ def dashboard_api(demand: str, day: str = ""):
         dt += timedelta(days=1)
     qc = quality(demand, selected)
     # QC can arrive after a production milestone: compare to the displayed BP with a clear source timestamp.
-    qc['rate'] = round(qc['defects']/actual[5]*100, 1) if qc['status']=='ok' and actual[5] else None
+    from .quality import inspection
+    qc['rate'] = inspection(actual[5], qc.get('defects') if qc['status']=='ok' else None)['pct']
     warnings = list(state['warnings'])
     if not curve:
         warnings.append("Chưa có đường cong năng suất phù hợp")

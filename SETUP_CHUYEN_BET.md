@@ -151,8 +151,12 @@ Kế hoạch mẹ phải được sync ở QLCL bằng chức năng Chuyền b�
 Trạng thái gửi sẽ báo số nhu cầu chưa khai báo nếu chưa tìm được kế hoạch.
 
 Trang nhập QC tự lấy BP của đúng ngày, ẩn nút cộng sản lượng đạt thủ công.
-Tỷ lệ lỗi của chuyền bệt = số sản phẩm lỗi / BP × 100; BP bằng 0 hoặc chưa có
-thì không đánh giá tỷ lệ. QLCL đọc lại sản lượng mỗi 30 giây và sau khi lưu lỗi.
+Sản lượng quy đổi BP là số đạt. Tổng kiểm = BP + số sản phẩm lỗi QLCL;
+tỷ lệ lỗi = số sản phẩm lỗi / tổng kiểm × 100, áp dụng cả ngày và từng mốc.
+Thiếu dữ liệu đạt/lỗi, tổng kiểm bằng 0 hoặc mốc điều chỉnh âm thì không đánh giá
+tỷ lệ. Đạt bằng 0 nhưng có lỗi thì tỷ lệ là 100%.
+TV3 treo dùng cùng công thức, với số đạt lấy từ MSD cụm cuối cấu hình.
+QLCL đọc lại sản lượng mỗi 30 giây và sau khi lưu lỗi.
 TV3 đọc lỗi qua `GET /api/tv3/flat-qc-data` trên `QLCL_API_URL`, xác thực bằng
 `X-API-Key` từ `QLCL_API_KEY`. Cần cập nhật QLCL trước hanging; biến cũ
 `FLAT_LINE_QLCL_DATABASE_URL` không còn dùng và có thể xóa khỏi `.env`;
@@ -160,7 +164,10 @@ phân mốc theo giờ ghi sản phẩm lỗi tại Việt Nam. Nhiều mã lỗ
 sản phẩm không làm tăng số sản phẩm lỗi trong mốc. Ngày hiển thị trên TV là
 ngày báo cáo thực tế ở chân màn hình.
 
-Trạm QC dùng cho ra chuyền bệt là **Trạm cuối chuyền** (`station`). Tổng lỗi,
+Trạm QC dùng cho ra chuyền bệt là **QC kiểm thành phẩm** (`station`, tên cũ:
+**Trạm cuối chuyền**). QLCL có migration `migrate_qc_station_names_20260917.sql`
+để đổi tên cả lịch sử; cần cập nhật và khởi động lại QLCL để áp dụng.
+Tổng lỗi,
 lỗi theo mốc, phân tích bộ phận/mã lỗi và cảnh báo trên TV3 chỉ lấy trạm này.
 QLCL dùng cùng bộ lọc khi tính tỷ lệ lỗi theo BP; lỗi các trạm khác không cộng
 vào chỉ số ra chuyền.
