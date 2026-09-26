@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import math
 import os
+import threading
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
@@ -24,13 +25,24 @@ from fastapi.templating import Jinja2Templates
 from . import db
 from .admin import compute_end_date, get_holidays, parse_mono
 
+# --------------- QLCL response cache (TTL-based) ---------------
+_QLCL_CACHE_TTL = int(os.getenv("QLCL_CACHE_TTL_SECONDS", "60"))
+_qlcl_cache: dict[str, tuple[float, dict]] = {}
+_qlcl_lock = threading.Lock()
+
 # URL của QLCL app (cùng máy, port 8008)
 QLCL_API_URL = os.getenv("QLCL_API_URL", "http://localhost:8008")
 QLCL_TIMEOUT = 5.0  # seconds — TV không được chờ lâu
 
 
 def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
-    """Gọi QLCL /api/tv3/qc-data, trả về dict. Nếu lỗi → trả về {"found": False}."""
+    """Gọi QLCL /api/tv3/qc-data with TTL cache. Nếu lỗi → {"found": False}."""
+    cache_key = f"{mono}|{the_date}"
+    now = datetime.now().timestamp()
+    with _qlcl_lock:
+        cached = _qlcl_cache.get(cache_key)
+        if cached and (now - cached[0]) < _QLCL_CACHE_TTL:
+            return cached[1]
     try:
         resp = httpx.get(
             f"{QLCL_API_URL}/api/tv3/qc-data",
@@ -39,9 +51,15 @@ def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
             timeout=QLCL_TIMEOUT,
         )
         resp.raise_for_status()
-        return resp.json()
+        result = resp.json()
     except Exception:
-        return {"found": False}
+        result = {"found": False}
+    with _qlcl_lock:
+        _qlcl_cache[cache_key] = (now, result)
+        if len(_qlcl_cache) > 100:
+            oldest = min(_qlcl_cache, key=lambda k: _qlcl_cache[k][0])
+            del _qlcl_cache[oldest]
+    return result
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -184,7 +202,9 @@ def api_tv_plans(line_no: Optional[int] = None):
         params.append(line_no)
     sql = f"""
         SELECT pm.MONo, pm.SoDonHang, pm.StyleNo, pm.[LineNo] AS LineNoOut,
-               pm.NhuCauMe, pm.Customer, pm.SLKH,
+               pm.NhuCauMe, pm.Customer,
+               CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0
+                    ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH,
                CONVERT(varchar(10), pm.FirstHangDate, 120) AS FirstHangDate,
                (SELECT COUNT(*) FROM app.tClusterStationConfig c
                 WHERE c.NhuCauMe = pm.NhuCauMe) AS ClusterCount,
@@ -193,6 +213,11 @@ def api_tv_plans(line_no: Optional[int] = None):
                CONVERT(varchar(10), (SELECT MAX(ShtDate) FROM {{MES_DB}}.dbo.tRecentWork
                                      WHERE MONo = pm.MONo), 120) AS DataTo
         FROM app.tPlanMaster pm
+        OUTER APPLY (
+            SELECT SUM(pa.DeltaQty) AS AdjustmentQty
+            FROM app.tPlanAdjustment pa
+            WHERE pa.PlanMaster_guid = pm.PlanMaster_guid
+        ) adj
         WHERE {where}
         ORDER BY pm.[LineNo], pm.SoDonHang
     """
@@ -223,12 +248,28 @@ def api_tv_plan_lines():
 
 
 def _resolve_plan_full(mono: str) -> dict:
-    """Trả về full info cho 1 plan (con + mẹ + 6 cụm)."""
+    """Trả về full info cho 1 plan (con + mẹ + 6 cụm).
+
+    Merged plan+mother+SAM into 1 query, then cluster+POs = 2 more.
+    Total: 3 queries instead of 5.
+    """
     plan = db.query(
         "SELECT pm.PlanMaster_guid, pm.MONo, pm.SoDonHang, pm.StyleNo, "
-        "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
-        "pm.Customer, pm.NhuCauMe "
-        "FROM app.tPlanMaster pm WHERE pm.MONo = ?",
+        "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH AS BaseSLKH, "
+        "CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0 "
+        "     ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH, pm.DailyAim, "
+        "pm.Customer, pm.NhuCauMe, "
+        "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.LuyKeChuyenTiep, "
+        "sam.SAM, sam.OWE_Target, "
+        "(SELECT MIN(pm2.FirstHangDate) FROM app.tPlanMaster pm2 "
+        " WHERE pm2.NhuCauMe = pm.NhuCauMe) AS MeFirstHangDate "
+        "FROM app.tPlanMaster pm "
+        "OUTER APPLY (SELECT SUM(pa.DeltaQty) AS AdjustmentQty "
+        "             FROM app.tPlanAdjustment pa "
+        "             WHERE pa.PlanMaster_guid = pm.PlanMaster_guid) adj "
+        "LEFT JOIN app.tDemandRoot dr ON pm.NhuCauMe = dr.NhuCauMe "
+        "LEFT JOIN app.tSAM sam ON pm.StyleNo = sam.StyleNo "
+        "WHERE pm.MONo = ?",
         (mono,),
     )
     if not plan:
@@ -237,36 +278,29 @@ def _resolve_plan_full(mono: str) -> dict:
     if not p["NhuCauMe"]:
         raise HTTPException(400, "Plan này chưa gắn NhuCauMe")
 
-    mother = db.query(
-        "SELECT DMKT, PhanLoaiDH, LDBienChe, LuyKeChuyenTiep "
-        "FROM app.tDemandRoot WHERE NhuCauMe = ?",
-        (p["NhuCauMe"],),
-    )
-    if mother:
-        p["DMKT"] = float(mother[0]["DMKT"])
-        p["PhanLoaiDH"] = mother[0]["PhanLoaiDH"]
-        p["LDBienChe"] = mother[0]["LDBienChe"]
-        p["LuyKeChuyenTiep"] = int(mother[0]["LuyKeChuyenTiep"] or 0)
+    if p["DMKT"] is not None:
+        p["DMKT"] = float(p["DMKT"])
+        p["LDBienChe"] = p["LDBienChe"]
+        p["LuyKeChuyenTiep"] = int(p["LuyKeChuyenTiep"] or 0)
     else:
-        p["DMKT"] = p["PhanLoaiDH"] = p["LDBienChe"] = None
+        p["PhanLoaiDH"] = p["LDBienChe"] = None
         p["LuyKeChuyenTiep"] = 0
 
+    if p["SAM"] is not None:
+        p["SAM"] = float(p["SAM"])
+        p["OWE_Target"] = float(p["OWE_Target"]) if p["OWE_Target"] is not None else None
+    else:
+        p["SAM"] = None
+        p["OWE_Target"] = None
+
+    p["MeFirstHangDate"] = p.get("MeFirstHangDate")
+
     cluster = db.query(
-        "SELECT ClusterOrder, RouteStepOdr, GroupLabel, Role "
+        "SELECT ClusterOrder, RouteStepOdr, GroupLabel, Role, CarryoverQty "
         "FROM app.tClusterStationConfig WHERE NhuCauMe = ? ORDER BY ClusterOrder",
         (p["NhuCauMe"],),
     )
     p["Cluster"] = cluster
-
-    sam = db.query(
-        "SELECT SAM, OWE_Target FROM app.tSAM WHERE StyleNo = ?", (p["StyleNo"],)
-    )
-    if sam:
-        p["SAM"] = float(sam[0]["SAM"])
-        p["OWE_Target"] = float(sam[0]["OWE_Target"]) if sam[0]["OWE_Target"] is not None else None
-    else:
-        p["SAM"] = None
-        p["OWE_Target"] = None
 
     p["POs"] = db.query(
         "SELECT PONo, Qty, CONVERT(varchar(10), ShipDate, 120) AS ShipDate "
@@ -311,34 +345,9 @@ def _scan_count_for_cluster(
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
 ) -> int:
-    """Số scan (cumulative qty) cho cluster trong khoảng date.
-
-    Đếm DISTINCT (CardNo, SeqNo, ShtDate, BeginTime) để tránh double-count.
-    Thật ra mỗi (CardNo, SeqNo, BeginTime) là 1 lượt scan riêng → COUNT(*) OK
-    nhưng khi 1 cụm có nhiều SeqNo song song trên cùng SP, phải MAX-style.
-    """
-    seq_nos = db.query(
-        """
-        ;WITH Steps AS (
-          SELECT ds.Odr, ds.SeqNo,
-                 MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
-                   OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
-          FROM {MES_DB}.dbo.tRouteDS ds
-          JOIN {MES_DB}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
-          JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
-          WHERE mm.MONo = ?
-        )
-        SELECT DISTINCT SeqNo FROM Steps WHERE HeadOdr = ?
-        """,
-        (mono, route_step_odr),
-    )
-    if not seq_nos:
-        return 0
-    seq_list = [r["SeqNo"] for r in seq_nos]
-    placeholders = ",".join(["?"] * len(seq_list))
-
+    """Số scan (cumulative qty) cho cluster — single query (CTE + count merged)."""
     where_date = ""
-    params: list[Any] = [mono] + seq_list
+    params: list[Any] = [mono, route_step_odr, mono]
     if from_date and to_date:
         where_date = "AND rw.ShtDate BETWEEN ? AND ?"
         params.extend([from_date, to_date])
@@ -346,23 +355,31 @@ def _scan_count_for_cluster(
         where_date = "AND rw.ShtDate <= ?"
         params.append(to_date)
 
-    # Đếm lượt qua cụm = MAX (count theo SeqNo) trong group
-    # = COUNT(*) / COUNT(DISTINCT SeqNo) nếu 1 SP scan đủ SeqNo
-    # An toàn: dùng MAX per SeqNo rồi MIN (vì SP qua hết các seq)
-    sql = f"""
-        SELECT SeqNo, COUNT(*) AS Qty
-        FROM {{MES_DB}}.dbo.tRecentWork rw
-        WHERE rw.MONo = ? AND rw.SeqNo IN ({placeholders}) {where_date}
-        GROUP BY SeqNo
-    """
-    rows = db.query(sql, params)
+    rows = db.query(
+        f"""
+        ;WITH Steps AS (
+          SELECT ds.Odr, ds.SeqNo,
+                 MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
+                   OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
+          FROM {{MES_DB}}.dbo.tRouteDS ds
+          JOIN {{MES_DB}}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
+          JOIN {{MES_DB}}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
+          WHERE mm.MONo = ?
+        ),
+        ClusterSeqs AS (
+          SELECT DISTINCT SeqNo FROM Steps WHERE HeadOdr = ?
+        )
+        SELECT cs.SeqNo, COUNT(*) AS Qty
+        FROM ClusterSeqs cs
+        JOIN {{MES_DB}}.dbo.tRecentWork rw ON rw.SeqNo = cs.SeqNo
+        WHERE rw.MONo = ? {where_date}
+        GROUP BY cs.SeqNo
+        """,
+        params,
+    )
     if not rows:
         return 0
-    qtys = [r["Qty"] for r in rows]
-    # 1 SP đi qua cả group → mỗi SeqNo trong group được scan 1 lần
-    # Lấy MIN để bảo thủ (= số SP đã pass qua tất cả SeqNo của cụm)
-    # Nếu group chỉ 1 SeqNo thì = COUNT(*)
-    return min(qtys)
+    return min(r["Qty"] for r in rows)
 
 
 def _configured_last_cluster(plan: dict) -> Optional[dict]:
@@ -483,11 +500,21 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     return counts
 
 
-def _historical_overtime_percent(nhu_cau_me: str) -> Optional[Decimal]:
-    """Tỷ lệ sản lượng sau 16:30 của Nhu cầu mẹ; None nếu chưa cấu hình."""
+def _historical_overtime_percent(
+    nhu_cau_me: str, the_date: date | None = None,
+) -> Optional[Decimal]:
+    """Tỷ lệ sản lượng sau 16:30; ưu tiên cấu hình theo ngày, fallback cấu hình chung."""
+    if the_date is not None:
+        rows = db.query(
+            "SELECT OvertimePercent FROM app.tHistoricalOutputAllocation "
+            "WHERE NhuCauMe = ? AND AllocationDate = ?",
+            (nhu_cau_me, the_date),
+        )
+        if rows:
+            return Decimal(str(rows[0]["OvertimePercent"]))
     rows = db.query(
         "SELECT OvertimePercent FROM app.tHistoricalOutputAllocation "
-        "WHERE NhuCauMe = ?",
+        "WHERE NhuCauMe = ? AND AllocationDate = '1900-01-01'",
         (nhu_cau_me,),
     )
     if not rows:
@@ -642,6 +669,60 @@ def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
         params,
     )
     return {"Qty": int(rows[0]["Qty"]), "Def": int(rows[0]["DefQty"])}
+
+
+def _kcs_bulk(mono: str, the_date: date) -> dict:
+    """Fetch all KCS data in ONE query, return cumulative/today/last_day/hourly.
+
+    Replaces 4 separate queries: _output_kcs(cum), _output_kcs(today),
+    last_day inline query, and _hourly_actual.
+    """
+    rows = db.query(
+        """
+        SELECT rw.ShtDate, rw.BeginTime,
+               SUM(rw.Qty) AS Qty, SUM(rw.DefectiveQty) AS DefQty
+        FROM {MES_DB}.dbo.tRecentWork rw
+        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+          AND rw.MONo = ? AND rw.ShtDate <= ?
+        GROUP BY rw.ShtDate, rw.BeginTime
+        """,
+        (mono, the_date),
+    )
+    cum_qty = 0
+    cum_def = 0
+    today_qty = 0
+    today_def = 0
+    hourly: dict[int, int] = {i: 0 for i in range(1, 6)}
+    daily_totals: dict[date, int] = {}
+
+    for r in rows:
+        qty = int(r["Qty"] or 0)
+        defq = int(r["DefQty"] or 0)
+        sht = r["ShtDate"]
+        cum_qty += qty
+        cum_def += defq
+        daily_totals[sht] = daily_totals.get(sht, 0) + qty
+        if sht == the_date:
+            today_qty += qty
+            today_def += defq
+            bt = r["BeginTime"]
+            if bt:
+                slot = _slot_from_time(bt)
+                if slot:
+                    hourly[slot] += qty
+
+    last_day_output = 0
+    prev_dates = [d for d in daily_totals if d < the_date]
+    if prev_dates:
+        last_day_output = daily_totals[max(prev_dates)]
+
+    return {
+        "cum": {"Qty": cum_qty, "Def": cum_def},
+        "today": {"Qty": today_qty, "Def": today_def},
+        "last_day_output": last_day_output,
+        "hourly": hourly,
+    }
 
 
 def _workers_count(
@@ -805,69 +886,63 @@ def api_tv1(
     from .flat_tv import PREFIX, dashboard
     if mono.startswith(PREFIX):
         return dashboard(1, mono, the_date)
+
     plan = _resolve_plan_full(mono)
     holidays = get_holidays()
     first_hang = plan["FirstHangDate"]
-    first_hang_me = _me_first_hang(plan["NhuCauMe"]) or first_hang
+    first_hang_me = plan.get("MeFirstHangDate") or first_hang
     slkh = int(plan["SLKH"] or 0)
     dmkt = plan["DMKT"] or 0
     ld = plan["LDBienChe"] or 0
     sam = plan["SAM"] or 0
     owe_target_pct = (plan["OWE_Target"] * 100) if plan["OWE_Target"] else 85.0
 
-    # Workers fallback chain (như cũ): tDailyHeadcount → LDBienChe → scan distinct
-    workers = _workers_count(mono, the_date, ld_bien_che=ld)
+    # Bulk KCS: 1 query thay vì 4
+    kcs = _kcs_bulk(mono, the_date)
+    cum_qty = kcs["cum"]["Qty"]
+    today_qty = kcs["today"]["Qty"]
+    last_day_output = kcs["last_day_output"]
+    actual_slots = kcs["hourly"]
 
-    # MỤC TIÊU NGÀY = compute từ curve (ĐMKT × LĐ × ratio_day_n)
+    workers = _workers_count(mono, the_date, ld_bien_che=ld)
     tgt = compute_day_target(first_hang_me, the_date, dmkt,
                              plan["PhanLoaiDH"], workers, holidays,
                              plan_guid=plan["PlanMaster_guid"])
     daily_aim = tgt["target"]
 
-    # Cumulative output: tính từ ngày đầu tiên có data trong MES (không giới hạn bởi FirstHangDate)
-    cum = _output_kcs(mono, None, the_date)
-    cumulative_display = cum["Qty"] + plan["LuyKeChuyenTiep"]
-    today = _output_kcs(mono, the_date, the_date)
-    last_full_rows = db.query(
-        """
-        SELECT TOP 1 rw.ShtDate, SUM(rw.Qty) AS Qty
-        FROM {MES_DB}.dbo.tRecentWork rw
-        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1
-          AND rw.ShtDate < ?
-        GROUP BY rw.ShtDate
-        ORDER BY rw.ShtDate DESC
-        """,
-        (mono, the_date),
-    )
-    last_day_output = int(last_full_rows[0]["Qty"]) if last_full_rows else 0
+    kcs_carryover = 0
+    for c in plan["Cluster"]:
+        if c["Role"] == "last":
+            kcs_carryover = int(c.get("CarryoverQty") or 0)
+            break
+    cumulative_display = cum_qty + kcs_carryover
 
-    # WIP = luỹ kế cụm đầu (được chọn) − luỹ kế cụm cuối (được chọn)
+    # WIP = luỹ kế cụm đầu − luỹ kế cụm cuối
     wip = 0
     first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
     last_cluster = _configured_last_cluster(plan)
     if first_cluster:
         in_qty = _scan_count_for_cluster(mono, first_cluster["RouteStepOdr"], first_hang, the_date)
         if last_cluster and last_cluster["Role"] == "last":
-            out_qty = cum["Qty"]
+            out_qty = cum_qty
         elif last_cluster:
             out_qty = _scan_count_for_cluster(mono, last_cluster["RouteStepOdr"], first_hang, the_date)
         else:
-            out_qty = cum["Qty"]
+            out_qty = cum_qty
         wip = max(in_qty - out_qty, 0)
 
     # Takt
     takt_kh = round(WORK_SECONDS_PER_DAY / daily_aim) if daily_aim else 0
     elapsed = _elapsed_work_seconds() if the_date == date.today() else WORK_SECONDS_PER_DAY
-    takt_real = round(elapsed / today["Qty"]) if today["Qty"] else 0
+    takt_real = round(elapsed / today_qty) if today_qty else 0
 
-    # TPT (phút) = (WIP+1) × takt_real / 60
+    # TPT (phút)
     tpt_min = round((wip + 1) * takt_real / 60) if takt_real else 0
 
-    # OWE: SAM × Output_today / (working_min × LĐ)
+    # OWE
     owe_pct = 0.0
-    if sam and today["Qty"] and ld:
-        rpt = WORK_MINUTES_PER_DAY * ld / today["Qty"]   # phút/SP
+    if sam and today_qty and ld:
+        rpt = WORK_MINUTES_PER_DAY * ld / today_qty
         owe_pct = round(sam / rpt * 100, 1) if rpt else 0
 
     # End dates
@@ -878,25 +953,17 @@ def api_tv1(
 
     # Hourly target + actual
     target_slots = _hourly_target(daily_aim)
-    actual_slots = _hourly_actual(mono, the_date)
     if the_date < date.today():
-        overtime_percent = _historical_overtime_percent(plan["NhuCauMe"])
+        overtime_percent = _historical_overtime_percent(plan["NhuCauMe"], the_date)
         if overtime_percent is not None:
-            actual_slots = _allocate_historical_output(today["Qty"], overtime_percent)
+            actual_slots = _allocate_historical_output(today_qty, overtime_percent)
 
-    # placeholder anchor: HĐKP for date
     hdkp = db.query(
         "SELECT Slot, RootCause, CAPAction FROM app.tHourlyAction "
         "WHERE PlanMaster_guid = ? AND ShtDate = ? ORDER BY Slot",
         (plan["PlanMaster_guid"], the_date),
     )
 
-    # Defect rate: số lỗi từ QLCL / tổng kiểm (output ngày) từ MES
-    qc = _fetch_qlcl_tv3(mono, the_date)
-    total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
-    defect_rate = round(total_loi / today["Qty"] * 100, 1) if today["Qty"] else 0
-
-    # Mã đơn KH = SoDonHang without '#'
     ma_don_kh = plan["SoDonHang"].lstrip("#")
 
     return {
@@ -920,12 +987,12 @@ def api_tv1(
             "Pct": round(cumulative_display / slkh * 100, 1) if slkh else 0,
         },
         "stats": {
-            "DayQty": {"KH": daily_aim, "TH": today["Qty"],
-                       "Pct": round(today["Qty"] / daily_aim * 100, 1) if daily_aim else 0},
+            "DayQty": {"KH": daily_aim, "TH": today_qty,
+                       "Pct": round(today_qty / daily_aim * 100, 1) if daily_aim else 0},
             "Takt": {"KH": takt_kh, "TT": takt_real,
                      "Pct": round(takt_kh / takt_real * 100, 1) if takt_real else 0},
             "OWE": {"Pct": owe_pct, "Target": round(owe_target_pct, 1)},
-            "DefectRate": {"Pct": defect_rate, "Threshold": 5},
+            "DefectRate": None,
             "EndDay": {
                 "Target": end_target.strftime("%d-%m") if end_target else None,
                 "Actual": end_actual.strftime("%d-%m") if end_actual else None,
@@ -940,6 +1007,19 @@ def api_tv1(
         "pos": plan["POs"],
         "total_po_qty": sum(int(r["Qty"]) for r in plan["POs"]),
     }
+
+
+@router.get("/api/tv1/qc")
+def api_tv1_qc(
+    mono: str = Query(...),
+    the_date: date = Query(..., alias="date"),
+):
+    """Lazy-loaded defect rate from QLCL — called separately so TV-1 renders instantly."""
+    kcs_today = _output_kcs(mono, the_date, the_date)
+    qc = _fetch_qlcl_tv3(mono, the_date)
+    total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
+    defect_rate = round(total_loi / kcs_today["Qty"] * 100, 1) if kcs_today["Qty"] else 0
+    return {"DefectRate": {"Pct": defect_rate, "Threshold": 5}}
 
 
 # ============================================================
@@ -960,8 +1040,6 @@ def api_tv2(
     dmkt = plan["DMKT"] or 0
     ld = plan["LDBienChe"] or 0
     workers = _workers_count(mono, the_date, ld_bien_che=ld)
-    cumulative_carryover = plan["LuyKeChuyenTiep"]
-
     # Full-day target comes from the production curve; TV-2 target line shows
     # cumulative target up to the current reporting milestone.
     tgt = compute_day_target(first_hang_me, the_date, dmkt,
@@ -992,13 +1070,14 @@ def api_tv2(
         else:
             today_qty = _scan_count_for_cluster(mono, odr, the_date, the_date)
             cum_qty = _scan_count_for_cluster(mono, odr, first_hang, the_date)
+        cluster_carryover = int(c.get("CarryoverQty") or 0)
         clusters_data.append({
             "Order": c["ClusterOrder"],
             "Role": role,
             "Label": (c["GroupLabel"] or f"Cụm {c['ClusterOrder']}") + (" · Chuyền bệt" if odr < 0 else ""),
             "RouteStepOdr": odr,
             "QtyToday": today_qty,
-            "Cumulative": cum_qty + (0 if odr < 0 else cumulative_carryover),
+            "Cumulative": cum_qty + cluster_carryover,
             "Pass": today_qty >= target_current,
         })
 
@@ -1236,8 +1315,14 @@ def api_tv4(
 
     # Mẹ aggregate
     me_rows = db.query(
-        "SELECT SUM(SLKH) AS Total, MIN(FirstHangDate) AS FirstDate "
-        "FROM app.tPlanMaster WHERE NhuCauMe = ?",
+        "SELECT SUM(CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0 "
+        "                ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END) AS Total, "
+        "MIN(pm.FirstHangDate) AS FirstDate "
+        "FROM app.tPlanMaster pm "
+        "OUTER APPLY (SELECT SUM(pa.DeltaQty) AS AdjustmentQty "
+        "             FROM app.tPlanAdjustment pa "
+        "             WHERE pa.PlanMaster_guid = pm.PlanMaster_guid) adj "
+        "WHERE pm.NhuCauMe = ?",
         (nhu_cau_me_id,),
     )
     total_slkh = int(me_rows[0]["Total"] or 0)

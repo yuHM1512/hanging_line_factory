@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import auth, db
+from .settings import APP_UNIT
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -75,7 +76,7 @@ def _entry_plan_for_user(mono: str, user: dict) -> dict:
     plan = _resolve_plan(mono)
     if (user.get("Role") or "").lower() == "admin":
         return plan
-    if user.get("Unit", "").upper() != "XN2" or user.get("Dept") is None or user["Dept"] != plan["LineNo"]:
+    if user.get("Unit", "").strip().upper() != APP_UNIT or user.get("Dept") is None or user["Dept"] != plan["LineNo"]:
         raise HTTPException(403, "Kế hoạch không thuộc tổ của bạn")
     return plan
 
@@ -86,8 +87,8 @@ def api_hourly_action_plans(user: dict = Depends(auth.require_user)):
     params: tuple[Any, ...] = ()
     where = ""
     if not is_admin:
-        if user.get("Unit", "").upper() != "XN2" or user.get("Dept") is None:
-            raise HTTPException(403, "Tài khoản chưa được gắn tổ XN2")
+        if user.get("Unit", "").strip().upper() != APP_UNIT or user.get("Dept") is None:
+            raise HTTPException(403, f"Tài khoản chưa được gắn tổ {APP_UNIT}")
         where = " AND pm.[LineNo] = ?"
         params = (user["Dept"],)
     return db.query(
@@ -196,10 +197,16 @@ def api_plans(user: dict = Depends(auth.require_user)):
         SELECT pm.MONo, pm.SoDonHang, pm.StyleNo, pm.[LineNo] AS LineNoOut,
                pm.Customer, pm.NhuCauMe,
                CONVERT(varchar(10), pm.FirstHangDate, 120) AS FirstHangDate,
-               pm.SLKH,
+               CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0
+                    ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH,
                (SELECT COUNT(*) FROM app.tClusterStationConfig c
                 WHERE c.NhuCauMe = pm.NhuCauMe) AS ClusterCount
         FROM app.tPlanMaster pm
+        OUTER APPLY (
+            SELECT SUM(pa.DeltaQty) AS AdjustmentQty
+            FROM app.tPlanAdjustment pa
+            WHERE pa.PlanMaster_guid = pm.PlanMaster_guid
+        ) adj
         """ + where_sql + """
         ORDER BY pm.FirstHangDate DESC, pm.SoDonHang
         """,

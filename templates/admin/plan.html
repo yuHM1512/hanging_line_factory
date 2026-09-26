@@ -100,11 +100,6 @@
       <input type="number" name="LDBienChe" required min="1" step="1" />
     </label>
     <label class="field">
-      <span class="field-label">Luỹ kế chuyển tiếp</span>
-      <input type="number" name="LuyKeChuyenTiep" required min="0" step="1" value="0" placeholder="VD: 200" />
-    </label>
-
-    <label class="field">
       <span class="field-label">Ngày lên chuyền</span>
       <input type="date" name="FirstHangDate" required />
     </label>
@@ -516,7 +511,6 @@ async function openCreate(r) {
   f.DMKT.value = '';
   f.PhanLoaiDH.value = '';
   f.LDBienChe.value = '';
-  f.LuyKeChuyenTiep.value = 0;
   FlatConfig.reset();
   f.DemandNotes.value = '';
   pendingPOs = [];
@@ -544,7 +538,6 @@ async function openEdit(guid) {
   f.DMKT.value = p.DMKT || '';
   f.PhanLoaiDH.value = p.PhanLoaiDH || '';
   f.LDBienChe.value = p.LDBienChe || '';
-  f.LuyKeChuyenTiep.value = p.LuyKeChuyenTiep || 0;
   f.DemandNotes.value = p.DemandNotes || '';
   f.FirstHangDate.value = p.FirstHangDate;
   f.SLKH.value = p.SLKH;
@@ -695,7 +688,6 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
     DMKT: parseFloat(fd.get('DMKT')),
     PhanLoaiDH: fd.get('PhanLoaiDH'),
     LDBienChe: parseInt(fd.get('LDBienChe')),
-    LuyKeChuyenTiep: parseInt(fd.get('LuyKeChuyenTiep'), 10),
     DemandNotes: fd.get('DemandNotes') || null,
     LoaiHang: fd.get('LoaiHang') || null,
     Notes: fd.get('Notes') || null,
@@ -703,13 +695,11 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
   };
   try {
     if (editingGuid) {
-      // PUT — chỉ update bản chính (PO không sửa trong edit để giữ đơn giản)
       await Admin.fetchJSON(`${API}/${editingGuid}`, {
         method: 'PUT', body: JSON.stringify(baseBody),
       });
       Admin.toast('Đã cập nhật.', 'ok');
     } else {
-      // POST — tạo mới + PO
       const body = {
         ...baseBody,
         MONo: fd.get('MONo'),
@@ -718,7 +708,6 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
         DMKT: parseFloat(fd.get('DMKT')),
         PhanLoaiDH: fd.get('PhanLoaiDH'),
         LDBienChe: parseInt(fd.get('LDBienChe')),
-        LuyKeChuyenTiep: parseInt(fd.get('LuyKeChuyenTiep'), 10),
         DemandNotes: fd.get('DemandNotes') || null,
         POs: pendingPOs,
       };

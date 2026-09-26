@@ -31,7 +31,7 @@ Sau đó điền block dưới đây. Đây là cấu hình XN2 đang dùng làm
 
 ```dotenv
 # 1. Đơn vị: phải đổi đồng thời với tên tab phía dưới
-QLCL_DON_VI=XN2
+APP_UNIT=XN2
 
 # 2. File JSON đã được cấp quyền đọc cả hai Google Sheets
 FLAT_LINE_GOOGLE_SERVICE_ACCOUNT_FILE="secrets/credentials_m29.json"
@@ -64,7 +64,7 @@ Không commit `.env` hoặc JSON lên Git. Thư mục `secrets/` và các tên
 
 | Biến | XN2 mẫu | Ví dụ khi chuyển XN3 |
 |---|---|---|
-| `QLCL_DON_VI` | `XN2` | `XN3` |
+| `APP_UNIT` | `XN2` | `XN3` |
 | `FLAT_LINE_PLAN_SPREADSHEET_URL` | Link file kế hoạch XN2 | Link file kế hoạch XN3 |
 | `FLAT_LINE_FACTORY_WORKSHEET` | `XN2` | `XN3` |
 | `FLAT_LINE_DATA_SPREADSHEET_URL` | Link file data XN2 | Link file data XN3 |

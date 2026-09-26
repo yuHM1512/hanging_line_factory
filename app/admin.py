@@ -17,19 +17,18 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import auth, db
+from .settings import APP_UNIT
 
 # URL base app QLCL — dùng để lấy danh mục loại hàng và đồng bộ kế hoạch
 QLCL_API_URL = os.environ.get("QLCL_API_URL", "http://localhost:8008")
 # API key để xác thực với QLCL server (phải trùng với QLCL_API_KEY bên QLCL)
 QLCL_API_KEY = os.environ.get("QLCL_API_KEY", "")
-# Đơn vị của app này — gắn vào prod_plan.don_vi khi push sang QLCL
-QLCL_DON_VI  = os.environ.get("QLCL_DON_VI", "XN")
 QLCL_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -296,9 +295,17 @@ def api_demand_candidates():
     """
     sql = """
         SELECT pm.SoDonHang, pm.StyleNo, pm.[LineNo] AS LineNoOut,
-               pm.MONo, pm.SLKH, pm.DailyAim, pm.Customer,
+               pm.MONo,
+               CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0
+                    ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH,
+               pm.DailyAim, pm.Customer,
                CONVERT(varchar(10), pm.FirstHangDate, 120) AS FirstHangDate
         FROM app.tPlanMaster pm
+        OUTER APPLY (
+            SELECT SUM(pa.DeltaQty) AS AdjustmentQty
+            FROM app.tPlanAdjustment pa
+            WHERE pa.PlanMaster_guid = pm.PlanMaster_guid
+        ) adj
         WHERE NOT EXISTS (
             SELECT 1 FROM app.tDemandRoot dr WHERE dr.NhuCauMe = pm.SoDonHang
         )
@@ -901,7 +908,7 @@ def _push_one_date_to_qlcl(work_date: str, mono_qty: dict[str, int]) -> dict:
     """Push output for a single date to QLCL. Returns response dict."""
     outputs = [{"mono": m, "qty": q} for m, q in mono_qty.items()]
     body = json.dumps({
-        "don_vi": QLCL_DON_VI,
+        "don_vi": APP_UNIT,
         "date": work_date,
         "outputs": outputs,
     }).encode()
@@ -1041,10 +1048,11 @@ def _do_sync_to_qlcl() -> dict:
                pm.LoaiHang,
                CONVERT(VARCHAR(10), pm.FirstHangDate, 120) AS FirstHangDate,
                pm.SLKH,
+               CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0
+                    ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS EffectiveSLKH,
                pm.Customer,
                ISNULL((SELECT SUM(Qty) FROM app.tPlanPO po
-                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid),
-                      pm.SLKH + ISNULL(adj.AdjustmentQty, 0)) AS TotalPOQty
+                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid), 0) AS TotalPOQty
         FROM app.tPlanMaster pm
         OUTER APPLY (
             SELECT SUM(DeltaQty) AS AdjustmentQty
@@ -1069,13 +1077,13 @@ def _do_sync_to_qlcl() -> dict:
             "customer":   str(r.get("Customer") or "").strip(),
             "loai_hang":  str(r.get("LoaiHang") or "").strip() or None,
             "first_hang": r.get("FirstHangDate"),
-            "san_luong":  int(r.get("TotalPOQty") or r.get("SLKH") or 0),
+            "san_luong":  int(r.get("EffectiveSLKH") or 0),
         })
 
     if not plans:
         return {"status": "ok", "message": "Không có kế hoạch nào", "inserted": 0, "updated": 0}
 
-    body = json.dumps({"don_vi": QLCL_DON_VI, "plans": plans}).encode()
+    body = json.dumps({"don_vi": APP_UNIT, "plans": plans}).encode()
     req = _qlcl_request("/api/prod-plan/push-from-hl", data=body, method="POST")
     with urllib.request.urlopen(req, timeout=15) as resp:
         result = json.loads(resp.read())
@@ -1175,7 +1183,7 @@ def _refresh_plan_employee_assignments(plan_master_guid: str | None = None) -> d
                         plan.get("NhuCauMe"),
                         root_mono,
                         r.get("SourceMONo"),
-                        QLCL_DON_VI,
+                        APP_UNIT,
                         plan.get("LineNoOut"),
                         bo_phan,
                         r.get("WorkLine"),
@@ -1257,7 +1265,7 @@ def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
         }
 
     body = json.dumps({
-        "don_vi": QLCL_DON_VI,
+        "don_vi": APP_UNIT,
         "replace_station_scope": plan_master_guid is None,
         "employees": employees,
     }).encode()
@@ -1271,13 +1279,13 @@ def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
             cur.execute(
                 "UPDATE app.tPlanEmployeeAssignment SET SyncedAt = SYSDATETIME() "
                 "WHERE DonVi = ? AND PlanMaster_guid = ?",
-                (QLCL_DON_VI, plan_master_guid),
+                (APP_UNIT, plan_master_guid),
             )
         else:
             cur.execute(
                 "UPDATE app.tPlanEmployeeAssignment SET SyncedAt = SYSDATETIME() "
                 "WHERE DonVi = ?",
-                (QLCL_DON_VI,),
+                (APP_UNIT,),
             )
 
     result["plans"] = refreshed["plans"]
@@ -1520,7 +1528,7 @@ def api_cluster_groups(nhu_cau_me: str):
 @router.get("/api/cluster/{nhu_cau_me:path}")
 def api_cluster_get(nhu_cau_me: str):
     return db.query(
-        "SELECT Cluster_guid, ClusterOrder, RouteStepOdr, GroupLabel, Role "
+        "SELECT Cluster_guid, ClusterOrder, RouteStepOdr, GroupLabel, Role, CarryoverQty "
         "FROM app.tClusterStationConfig WHERE NhuCauMe = ? "
         "ORDER BY ClusterOrder",
         (nhu_cau_me,),
@@ -1582,6 +1590,29 @@ def api_cluster_save(nhu_cau_me: str, body: ClusterIn, user: dict = Depends(auth
                 (nhu_cau_me, p.cluster_order, p.route_step_odr,
                  p.group_label, p.role, _actor_id(user)),
             )
+    return {"ok": True}
+
+
+class ClusterCarryoverIn(AdminModel):
+    carryover_qty: Optional[int] = Field(None, alias="CarryoverQty", ge=0)
+
+
+@router.put("/api/cluster-carryover/{nhu_cau_me:path}")
+def api_cluster_carryover(
+    nhu_cau_me: str,
+    cluster_order: int = Query(..., ge=1, le=6),
+    body: ClusterCarryoverIn = ...,
+    user: dict = Depends(auth.require_admin),
+):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE app.tClusterStationConfig SET CarryoverQty = ? "
+            "WHERE NhuCauMe = ? AND ClusterOrder = ?",
+            (body.carryover_qty, nhu_cau_me, cluster_order),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Cụm chưa được cấu hình")
     return {"ok": True}
 
 
@@ -1648,34 +1679,21 @@ def api_sam_delete(style_no: str):
     return {"ok": True}
 
 
-@router.post("/api/sam/sync")
-def api_sam_sync(user: dict = Depends(auth.require_admin)):
-    """Fetch CSV từ Google Sheet → UPSERT app.tSAM theo StyleNo."""
-    try:
-        with urllib.request.urlopen(GS_URL, timeout=30) as resp:
-            raw = resp.read().decode("utf-8")
-    except Exception as exc:  # noqa: BLE001
-        raise HTTPException(
-            502,
-            f"Không fetch được Google Sheet (kiểm tra share setting): {exc}",
-        ) from exc
+def _do_sam_sync(actor: str = "auto-sync") -> dict:
+    """Fetch CSV từ Google Sheet → UPSERT app.tSAM theo StyleNo. Dùng cho cả API và auto-sync."""
+    with urllib.request.urlopen(GS_URL, timeout=30) as resp:
+        raw = resp.read().decode("utf-8")
 
     reader = csv.reader(io.StringIO(raw))
     rows = list(reader)
     if len(rows) < 3:
-        raise HTTPException(502, "Sheet rỗng hoặc cấu trúc lạ")
+        raise ValueError("Sheet rỗng hoặc cấu trúc lạ")
 
-    # Row 0 = section labels, Row 1 = header
     header = rows[1]
-    try:
-        idx_factory = header.index(SAM_COL_FACTORY)
-        idx_style = header.index(SAM_COL_STYLE)
-        idx_sam = header.index(SAM_COL_VALUE)
-        idx_target = header.index(SAM_COL_TARGET)
-    except ValueError as e:
-        raise HTTPException(
-            502, f"Thiếu cột trong Sheet ({e}). Kiểm tra tiêu đề SAM/SOT Config."
-        ) from e
+    idx_factory = header.index(SAM_COL_FACTORY)
+    idx_style = header.index(SAM_COL_STYLE)
+    idx_sam = header.index(SAM_COL_VALUE)
+    idx_target = header.index(SAM_COL_TARGET)
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     src_label = f"Google Sheet · synced {timestamp}"
@@ -1706,11 +1724,10 @@ def api_sam_sync(user: dict = Depends(auth.require_admin)):
                 try:
                     target_val = float(target_raw.replace(",", "."))
                     if not (0 < target_val <= 1.5):
-                        target_val = None  # bỏ qua nếu ngoài khoảng hợp lý
+                        target_val = None
                 except ValueError:
                     target_val = None
 
-            # Check exists
             cur.execute(
                 "SELECT SAM, OWE_Target FROM app.tSAM WHERE StyleNo = ?", (style,)
             )
@@ -1719,7 +1736,7 @@ def api_sam_sync(user: dict = Depends(auth.require_admin)):
                 cur.execute(
                     "INSERT INTO app.tSAM (StyleNo, SAM, OWE_Target, Source, UpdatedBy) "
                     "VALUES (?, ?, ?, ?, ?)",
-                    (style, sam_val, target_val, src_label, _actor_id(user)),
+                    (style, sam_val, target_val, src_label, actor),
                 )
                 inserted += 1
             else:
@@ -1729,7 +1746,7 @@ def api_sam_sync(user: dict = Depends(auth.require_admin)):
                     cur.execute(
                         "UPDATE app.tSAM SET SAM = ?, OWE_Target = ?, Source = ?, "
                         "UpdatedAt = SYSDATETIME(), UpdatedBy = ? WHERE StyleNo = ?",
-                        (sam_val, target_val, src_label, _actor_id(user), style),
+                        (sam_val, target_val, src_label, actor, style),
                     )
                     updated += 1
                 else:
@@ -1744,6 +1761,20 @@ def api_sam_sync(user: dict = Depends(auth.require_admin)):
         "invalid_samples": invalid[:10],
         "synced_at": timestamp,
     }
+
+
+@router.post("/api/sam/sync")
+def api_sam_sync(user: dict = Depends(auth.require_admin)):
+    """Fetch CSV từ Google Sheet → UPSERT app.tSAM theo StyleNo."""
+    try:
+        return _do_sam_sync(actor=_actor_id(user))
+    except (urllib.error.URLError, OSError) as exc:
+        raise HTTPException(
+            502,
+            f"Không fetch được Google Sheet (kiểm tra share setting): {exc}",
+        ) from exc
+    except ValueError as exc:
+        raise HTTPException(502, str(exc)) from exc
 
 
 # ============================================================
@@ -1843,8 +1874,13 @@ def api_target_override_lines():
 def api_target_override_plans(line_no: int):
     rows = db.query(
         "SELECT pm.PlanMaster_guid, pm.MONo, pm.StyleNo, pm.Customer, "
-        "pm.FirstHangDate, pm.SLKH "
+        "pm.FirstHangDate, "
+        "CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0 "
+        "     ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH "
         "FROM app.tPlanMaster pm "
+        "OUTER APPLY (SELECT SUM(pa.DeltaQty) AS AdjustmentQty "
+        "             FROM app.tPlanAdjustment pa "
+        "             WHERE pa.PlanMaster_guid = pm.PlanMaster_guid) adj "
         "WHERE pm.[LineNo] = ? AND pm.FirstHangDate IS NOT NULL "
         "ORDER BY pm.FirstHangDate DESC",
         (line_no,),
@@ -1946,10 +1982,9 @@ def api_historical_output_allocation_lines():
 def api_historical_output_allocation_demands(line_no: int):
     return db.query(
         "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
-        "ISNULL(v.SLKH, 0) AS SLKH, a.OvertimePercent "
+        "ISNULL(v.SLKH, 0) AS SLKH "
         "FROM app.tDemandRoot dr "
         "LEFT JOIN app.vDemandRoot v ON v.NhuCauMe = dr.NhuCauMe "
-        "LEFT JOIN app.tHistoricalOutputAllocation a ON a.NhuCauMe = dr.NhuCauMe "
         "WHERE dr.[LineNo] = ? "
         "ORDER BY dr.NhuCauMe",
         (line_no,),
@@ -1957,18 +1992,33 @@ def api_historical_output_allocation_demands(line_no: int):
 
 
 @router.get("/api/historical-output-allocation")
-def api_historical_output_allocation_detail(nhu_cau_me: str):
+def api_historical_output_allocation_detail(
+    nhu_cau_me: str, allocation_date: str | None = None,
+):
+    if allocation_date:
+        rows = db.query(
+            "SELECT a.NhuCauMe, CONVERT(varchar(10), a.AllocationDate, 23) AS AllocationDate, "
+            "a.OvertimePercent, a.Notes, a.UpdatedBy, "
+            "CONVERT(varchar(19), a.UpdatedAt, 120) AS UpdatedAt "
+            "FROM app.tHistoricalOutputAllocation a "
+            "WHERE a.NhuCauMe = ? AND a.AllocationDate = ?",
+            (nhu_cau_me, allocation_date),
+        )
+        return rows[0] if rows else None
     rows = db.query(
-        "SELECT a.NhuCauMe, a.OvertimePercent, a.Notes, a.UpdatedBy, "
+        "SELECT a.NhuCauMe, CONVERT(varchar(10), a.AllocationDate, 23) AS AllocationDate, "
+        "a.OvertimePercent, a.Notes, a.UpdatedBy, "
         "CONVERT(varchar(19), a.UpdatedAt, 120) AS UpdatedAt "
-        "FROM app.tHistoricalOutputAllocation a WHERE a.NhuCauMe = ?",
+        "FROM app.tHistoricalOutputAllocation a "
+        "WHERE a.NhuCauMe = ? ORDER BY a.AllocationDate",
         (nhu_cau_me,),
     )
-    return rows[0] if rows else None
+    return rows
 
 
 class HistoricalOutputAllocationIn(AdminModel):
     nhu_cau_me: str = Field(..., alias="NhuCauMe")
+    allocation_date: str = Field("1900-01-01", alias="AllocationDate")
     overtime_percent: float = Field(..., alias="OvertimePercent", ge=0, le=100)
     notes: Optional[str] = Field(None, alias="Notes", max_length=200)
 
@@ -1979,21 +2029,23 @@ def api_historical_output_allocation_save(
     user: dict = Depends(auth.require_admin),
 ):
     actor = _actor_id(user)
+    alloc_date = body.allocation_date or "1900-01-01"
     with db.get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
             "UPDATE app.tHistoricalOutputAllocation SET "
             "OvertimePercent = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
-            "WHERE NhuCauMe = ?",
-            (body.overtime_percent, body.notes, actor, body.nhu_cau_me),
+            "WHERE NhuCauMe = ? AND AllocationDate = ?",
+            (body.overtime_percent, body.notes, actor, body.nhu_cau_me, alloc_date),
         )
         action = "updated"
         if cur.rowcount == 0:
             try:
                 cur.execute(
                     "INSERT INTO app.tHistoricalOutputAllocation "
-                    "(NhuCauMe, OvertimePercent, Notes, UpdatedBy) VALUES (?, ?, ?, ?)",
-                    (body.nhu_cau_me, body.overtime_percent, body.notes, actor),
+                    "(NhuCauMe, AllocationDate, OvertimePercent, Notes, UpdatedBy) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (body.nhu_cau_me, alloc_date, body.overtime_percent, body.notes, actor),
                 )
                 action = "created"
             except Exception as exc:  # noqa: BLE001
@@ -2004,13 +2056,15 @@ def api_historical_output_allocation_save(
 @router.delete("/api/historical-output-allocation/{nhu_cau_me}")
 def api_historical_output_allocation_delete(
     nhu_cau_me: str,
+    allocation_date: str = "1900-01-01",
     user: dict = Depends(auth.require_admin),
 ):
     with db.get_conn() as conn:
         cur = conn.cursor()
         cur.execute(
-            "DELETE FROM app.tHistoricalOutputAllocation WHERE NhuCauMe = ?",
-            (nhu_cau_me,),
+            "DELETE FROM app.tHistoricalOutputAllocation "
+            "WHERE NhuCauMe = ? AND AllocationDate = ?",
+            (nhu_cau_me, allocation_date),
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Nhu cầu mẹ chưa có cấu hình phân bổ")

@@ -348,6 +348,24 @@ async function loadData() {
   TVSource.apply(data);
   _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
   setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
+  // Lazy-load defect rate (QLCL is slow — load separately so dashboard renders instantly)
+  loadQC();
+}
+
+async function loadQC() {
+  try {
+    const qc = await fetch(`/tv/api/tv1/qc?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`)
+      .then(r => r.ok ? r.json() : null);
+    if (qc && qc.DefectRate) renderDefectRate(qc.DefectRate);
+  } catch (_) { /* defect rate stays as "..." */ }
+}
+
+function renderDefectRate(dr) {
+  const defOK = dr.Pct <= dr.Threshold;
+  document.getElementById('st-def-pct').textContent = dr.Pct + '%';
+  document.getElementById('st-def-pct').className = 's-pct ' + passFailText(defOK);
+  document.getElementById('st-def-chip').textContent = defOK ? 'ĐẠT' : 'VƯỢT NGƯỠNG';
+  document.getElementById('st-def-chip').className = 'pct-chip ' + passFail(defOK);
 }
 
 function render(d) {
@@ -407,11 +425,14 @@ function render(d) {
   document.getElementById('st-owe-chip').className = 'pct-chip ' + passFail(opass);
   document.getElementById('st-owe-target').textContent = s.OWE.Target + '%';
 
-  const defOK = s.DefectRate.Pct <= s.DefectRate.Threshold;
-  document.getElementById('st-def-pct').textContent = s.DefectRate.Pct + '%';
-  document.getElementById('st-def-pct').className = 's-pct ' + passFailText(defOK);
-  document.getElementById('st-def-chip').textContent = defOK ? 'ĐẠT' : 'VƯỢT NGƯỠNG';
-  document.getElementById('st-def-chip').className = 'pct-chip ' + passFail(defOK);
+  if (s.DefectRate) {
+    renderDefectRate(s.DefectRate);
+  } else {
+    document.getElementById('st-def-pct').textContent = '...';
+    document.getElementById('st-def-pct').className = 's-pct';
+    document.getElementById('st-def-chip').textContent = '...';
+    document.getElementById('st-def-chip').className = 'pct-chip';
+  }
 
   const ed = s.EndDay;
   document.getElementById('st-end-mt').textContent = ed.Target || '—';

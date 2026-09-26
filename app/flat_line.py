@@ -9,6 +9,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, Field
 
 from . import auth, db
+from .settings import APP_UNIT
 
 router = APIRouter()
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent.parent / 'templates'))
@@ -20,7 +21,7 @@ def check_demand(key: str, user: dict, enabled: bool = True) -> dict:
         raise HTTPException(404, 'Không tìm thấy nhu cầu mẹ')
     row = rows[0]
     if user.get('Role', '').lower() != 'admin':
-        if str(user.get('Unit', '')).upper() != 'XN2' or str(user.get('Dept')) != str(row['LineNo']):
+        if str(user.get('Unit', '')).strip().upper() != APP_UNIT or str(user.get('Dept')) != str(row['LineNo']):
             raise HTTPException(403, 'Nhu cầu không thuộc tổ của bạn')
     if enabled and not row['TrackFlatLine']:
         raise HTTPException(400, 'Nhu cầu chưa bật theo dõi chuyền bệt')
@@ -76,7 +77,12 @@ def apply_config(cur, key: str, body: ConfigIn):
 
 @router.get('/entry/flat-line')
 def page(request: Request, user: dict = Depends(auth.require_user)):
-    return templates.TemplateResponse('entry/flat-line.html', {'request': request, 'user': user, 'today': date.today().isoformat()})
+    return templates.TemplateResponse('entry/flat-line.html', {
+        'request': request,
+        'user': user,
+        'today': date.today().isoformat(),
+        'app_unit': APP_UNIT,
+    })
 
 
 @router.get('/entry/api/flat-line/demands')
@@ -84,8 +90,8 @@ def demands(user: dict = Depends(auth.require_user)):
     where = ''
     params = ()
     if user.get('Role', '').lower() != 'admin':
-        if str(user.get('Unit', '')).upper() != 'XN2':
-            raise HTTPException(403, 'Tài khoản phải thuộc XN2')
+        if str(user.get('Unit', '')).strip().upper() != APP_UNIT:
+            raise HTTPException(403, f'Tài khoản phải thuộc {APP_UNIT}')
         where = ' AND [LineNo]=?'
         params = (user.get('Dept'),)
     return db.query('SELECT NhuCauMe,StyleNo,[LineNo] FROM app.tDemandRoot WHERE TrackFlatLine=1' + where + ' ORDER BY NhuCauMe', params)

@@ -2,10 +2,13 @@ import os
 import unittest
 from datetime import date
 from unittest.mock import Mock, patch
-from app.tv import _fetch_qlcl_tv3
+from app.tv import _fetch_qlcl_tv3, _qlcl_cache
 
 
 class QCAuthenticationTests(unittest.TestCase):
+    def setUp(self):
+        _qlcl_cache.clear()
+
     def test_tv_quality_request_uses_server_api_key(self):
         response = Mock()
         response.json.return_value = {'found': True}

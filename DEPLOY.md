@@ -66,7 +66,7 @@ HANGING_MES_DB=MSD
 HANGING_SQL_DRIVER=ODBC Driver 17 for SQL Server
 
 # Đơn vị XN — mỗi xưởng đặt khác nhau
-QLCL_DON_VI=XN2                       # XN1, XN2, XN3, XN1-V1 ...
+APP_UNIT=XN2                           # XN1, XN2, XN3, XN1-V1 ...
 
 # URL QLCL server
 QLCL_API_URL=https://qlcl.hachibavn.com

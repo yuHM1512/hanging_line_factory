@@ -15,6 +15,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
 from . import db
+from .settings import APP_UNIT
 
 ROOT = Path(__file__).resolve().parent.parent
 router = APIRouter(prefix="/tv/flat", tags=["flat-sheet-tv"])
@@ -25,7 +26,7 @@ MINUTES = [111, 120, 120, 111, 30]
 
 
 def unit():
-    return os.getenv("QLCL_DON_VI", "XN2")
+    return APP_UNIT
 
 
 def key(value):

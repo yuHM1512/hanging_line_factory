@@ -204,7 +204,7 @@ App này push kế hoạch sang **app QLCL trung tâm** (hachibavn.com) để tr
 QLCL_API_URL=http://localhost:8008      # local dev
 QLCL_API_URL=https://qlcl.hachibavn.com # production
 QLCL_API_KEY=<bearer token>
-QLCL_DON_VI=XN2                         # đơn vị xưởng này
+APP_UNIT=XN2                             # đơn vị xưởng này
 ```
 
 - Push: `POST /api/prod-plan/upsert-batch` với header `X-API-Key`

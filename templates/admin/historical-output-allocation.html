@@ -2,13 +2,13 @@
 {% set active = 'historical-output-allocation' %}
 {% block header_breadcrumb %}Phân bổ sản lượng ngày cũ{% endblock %}
 {% block heading %}Phân bổ sản lượng ngày cũ{% endblock %}
-{% block subheading %}Thiết lập tỷ lệ sản lượng ngoài giờ riêng cho từng Nhu cầu mẹ. Cấu hình chỉ áp dụng khi xem ngày quá khứ trên TV-1.{% endblock %}
+{% block subheading %}Thiết lập tỷ lệ sản lượng ngoài giờ riêng cho từng Nhu cầu mẹ theo ngày. Cấu hình chỉ áp dụng khi xem ngày quá khứ trên TV-1.{% endblock %}
 
 {% block body %}
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">filter_alt</span>
-    Chọn Nhu cầu mẹ
+    Chọn Nhu cầu mẹ & Ngày
   </h3>
   <div class="row-form">
     <label class="field">
@@ -23,14 +23,38 @@
         <option value="">— Chọn tổ trước —</option>
       </select>
     </label>
+    <label class="field">
+      <span class="field-label">Ngày phân bổ</span>
+      <input type="date" id="sel-date" disabled />
+    </label>
   </div>
   <div id="demand-info" class="muted" style="margin-top:.5rem" hidden></div>
+</div>
+
+<div class="panel" id="panel-existing" hidden>
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">calendar_month</span>
+    Cấu hình đã lưu cho <span id="existing-ncm"></span>
+  </h3>
+  <table class="data-table" id="tbl-existing">
+    <thead>
+      <tr>
+        <th>Ngày</th>
+        <th>Ngoài giờ (%)</th>
+        <th>Ghi chú</th>
+        <th>Cập nhật</th>
+        <th class="col-action"></th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p class="muted small" style="margin-top:.5rem">Chọn ngày ở trên để thêm hoặc sửa cấu hình cho ngày cụ thể. Dòng "Mặc định" áp dụng cho mọi ngày chưa có cấu hình riêng.</p>
 </div>
 
 <div class="panel" id="panel-config" hidden>
   <h3 class="panel-title">
     <span class="material-symbols-outlined">lock_clock</span>
-    Tỷ lệ quy đổi ngoài giờ
+    <span id="config-title">Tỷ lệ quy đổi ngoài giờ</span>
   </h3>
   <form id="form-config" class="row-form">
     <label class="field">
@@ -78,12 +102,16 @@
 const API = '/admin/api/historical-output-allocation';
 const selLine = document.getElementById('sel-line');
 const selDemand = document.getElementById('sel-demand');
+const selDate = document.getElementById('sel-date');
 const demandInfo = document.getElementById('demand-info');
+const panelExisting = document.getElementById('panel-existing');
 const panelConfig = document.getElementById('panel-config');
 const panelPreview = document.getElementById('panel-preview');
 const formConfig = document.getElementById('form-config');
 const btnDelete = document.getElementById('btn-delete');
+const SENTINEL = '1900-01-01';
 let currentDemand = '';
+let currentDate = '';
 
 async function loadLines() {
   try {
@@ -95,13 +123,21 @@ async function loadLines() {
   }
 }
 
+function resetAfterDemand() {
+  currentDate = '';
+  selDate.value = '';
+  selDate.disabled = true;
+  demandInfo.hidden = true;
+  panelExisting.hidden = true;
+  panelConfig.hidden = true;
+  panelPreview.hidden = true;
+}
+
 selLine.addEventListener('change', async () => {
   const line = selLine.value;
   currentDemand = '';
   selDemand.disabled = true;
-  demandInfo.hidden = true;
-  panelConfig.hidden = true;
-  panelPreview.hidden = true;
+  resetAfterDemand();
   if (!line) {
     selDemand.innerHTML = '<option value="">— Chọn tổ trước —</option>';
     return;
@@ -114,10 +150,9 @@ selLine.addEventListener('change', async () => {
       return;
     }
     selDemand.innerHTML = '<option value="">— Chọn Nhu cầu mẹ —</option>' +
-      demands.map(d => {
-        const configured = d.OvertimePercent == null ? '' : ` · Đã cài ${d.OvertimePercent}%`;
-        return `<option value="${Admin.escape(d.NhuCauMe)}" data-style="${Admin.escape(d.StyleNo || '')}" data-slkh="${d.SLKH || 0}">${Admin.escape(d.NhuCauMe)} — ${Admin.escape(d.StyleNo || '')}${configured}</option>`;
-      }).join('');
+      demands.map(d =>
+        `<option value="${Admin.escape(d.NhuCauMe)}" data-style="${Admin.escape(d.StyleNo || '')}" data-slkh="${d.SLKH || 0}">${Admin.escape(d.NhuCauMe)} — ${Admin.escape(d.StyleNo || '')}</option>`
+      ).join('');
     selDemand.disabled = false;
   } catch (err) {
     Admin.toast(err.message, 'error');
@@ -128,28 +163,86 @@ selLine.addEventListener('change', async () => {
 selDemand.addEventListener('change', async () => {
   currentDemand = selDemand.value;
   if (!currentDemand) {
-    demandInfo.hidden = true;
-    panelConfig.hidden = true;
-    panelPreview.hidden = true;
+    resetAfterDemand();
     return;
   }
   const opt = selDemand.selectedOptions[0];
   demandInfo.innerHTML = `<strong>${Admin.escape(currentDemand)}</strong> · Mã hàng ${Admin.escape(opt.dataset.style || '—')} · SLKH ${Number(opt.dataset.slkh || 0).toLocaleString('vi-VN')} pcs`;
   demandInfo.hidden = false;
-  panelConfig.hidden = false;
-  panelPreview.hidden = false;
-  await loadConfig();
+  selDate.disabled = false;
+  currentDate = '';
+  selDate.value = '';
+  await loadExisting();
+});
+
+selDate.addEventListener('change', () => {
+  currentDate = selDate.value || '';
+  loadConfig();
+});
+
+async function loadExisting() {
+  const rows = await Admin.fetchJSON(`${API}?nhu_cau_me=${encodeURIComponent(currentDemand)}`);
+  document.getElementById('existing-ncm').textContent = currentDemand;
+  const tbody = panelExisting.querySelector('tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="muted">Chưa có cấu hình nào.</td></tr>';
+  } else {
+    tbody.innerHTML = rows.map(r => {
+      const dateLabel = r.AllocationDate === SENTINEL ? '<em>Mặc định</em>' : r.AllocationDate;
+      return `
+        <tr>
+          <td>${dateLabel}</td>
+          <td class="mono">${Number(r.OvertimePercent).toLocaleString('vi-VN')}%</td>
+          <td>${Admin.escape(r.Notes || '—')}</td>
+          <td class="muted small">${Admin.escape(r.UpdatedBy || '')} · ${Admin.escape(r.UpdatedAt || '')}</td>
+          <td class="col-action">
+            <button class="btn-icon" data-edit-date="${r.AllocationDate}" title="Sửa">
+              <span class="material-symbols-outlined">edit</span>
+            </button>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+  panelExisting.hidden = false;
+
+  if (!currentDate) {
+    panelConfig.hidden = true;
+    panelPreview.hidden = true;
+  }
+}
+
+panelExisting.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-edit-date]');
+  if (!btn) return;
+  const d = btn.dataset.editDate;
+  if (d === SENTINEL) {
+    selDate.value = '';
+    currentDate = '';
+  } else {
+    selDate.value = d;
+    currentDate = d;
+  }
+  loadConfig();
 });
 
 async function loadConfig() {
-  const config = await Admin.fetchJSON(`${API}?nhu_cau_me=${encodeURIComponent(currentDemand)}`);
+  const dateParam = currentDate || SENTINEL;
+  const config = await Admin.fetchJSON(
+    `${API}?nhu_cau_me=${encodeURIComponent(currentDemand)}&allocation_date=${dateParam}`
+  );
   formConfig.reset();
   formConfig.OvertimePercent.value = config ? Number(config.OvertimePercent) : 0;
   formConfig.Notes.value = config?.Notes || '';
   btnDelete.hidden = !config;
+
+  const label = currentDate || 'Mặc định (tất cả ngày)';
+  document.getElementById('config-title').textContent = `Tỷ lệ ngoài giờ — ${label}`;
   document.getElementById('audit-info').textContent = config
     ? `Cập nhật bởi ${config.UpdatedBy || '—'} lúc ${config.UpdatedAt || '—'}`
-    : 'Chưa có cấu hình. TV-1 đang dùng giờ quét thực tế cho các ngày cũ.';
+    : 'Chưa có cấu hình. TV-1 đang dùng giờ quét thực tế.';
+
+  panelConfig.hidden = false;
+  panelPreview.hidden = false;
   renderPreview();
 }
 
@@ -191,11 +284,13 @@ formConfig.addEventListener('submit', async (event) => {
       method: 'POST',
       body: JSON.stringify({
         NhuCauMe: currentDemand,
+        AllocationDate: currentDate || SENTINEL,
         OvertimePercent: Number(fd.get('OvertimePercent')),
         Notes: fd.get('Notes') || null,
       }),
     });
     Admin.toast(result.action === 'created' ? 'Đã tạo cấu hình.' : 'Đã cập nhật tỷ lệ.', 'ok');
+    await loadExisting();
     await loadConfig();
   } catch (err) {
     Admin.toast(err.message, 'error');
@@ -204,11 +299,15 @@ formConfig.addEventListener('submit', async (event) => {
 
 btnDelete.addEventListener('click', async () => {
   if (!currentDemand) return;
-  if (!await Admin.confirmDelete(`Xoá cấu hình phân bổ của "${currentDemand}"?`)) return;
+  const dateLabel = currentDate || 'mặc định';
+  if (!await Admin.confirmDelete(`Xoá cấu hình phân bổ ngày "${dateLabel}" của "${currentDemand}"?`)) return;
   try {
-    await Admin.fetchJSON(`${API}/${encodeURIComponent(currentDemand)}`, { method: 'DELETE' });
+    const dateParam = currentDate || SENTINEL;
+    await Admin.fetchJSON(`${API}/${encodeURIComponent(currentDemand)}?allocation_date=${dateParam}`, { method: 'DELETE' });
     Admin.toast('Đã xoá cấu hình. TV-1 sẽ dùng giờ quét thực tế.', 'ok');
-    await loadConfig();
+    await loadExisting();
+    panelConfig.hidden = true;
+    panelPreview.hidden = true;
   } catch (err) {
     Admin.toast(err.message, 'error');
   }

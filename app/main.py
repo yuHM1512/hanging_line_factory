@@ -35,6 +35,11 @@ _OUTPUT_SYNC_ENABLED = (
 _OUTPUT_SYNC_INTERVAL = max(30, int(os.getenv("QLCL_OUTPUT_SYNC_INTERVAL_SECONDS", "120")))
 _output_sync_started = False
 
+# SAM auto-sync từ Google Sheet
+_SAM_SYNC_ENABLED = os.getenv("SAM_AUTO_SYNC_ENABLED", "false").lower() in ("1", "true", "yes")
+_SAM_SYNC_INTERVAL = max(5, int(os.getenv("SAM_AUTO_SYNC_INTERVAL_MINUTES", "120")))
+_sam_sync_started = False
+
 
 def _auto_sync_loop() -> None:
     logger.info("QLCL auto-sync started, interval=%s minutes", _AUTO_SYNC_INTERVAL)
@@ -67,6 +72,22 @@ def _output_sync_loop() -> None:
         except Exception:
             logger.exception("QLCL output sync failed")
 
+
+def _sam_sync_loop() -> None:
+    logger.info("SAM auto-sync started, interval=%s minutes", _SAM_SYNC_INTERVAL)
+    while True:
+        time.sleep(_SAM_SYNC_INTERVAL * 60)
+        try:
+            result = admin._do_sam_sync(actor="auto-sync")
+            logger.info(
+                "SAM auto-sync ok — inserted=%s updated=%s skipped=%s",
+                result.get("inserted", 0),
+                result.get("updated", 0),
+                result.get("skipped", 0),
+            )
+        except Exception:
+            logger.exception("SAM auto-sync failed")
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 TEMPLATES_DIR = BASE_DIR / "templates"
@@ -84,7 +105,7 @@ app.include_router(flat_sheet.router)
 
 @app.on_event("startup")
 def startup_auto_sync() -> None:
-    global _auto_sync_started, _output_sync_started
+    global _auto_sync_started, _output_sync_started, _sam_sync_started
     flat_sheet.start_sync()
     if _AUTO_SYNC_ENABLED:
         with _auto_sync_lock:
@@ -100,6 +121,13 @@ def startup_auto_sync() -> None:
                 t.start()
                 _output_sync_started = True
                 logger.info("QLCL output sync thread started (interval=%ss)", _OUTPUT_SYNC_INTERVAL)
+    if _SAM_SYNC_ENABLED:
+        with _auto_sync_lock:
+            if not _sam_sync_started:
+                t = threading.Thread(target=_sam_sync_loop, name="sam-auto-sync", daemon=True)
+                t.start()
+                _sam_sync_started = True
+                logger.info("SAM auto-sync thread started (interval=%sm)", _SAM_SYNC_INTERVAL)
 
 
 def _default_range() -> tuple[date, date]:

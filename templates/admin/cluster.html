@@ -2,7 +2,7 @@
 {% set active = 'cluster' %}
 {% block header_breadcrumb %}6 cụm{% endblock %}
 {% block heading %}6 cụm theo dõi sản lượng{% endblock %}
-{% block subheading %}Mỗi Nhu cầu mẹ chọn 6 cụm/công đoạn dọc tuyến — 1 đầu vào + 4 giữa + 1 KCS cuối. Phải theo thứ tự sản xuất (Odr tăng dần).{% endblock %}
+{% block subheading %}Mỗi Nhu cầu mẹ chọn 6 cụm/công đoạn dọc tuyến — 1 đầu vào + 4 giữa + 1 KCS cuối. Phải theo thứ tự sản xuất (Odr tăng dần). Luỹ kế chuyển tiếp điền riêng từng cụm.{% endblock %}
 
 {% block body %}
 <div class="panel">
@@ -38,37 +38,62 @@
       <div class="slot-label">Cụm 1 — Đầu vào</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="1"></div>
     </div>
     <div class="cluster-slot" data-order="2">
       <div class="slot-label">Cụm 2 — Giữa</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="2"></div>
     </div>
     <div class="cluster-slot" data-order="3">
       <div class="slot-label">Cụm 3 — Giữa</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="3"></div>
     </div>
     <div class="cluster-slot" data-order="4">
       <div class="slot-label">Cụm 4 — Giữa</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="4"></div>
     </div>
     <div class="cluster-slot" data-order="5">
       <div class="slot-label">Cụm 5 — Giữa</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="5"></div>
     </div>
     <div class="cluster-slot" data-order="6" data-role="last">
       <div class="slot-label">Cụm 6 — KCS (cuối)</div>
       <select class="slot-pick"></select>
       <div class="slot-stations muted small"></div>
+      <div class="slot-carryover" data-order="6"></div>
     </div>
   </div>
 
   <div class="form-actions" style="margin-top: 1.5rem;">
     <button type="button" class="btn btn-tertiary" id="btn-cancel">Đóng</button>
     <button type="button" class="btn btn-primary" id="btn-save">Lưu 6 cụm</button>
+  </div>
+</div>
+
+<!-- Carryover popup dialog -->
+<div class="carryover-backdrop" id="carryover-backdrop" hidden></div>
+<div class="carryover-dialog" id="carryover-dialog" hidden>
+  <h3>
+    <span class="material-symbols-outlined">sync_alt</span>
+    Luỹ kế chuyển tiếp
+  </h3>
+  <p class="muted small" id="carryover-info"></p>
+  <label class="field">
+    <span class="field-label">Số lượng luỹ kế</span>
+    <input type="number" id="carryover-input" min="0" step="1" placeholder="Để trống nếu không cần" />
+  </label>
+  <p class="muted small">Bỏ trống hoặc nhập 0 nếu cụm này không có luỹ kế chuyển tiếp.</p>
+  <div class="form-actions">
+    <button type="button" class="btn btn-tertiary" id="carryover-cancel">Huỷ</button>
+    <button type="button" class="btn btn-primary" id="carryover-save">Lưu luỹ kế</button>
   </div>
 </div>
 {% endblock %}
@@ -112,6 +137,32 @@
   margin-top: 0.4rem;
   min-height: 1em;
 }
+.slot-carryover {
+  margin-top: 0.5rem;
+}
+.carryover-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: 9999px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.carryover-chip:hover { filter: brightness(0.95); }
+.carryover-chip.has-value {
+  background: var(--primary-container);
+  color: var(--on-primary-container);
+}
+.carryover-chip.no-value {
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+}
+.carryover-chip .material-symbols-outlined {
+  font-size: 1rem;
+}
 .status-pill {
   display: inline-block;
   padding: 0.2rem 0.6rem;
@@ -121,12 +172,61 @@
 }
 .status-pill.ok { background: var(--secondary-container); color: var(--on-secondary-container); }
 .status-pill.todo { background: var(--surface-container); color: var(--on-surface-variant); }
+
+.carryover-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 900;
+}
+.carryover-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: var(--surface-container-lowest);
+  border-radius: 1.5rem;
+  padding: 2rem;
+  width: min(90vw, 400px);
+  z-index: 901;
+  box-shadow: 0 24px 64px rgba(0,24,72,0.15);
+}
+.carryover-dialog h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 0.75rem;
+  font-size: 1.1rem;
+}
 </style>
 
 <script>
 const API = '/admin/api/cluster';
 let currentNhuCauMe = null;
-let groupsCache = [];   // [{RouteStepOdr, GroupLabel, SeqNoList, StepCount, StationNos}]
+let groupsCache = [];
+let existingCache = [];
+let carryoverOrder = null;
+
+function renderCarryoverChips() {
+  document.querySelectorAll('.slot-carryover').forEach(el => {
+    const order = parseInt(el.dataset.order);
+    const existing = existingCache.find(e => e.ClusterOrder === order);
+    const qty = existing ? existing.CarryoverQty : null;
+    if (qty != null && qty > 0) {
+      el.innerHTML = `<span class="carryover-chip has-value" data-carryover="${order}">
+        <span class="material-symbols-outlined">sync_alt</span>
+        Luỹ kế: ${qty.toLocaleString('vi-VN')} sp
+      </span>`;
+    } else {
+      el.innerHTML = existing
+        ? `<span class="carryover-chip no-value" data-carryover="${order}">
+            <span class="material-symbols-outlined">add</span>
+            Điền luỹ kế chuyển tiếp
+          </span>`
+        : '';
+    }
+  });
+}
 
 function renderMums(rows) {
   const tbody = document.querySelector('#tbl-mums tbody');
@@ -169,10 +269,10 @@ async function openConfig(nhuCauMe) {
     Admin.fetchJSON(`${API}/${encodeURIComponent(nhuCauMe)}`),
   ]);
   groupsCache = groupsData.Groups;
+  existingCache = existing;
   document.querySelector('#config-info').textContent =
     `Route từ MONo ${groupsData.MONo} · ${groupsCache.length} cụm có sẵn`;
 
-  // Build option list (shared by all 6 selects)
   const optionsHTML = '<option value="">— chọn —</option>' +
     groupsCache.map(g => `<option value="${g.RouteStepOdr}"
       data-stations="${g.StationNos || ''}">
@@ -184,12 +284,12 @@ async function openConfig(nhuCauMe) {
     sel.addEventListener('change', updateStationHints);
   });
 
-  // Restore existing config nếu có
   for (const e of existing) {
     const slot = document.querySelector(`.cluster-slot[data-order="${e.ClusterOrder}"] .slot-pick`);
     if (slot) slot.value = e.RouteStepOdr;
   }
   updateStationHints();
+  renderCarryoverChips();
 
   document.querySelector('#config-panel').hidden = false;
   document.querySelector('#config-panel').scrollIntoView({ behavior: 'smooth' });
@@ -216,6 +316,48 @@ document.querySelector('#btn-cancel').addEventListener('click', () => {
   currentNhuCauMe = null;
 });
 
+// Carryover popup
+document.querySelector('#config-panel').addEventListener('click', (e) => {
+  const chip = e.target.closest('[data-carryover]');
+  if (!chip) return;
+  carryoverOrder = parseInt(chip.dataset.carryover);
+  const existing = existingCache.find(x => x.ClusterOrder === carryoverOrder);
+  const label = existing ? (existing.GroupLabel || `Cụm ${carryoverOrder}`) : `Cụm ${carryoverOrder}`;
+  document.getElementById('carryover-info').textContent = `${label} — ${currentNhuCauMe}`;
+  document.getElementById('carryover-input').value = existing && existing.CarryoverQty ? existing.CarryoverQty : '';
+  document.getElementById('carryover-backdrop').hidden = false;
+  document.getElementById('carryover-dialog').hidden = false;
+  document.getElementById('carryover-input').focus();
+});
+
+function closeCarryover() {
+  document.getElementById('carryover-backdrop').hidden = true;
+  document.getElementById('carryover-dialog').hidden = true;
+  carryoverOrder = null;
+}
+
+document.getElementById('carryover-cancel').addEventListener('click', closeCarryover);
+document.getElementById('carryover-backdrop').addEventListener('click', closeCarryover);
+
+document.getElementById('carryover-save').addEventListener('click', async () => {
+  if (!currentNhuCauMe || !carryoverOrder) return;
+  const raw = document.getElementById('carryover-input').value.trim();
+  const qty = raw === '' ? null : parseInt(raw);
+  try {
+    await Admin.fetchJSON(
+      `/admin/api/cluster-carryover/${encodeURIComponent(currentNhuCauMe)}?cluster_order=${carryoverOrder}`,
+      { method: 'PUT', body: JSON.stringify({ CarryoverQty: qty || null }) }
+    );
+    const ex = existingCache.find(x => x.ClusterOrder === carryoverOrder);
+    if (ex) ex.CarryoverQty = qty;
+    renderCarryoverChips();
+    Admin.toast('Đã lưu luỹ kế chuyển tiếp.', 'ok');
+    closeCarryover();
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+  }
+});
+
 document.querySelector('#btn-save').addEventListener('click', async () => {
   const picks = [];
   let valid = true;
@@ -240,7 +382,6 @@ document.querySelector('#btn-save').addEventListener('click', async () => {
     Admin.toast('Cần chọn đủ 6 cụm.', 'error');
     return;
   }
-  // Check production order
   if (new Set(picks.map(p => p.RouteStepOdr)).size !== 6) {
     Admin.toast('Không chọn trùng công đoạn.', 'error'); return;
   }

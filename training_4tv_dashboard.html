@@ -1,0 +1,2704 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hệ Thống Đào Tạo Chỉ Số 4 Màn Hình TV · Chuyền Treo & Chuyền Bệt</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@600;700;800&family=Roboto+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   CSS DESIGN TOKENS (Khớp 100% với codebase hanging_line_factory_XN2 & b_line)
+   ========================================================================== */
+:root {
+  --brand-900: #142A52;
+  --brand-800: #1A3567;
+  --brand-700: #21437E;
+  --brand-600: #2B5494;
+  --brand-500: #3C68AE;
+  --brand-soft: #EAF1FB;
+  --brand-tint: #F3F7FD;
+  --brand-ink:  #1C3A6E;
+
+  --pass-solid: #59C78C;
+  --pass-soft:  #E6F6ED;
+  --pass-line:  #BCE9CE;
+  --pass-ink:   #14693F;
+
+  --fail-solid: #D74C4C;
+  --fail-soft:  #FBEAEA;
+  --fail-line:  #F2C9C9;
+  --fail-ink:   #A6332F;
+
+  --warn-solid: #FF8C00;
+  --warn-soft:  #FBF1DC;
+  --warn-line:  #EFD6A0;
+  --warn-ink:   #8A5A12;
+
+  --gold:       #FCD34D;
+  --gold-dark:  #E0A82E;
+
+  --canvas:     #EAEFF5;
+  --surface:    #FFFFFF;
+  --surface-2:  #F5F8FC;
+  --divider:    #E4EAF1;
+  --divider-2:  #EEF2F7;
+  --ink:        #14233B;
+  --ink-2:      #4C5A70;
+  --ink-3:      #8593A8;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-head: 'Manrope', sans-serif;
+  --font-mono: 'Roboto Mono', monospace;
+
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  --sh-1: 0 1px 3px rgba(20,35,59,0.06), 0 1px 2px rgba(20,35,59,0.04);
+  --sh-2: 0 4px 14px rgba(20,35,59,0.08);
+  --sh-3: 0 12px 32px rgba(20,35,59,0.16);
+
+  --fs-hero: 64px;
+  --fs-xl: 44px;
+  --fs-l: 32px;
+  --fs-m: 24px;
+  --fs-s: 18px;
+  --fs-body: 14px;
+  --fs-label: 12px;
+  --fs-micro: 11px;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: #09121F;
+  color: var(--ink);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ==========================================================================
+   TOP TRAINING NAVIGATION BAR
+   ========================================================================== */
+.trainer-bar {
+  background: rgba(15, 27, 49, 0.95);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  padding: 10px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.trainer-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-badge {
+  background: linear-gradient(135deg, #0056D2, #00B4D8);
+  color: #fff;
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 13px;
+  padding: 5px 12px;
+  border-radius: var(--r-sm);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brand-badge::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: #BBF7D0;
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+  0% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.3); opacity: 1; box-shadow: 0 0 8px #BBF7D0; }
+  100% { transform: scale(0.9); opacity: 0.8; }
+}
+
+.trainer-title {
+  color: #fff;
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.trainer-title small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #8E9FB8;
+  font-family: var(--font-mono);
+}
+
+/* TV Tabs */
+.tv-tabs {
+  display: flex;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  gap: 4px;
+}
+
+.tv-tab-btn {
+  background: transparent;
+  border: none;
+  color: #94A3B8;
+  font-family: var(--font-head);
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tv-tab-btn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+}
+
+.tv-tab-btn.active {
+  background: linear-gradient(135deg, var(--brand-600), var(--brand-500));
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(43,84,148,0.5);
+}
+
+.tv-tab-btn .tab-num {
+  font-family: var(--font-mono);
+  background: rgba(0,0,0,0.25);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* Action tools */
+.trainer-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-tool {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #E2E8F0;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btn-tool:hover {
+  background: rgba(255,255,255,0.2);
+  color: #fff;
+}
+
+.btn-tool.active-guide {
+  background: #FF8C00;
+  color: #fff;
+  border-color: #FFA500;
+  box-shadow: 0 0 12px rgba(255,140,0,0.5);
+}
+
+/* ==========================================================================
+   TRAINING STAGE CONTAINER & RESIZER
+   ========================================================================== */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  gap: 16px;
+}
+
+.banner-desc {
+  width: 100%;
+  max-width: 1560px;
+  background: linear-gradient(90deg, #112344, #1B3564);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: var(--r-md);
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: #E2E8F0;
+  font-size: 13px;
+}
+
+.banner-desc .left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.banner-desc .tv-cur-name {
+  font-family: var(--font-head);
+  font-weight: 800;
+  font-size: 16px;
+  color: #67E8F9;
+  letter-spacing: 0.02em;
+}
+
+.banner-desc .tv-cur-purpose {
+  color: #CBD5E1;
+  border-left: 2px solid rgba(255,255,255,0.2);
+  padding-left: 14px;
+}
+
+.banner-desc .hint {
+  color: #FCD34D;
+  font-weight: 600;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Viewport stage 1920x1080 scaled */
+.stage-outer {
+  width: 100%;
+  max-width: 1560px;
+  aspect-ratio: 16 / 9;
+  background: #0A1424;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1);
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.screen-container {
+  width: 1920px;
+  height: 1080px;
+  transform-origin: center center;
+  position: absolute;
+  background: var(--canvas);
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Base Stage Inner */
+.stage-inner {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 36px 40px;
+  gap: 20px;
+  background: var(--canvas);
+}
+
+/* ==========================================================================
+   SHARED HEADER (Cho cả 4 TV - Chuẩn XN2 & B_Line)
+   ========================================================================== */
+.hdr {
+  background: linear-gradient(120deg, var(--brand-900) 0%, var(--brand-700) 62%, var(--brand-600) 100%);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-2);
+  color: #fff;
+  display: grid;
+  grid-template-columns: auto 1px 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 28px;
+  min-height: 104px;
+  flex-shrink: 0;
+}
+
+.hdr-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-right: 12px;
+}
+.hdr-line .lk {
+  font-size: 12px;
+  letter-spacing: .12em;
+  opacity: .75;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+.hdr-line .lv {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 46px;
+  line-height: 1;
+}
+.hdr-line .style {
+  margin-top: 3px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #BBF7D0;
+}
+
+.hdr-div {
+  width: 1px;
+  height: 64px;
+  background: rgba(255,255,255,.18);
+}
+
+.hdr-fields {
+  display: grid;
+  grid-template-columns: repeat(6, auto);
+  justify-content: space-between;
+  gap: 20px;
+  align-items: center;
+}
+
+.fld {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.fld .k {
+  font-size: 12px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,.7);
+  font-weight: 600;
+}
+.fld .v {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1;
+}
+.fld .v.mono {
+  font-family: var(--font-mono);
+  letter-spacing: -.01em;
+}
+.fld .v.demand {
+  font-size: 22px;
+  color: #DDE7F8;
+}
+.fld .v.ok {
+  color: #FF8C00;
+}
+.fld .v.gold {
+  color: #FCD34D;
+}
+
+.hdr-clock {
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-left: 20px;
+  border-left: 1px solid rgba(255,255,255,.18);
+}
+.hdr-clock .date {
+  font-size: 14px;
+  color: rgba(255,255,255,.78);
+  font-weight: 500;
+}
+.hdr-clock .time {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 38px;
+  line-height: 1;
+  color: #fff;
+}
+
+/* ==========================================================================
+   INTERACTIVE TRAINING HOVER / TOOLTIP SYSTEM
+   ========================================================================== */
+.calc-target {
+  cursor: help;
+  position: relative;
+  transition: all 0.2s ease;
+  border-radius: var(--r-sm);
+}
+
+.calc-target:hover {
+  outline: 3px solid #F59E0B !important;
+  outline-offset: 3px;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.4) !important;
+}
+
+.guide-mode-on .calc-target {
+  position: relative;
+}
+.guide-mode-on .calc-target::after {
+  content: "i";
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: #F59E0B;
+  color: #000;
+  font-weight: 900;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  z-index: 50;
+  animation: bounce-icon 1.5s infinite;
+}
+
+@keyframes bounce-icon {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+/* Floating Detailed Tooltip Modal */
+#training-tooltip {
+  position: fixed;
+  z-index: 99999;
+  background: #0F172A;
+  color: #F8FAFC;
+  width: 440px;
+  border-radius: 14px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255,255,255,0.15);
+  padding: 18px 22px;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(10px) scale(0.98);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-family: var(--font-sans);
+}
+
+#training-tooltip.show {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+.tt-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 1px solid rgba(255,255,255,0.12);
+  padding-bottom: 10px;
+}
+
+.tt-title {
+  font-family: var(--font-head);
+  font-size: 16px;
+  font-weight: 800;
+  color: #38BDF8;
+}
+
+.tt-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: #1E293B;
+  color: #FCD34D;
+}
+
+.tt-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: #CBD5E1;
+}
+
+.tt-formula-box {
+  background: #1E293B;
+  border-left: 4px solid #F59E0B;
+  padding: 10px 14px;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tt-formula-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94A3B8;
+  font-weight: 700;
+}
+
+.tt-formula-math {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: #FDE047;
+  line-height: 1.35;
+}
+
+.tt-example {
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px dashed rgba(56, 189, 248, 0.3);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #BAE6FD;
+}
+
+.tt-example b {
+  color: #fff;
+}
+
+.tt-note {
+  font-size: 11px;
+  color: #94A3B8;
+  font-style: italic;
+}
+
+/* ==========================================================================
+   TV-1 STYLES (Sản lượng & Nhịp độ)
+   ========================================================================== */
+.tv1-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 348px;
+  gap: 20px;
+}
+.tv1-main {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+  min-height: 0;
+}
+.tv1-kpi {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  gap: 20px;
+}
+.card {
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-1);
+  overflow: hidden;
+}
+
+.sec-label {
+  font-size: var(--fs-label);
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.sec-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--divider);
+}
+
+.hero {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+}
+.hero .h-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.hero .h-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--brand-ink);
+}
+.hero .h-en {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.hero .pct-line {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-top: 6px;
+}
+.hero .pct {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 72px;
+  line-height: .85;
+  color: var(--pass-ink);
+}
+.hero .pct-tag {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--pass-soft);
+  color: var(--pass-ink);
+}
+.hero .h-rows {
+  display: flex;
+  gap: 32px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--divider);
+}
+.hero .h-rows .r .rk {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  color: var(--ink-3);
+}
+.hero .h-rows .r .rv {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--ink);
+  line-height: 1.1;
+}
+
+.bar {
+  height: 12px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: 16px;
+  border: 1px solid var(--divider);
+}
+.bar > i {
+  display: block;
+  height: 100%;
+  border-radius: var(--r-pill);
+  background: linear-gradient(90deg, #34D399, var(--pass-solid));
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+}
+.stat {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 8px;
+}
+.stat .s-k {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-ink);
+  line-height: 1.15;
+}
+.stat .s-en {
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.stat .s-mid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 6px;
+}
+.stat .s-pct {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 42px;
+  line-height: .9;
+}
+.stat .s-sub {
+  display: flex;
+  gap: 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider-2);
+}
+.stat .s-sub .ss {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+.stat .s-sub .ssk {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.stat .s-sub .ssv {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink-2);
+}
+
+.pct-chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--r-pill);
+}
+.fill-pass { background: var(--pass-soft); color: var(--pass-ink); }
+.fill-fail { background: var(--fail-soft); color: var(--fail-ink); }
+.c-pass { color: var(--pass-ink); }
+.c-fail { color: var(--fail-ink); }
+
+.hours-sec {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.hours {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 20px;
+  flex: 1;
+  min-height: 0;
+}
+.hour {
+  background: linear-gradient(158deg, var(--brand-700) 0%, var(--brand-900) 100%);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.hour .h-time {
+  background: rgba(255,255,255,.10);
+  color: #fff;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 26px;
+  text-align: center;
+  padding: 10px;
+}
+.hour .h-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  flex: 1;
+}
+.hour .hc {
+  padding: 10px 4px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+.hour .hc + .hc {
+  border-left: 1px solid rgba(255,255,255,.14);
+}
+.hour .hc:not(.act) { background: var(--surface); }
+.hour .hc:not(.act) .hk { color: var(--brand-500); }
+.hour .hc:not(.act) .hv { color: var(--brand-ink); }
+.hour .hc .hk { font-size: 12px; text-transform: uppercase; font-weight: 700; }
+.hour .hc .hv { font-family: var(--font-mono); font-weight: 700; font-size: 44px; line-height: 1; }
+.hour .hc.act.is-fail { background: var(--fail-solid); }
+.hour .hc.act.is-fail .hk { color: rgba(255,255,255,.85); }
+.hour .hc.act.is-fail .hv { color: #fff; }
+.hour .hc.act.is-pass { background: var(--pass-solid); }
+.hour .hc.act.is-pass .hk { color: rgba(11,61,36,.72); }
+.hour .hc.act.is-pass .hv { color: #0B3D24; }
+
+.rc {
+  background: var(--warn-soft);
+  border: 1px solid var(--warn-line);
+  border-left: 5px solid var(--warn-solid);
+  border-radius: var(--r-md);
+  padding: 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rc .rc-h {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--warn-ink);
+}
+.rc .rc-item {
+  display: flex;
+  gap: 16px;
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.ehd {
+  background: var(--surface);
+  border: 1px solid var(--divider);
+  border-radius: var(--r-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.ehd .e-head {
+  background: linear-gradient(120deg, var(--brand-800), var(--brand-600));
+  color: #fff;
+  padding: 14px 18px;
+}
+.ehd .e-head .t1 { font-size: 16px; font-weight: 700; }
+.ehd .e-head .t2 { font-size: 11px; opacity: .8; }
+.ehd .e-list {
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  overflow-y: auto;
+}
+.ehd .e-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: var(--r-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--divider-2);
+  border-left: 3px solid var(--pass-solid);
+}
+.ehd .e-po { font-family: var(--font-mono); font-weight: 700; font-size: 15px; color: var(--brand-ink); }
+.ehd .e-date { font-size: 11px; color: var(--ink-3); }
+.ehd .e-qty { font-family: var(--font-mono); font-weight: 700; font-size: 20px; color: var(--ink); text-align: right; }
+.ehd .e-total {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 18px;
+  border-top: 2px solid var(--divider);
+  background: var(--brand-tint);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--brand-ink);
+  text-transform: uppercase;
+}
+
+/* ==========================================================================
+   TV-2 STYLES (Cân bằng & Tiến độ 6 Cụm)
+   ========================================================================== */
+.tv2-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+}
+.clusters {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 20px;
+}
+.cl {
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 8px;
+}
+.cl .cl-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--brand-ink);
+  line-height: 1.25;
+  min-height: 54px;
+  max-height: 54px;
+  overflow: hidden;
+}
+.cl .cl-mid {
+  flex: 1;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.cl .cl-big {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 48px;
+  line-height: .9;
+}
+.cl .cl-unit {
+  font-size: 11px;
+  color: var(--ink-3);
+  text-transform: uppercase;
+}
+.cl .cl-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid var(--divider-2);
+}
+.cl .cl-sub .l { font-size: 13px; color: var(--ink-3); text-transform: uppercase; font-weight: 700; }
+.cl .cl-sub .v { font-family: var(--font-mono); font-weight: 800; font-size: 22px; color: var(--brand-ink); }
+
+.chartcard {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.panel-title {
+  margin: 16px 24px 0;
+  padding: 10px 16px;
+  font-family: var(--font-sans);
+  font-weight: 800;
+  font-size: 20px;
+  color: #fff;
+  background: var(--brand-700);
+  border-radius: var(--r-md);
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+}
+.chart {
+  flex: 1;
+  padding: 16px 24px 16px;
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: 1fr 70px;
+  min-height: 0;
+}
+.yax {
+  grid-column: 1;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  text-align: right;
+  padding-right: 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.plot {
+  grid-column: 2;
+  grid-row: 1;
+  position: relative;
+  border-left: 2px solid var(--divider);
+  border-bottom: 2px solid var(--divider);
+}
+.tline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 3px dashed #FF8C00;
+  z-index: 4;
+}
+.tlabel {
+  position: absolute;
+  right: 12px;
+  transform: translateY(-50%);
+  background: #FF8C00;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: var(--r-sm);
+}
+.bars {
+  position: absolute;
+  inset: 0 18px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 24px;
+  align-items: end;
+}
+.bw {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+.bar-cluster {
+  width: 76%;
+  border-radius: 8px 8px 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 12px;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 26px;
+  box-shadow: var(--sh-2);
+}
+.bar-ratio {
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,.2);
+  font-family: 'Inter', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+}
+.bar-cluster.pass { background: linear-gradient(180deg, #79D9A6 0%, var(--pass-solid) 100%); color: #0B3D24; }
+.bar-cluster.fail { background: linear-gradient(180deg, #E47C7C 0%, var(--fail-solid) 100%); color: #fff; }
+.xax {
+  grid-column: 2;
+  grid-row: 2;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 24px;
+  padding: 12px 18px 0;
+}
+.xl {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+/* ==========================================================================
+   TV-3 STYLES (QC Chất lượng & Lỗi may KCS)
+   ========================================================================== */
+.tv3-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.kpis-qc {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  height: 124px;
+  flex-shrink: 0;
+}
+.kp {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+.kp-head .k { font-size: 14px; font-weight: 700; color: var(--brand-ink); }
+.kp-head .en { font-size: 11px; color: var(--ink-3); }
+.kp-mid { display: flex; align-items: center; gap: 16px; }
+.kp-big { font-family: var(--font-mono); font-weight: 700; font-size: 46px; line-height: 1; }
+.main-qc {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.qc-box-left {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px;
+  gap: 14px;
+}
+.hourly-qc-bars {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 2px solid var(--divider);
+}
+.h-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 6px;
+}
+.h-bar-val {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--fail-ink);
+}
+.h-bar {
+  width: 100%;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(to top, #7A1A1A, #D74C4C);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.h-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-2);
+}
+
+.qc-box-right {
+  display: flex;
+  flex-direction: column;
+  padding: 18px 22px;
+  gap: 14px;
+}
+.top-errors {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.err-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  border-left: 4px solid var(--fail-solid);
+}
+.err-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.err-qty {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 20px;
+  color: var(--fail-ink);
+}
+
+/* ==========================================================================
+   TV-4 STYLES (Tiến độ Kế hoạch & Đường cong Năng suất)
+   ========================================================================== */
+.tv4-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.legend {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding: 10px 18px;
+}
+.legend .lh { font-size: 12px; font-weight: 700; color: var(--brand-ink); text-transform: uppercase; }
+.legend .li { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink-2); font-weight: 600; }
+.legend .sw { width: 18px; height: 18px; border-radius: 4px; }
+.legend .sw.pass { background: var(--pass-soft); border: 1px solid var(--pass-line); }
+.legend .sw.fail { background: var(--fail-soft); border: 1px solid var(--fail-line); }
+.legend .sw.gold { background: #FCD34D; }
+.legend .sw.current { background: var(--brand-tint); border: 2px solid var(--brand-500); }
+
+.day-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+}
+.day-tbl-wrap {
+  flex: 1;
+  overflow-x: auto;
+  min-height: 0;
+}
+.day-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+}
+.day-tbl th {
+  background: var(--brand-700);
+  color: #fff;
+  padding: 12px 6px;
+  font-size: 18px;
+  font-weight: 700;
+  border-right: 1px solid rgba(255,255,255,.12);
+}
+.day-tbl th.rowhead {
+  background: var(--brand-800);
+  text-align: left;
+  padding-left: 18px;
+  width: 220px;
+  font-size: 13px;
+  position: sticky;
+  left: 0;
+  z-index: 5;
+}
+.day-tbl th.d100 {
+  background: linear-gradient(180deg, #F4CB55, #E0A82E);
+  color: var(--brand-900);
+}
+.day-tbl th.current {
+  background: linear-gradient(180deg, var(--brand-500), var(--brand-700));
+  box-shadow: inset 0 -4px 0 #FCD34D;
+}
+.day-tbl td {
+  padding: 10px 6px;
+  border: 1px solid rgba(39, 67, 120, 0.08);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 20px;
+  vertical-align: middle;
+}
+.day-tbl td.rowname {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  text-align: left;
+  padding-left: 18px;
+  font-size: 15px;
+  font-family: var(--font-sans);
+  font-weight: 700;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+}
+.day-tbl td.pass-cell { background: var(--pass-soft); color: var(--pass-ink); }
+.day-tbl td.fail-cell { background: var(--fail-soft); color: var(--fail-ink); }
+.day-tbl td.target { color: #FF8C00; }
+
+/* ==========================================================================
+   FORMULA CHEAT SHEET MODAL (Bảng tra cứu công thức)
+   ========================================================================== */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 20, 36, 0.85);
+  backdrop-filter: blur(12px);
+  z-index: 20000;
+  display: none;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+.modal-backdrop.active {
+  display: flex;
+}
+.modal-content {
+  background: #0F172A;
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: var(--sh-3);
+  color: #F8FAFC;
+}
+.modal-hdr {
+  padding: 18px 24px;
+  background: #1E293B;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.modal-hdr h2 {
+  font-family: var(--font-head);
+  font-size: 18px;
+  color: #38BDF8;
+}
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.formula-card {
+  background: #1E293B;
+  border-radius: 10px;
+  padding: 16px;
+  border-left: 4px solid #38BDF8;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.formula-card h4 {
+  color: #FCD34D;
+  font-size: 15px;
+}
+.formula-card code {
+  font-family: var(--font-mono);
+  background: #0F172A;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #34D399;
+  font-size: 13px;
+  margin: 4px 0;
+}
+.formula-card p {
+  font-size: 13px;
+  color: #CBD5E1;
+  line-height: 1.4;
+}
+
+/* Footer info */
+.trainer-footer {
+  text-align: center;
+  color: #64748B;
+  font-size: 12px;
+  padding: 10px;
+}
+</style>
+</head>
+<body>
+
+<!-- TOP TRAINING NAVIGATION BAR -->
+<header class="trainer-bar">
+  <div class="trainer-brand">
+    <div class="brand-badge">Trực Quan Hóa Tivi</div>
+    <div class="trainer-title">
+      Hệ Thống Đào Tạo Chỉ Số 4 Màn Hình TV (XN2 &amp; Chuyền Bệt)
+      <small>Mã kế hoạch mẫu: flat:PL-351375-SS26-(12508) · Tổ L4</small>
+    </div>
+  </div>
+
+  <!-- Tabs chuyển đổi 4 TV -->
+  <nav class="tv-tabs" id="tvTabs">
+    <button class="tv-tab-btn active" onclick="switchTV(1)">
+      <span class="tab-num">TV-1</span> Tổng Quan Sản Lượng &amp; Nhịp Độ
+    </button>
+    <button class="tv-tab-btn" onclick="switchTV(2)">
+      <span class="tab-num">TV-2</span> Cân Bằng 6 Cụm May
+    </button>
+    <button class="tv-tab-btn" onclick="switchTV(3)">
+      <span class="tab-num">TV-3</span> Chất Lượng &amp; Lỗi KCS
+    </button>
+    <button class="tv-tab-btn" onclick="switchTV(4)">
+      <span class="tab-num">TV-4</span> Lộ Trình Ra Chuyền (Curve)
+    </button>
+  </nav>
+
+  <!-- Công cụ hỗ trợ đào tạo -->
+  <div class="trainer-actions">
+    <button class="btn-tool" id="btnGuideMode" onclick="toggleGuideMode()" title="Làm nổi bật các chỉ số có công thức">
+      💡 Chế độ Hướng Dẫn
+    </button>
+    <button class="btn-tool" onclick="openFormulaModal()">
+      📐 Tra Cứu Công Thức
+    </button>
+    <button class="btn-tool" id="btnAutoSlide" onclick="toggleAutoSlide()">
+      ▶ Trình Chiếu Auto (15s)
+    </button>
+  </div>
+</header>
+
+<!-- MAIN VIEWPORT -->
+<main class="main-wrapper">
+
+  <!-- Banner mô tả mục đích từng TV -->
+  <div class="banner-desc">
+    <div class="left">
+      <span class="tv-cur-name" id="bannerTVTitle">TV-1 · TỔNG QUAN TÌNH HÌNH SẢN XUẤT</span>
+      <span class="tv-cur-purpose" id="bannerTVPurpose">
+        Theo dõi tiến độ đơn hàng mẹ, sản lượng theo ngày, 5 khung giờ ca, nhịp độ Takt Time, hiệu suất OWE và kế hoạch xuất hàng PO.
+      </span>
+    </div>
+    <div class="hint">
+      <span>👉 Rê chuột vào bất kỳ ô số nào để xem công thức &amp; giải thích nghiệp vụ</span>
+    </div>
+  </div>
+
+  <!-- Khung Scale 1920x1080 -->
+  <div class="stage-outer" id="stageOuter">
+    <div class="screen-container" id="screenContainer">
+
+      <!-- ====================================================================
+           TV-1: TỔNG QUAN SẢN LƯỢNG & NHỊP ĐỘ (TAKT TIME)
+           ==================================================================== -->
+      <section class="stage-inner" id="view-tv1">
+        <!-- HEADER CHUNG -->
+        <div class="hdr">
+          <div class="hdr-line calc-target" data-tt="header-line">
+            <span class="lk">Tổ Sản Xuất</span>
+            <span class="lv">TỔ 4</span>
+            <span class="style">PL-351375-SS26 · 28 LĐ</span>
+          </div>
+          <div class="hdr-div"></div>
+          <div class="hdr-fields">
+            <div class="fld calc-target" data-tt="header-demand">
+              <span class="k">Số Đơn Hàng (Nhu Cầu Mẹ)</span>
+              <span class="v demand mono">PL-351375-SS26-(12508)</span>
+            </div>
+            <div class="fld">
+              <span class="k">Khách Hàng</span>
+              <span class="v">MONTANE</span>
+            </div>
+            <div class="fld calc-target" data-tt="header-firstday">
+              <span class="k">Ngày Rải Chuyền</span>
+              <span class="v mono">10-09-2026</span>
+            </div>
+            <div class="fld calc-target" data-tt="header-wip">
+              <span class="k">Bán Thành Phẩm (WIP)</span>
+              <span class="v mono">342 SP</span>
+            </div>
+            <div class="fld calc-target" data-tt="header-target">
+              <span class="k">Mục Tiêu Ngày</span>
+              <span class="v mono ok">480 SP</span>
+            </div>
+            <div class="fld">
+              <span class="k">Phân Loại ĐH</span>
+              <span class="v">Áo Khoác Nam (Cấp 2)</span>
+            </div>
+          </div>
+          <div class="hdr-clock">
+            <span class="date">22/09/2026 · Thứ Ba</span>
+            <span class="time" id="clock-tv1">15:30:45</span>
+          </div>
+        </div>
+
+        <!-- BODY TV-1 -->
+        <div class="tv1-body">
+          <div class="tv1-main">
+            <!-- Top KPI row -->
+            <div class="tv1-kpi">
+              <!-- Hero: Lũy kế tiến độ đơn hàng -->
+              <div class="card hero calc-target" data-tt="kpi-hero">
+                <div class="h-top">
+                  <span class="h-title">Tiến Độ Kế Hoạch Mẹ</span>
+                  <span class="h-en">Cumulative Progress</span>
+                </div>
+                <div class="pct-line">
+                  <span class="pct">82.4%</span>
+                  <span class="pct-tag">ĐẠT TIẾN ĐỘ</span>
+                </div>
+                <div class="bar">
+                  <i style="width: 82.4%;"></i>
+                </div>
+                <div class="h-rows">
+                  <div class="r">
+                    <span class="rk">Kế hoạch (SLKH)</span>
+                    <span class="rv">12,508</span>
+                  </div>
+                  <div class="r">
+                    <span class="rk">Lũy kế thực hiện</span>
+                    <span class="rv" style="color: var(--pass-ink);">10,306</span>
+                  </div>
+                  <div class="r">
+                    <span class="rk">Còn lại</span>
+                    <span class="rv">2,202</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5 Thẻ thống kê KPI -->
+              <div class="stats">
+                <div class="card stat calc-target" data-tt="kpi-dayqty">
+                  <div class="s-head">
+                    <span class="s-k">Sản Lượng Ngày</span>
+                    <span class="s-en">Day Output (BP)</span>
+                  </div>
+                  <div class="s-mid">
+                    <span class="s-pct c-pass">94.2%</span>
+                    <span class="pct-chip fill-pass">ĐẠT CHỈ TIÊU</span>
+                  </div>
+                  <div class="s-sub">
+                    <div class="ss"><span class="ssk">KH:</span><span class="ssv">480</span></div>
+                    <div class="ss"><span class="ssk">TH:</span><span class="ssv">452</span></div>
+                  </div>
+                </div>
+
+                <div class="card stat calc-target" data-tt="kpi-takt">
+                  <div class="s-head">
+                    <span class="s-k">Nhịp Độ (Takt Time)</span>
+                    <span class="s-en">Takt Time (sec)</span>
+                  </div>
+                  <div class="s-mid">
+                    <span class="s-pct c-pass">106%</span>
+                    <span class="pct-chip fill-pass">NHANH HƠN ĐM</span>
+                  </div>
+                  <div class="s-sub">
+                    <div class="ss"><span class="ssk">KH:</span><span class="ssv">61.5s</span></div>
+                    <div class="ss"><span class="ssk">TT:</span><span class="ssv">58.0s</span></div>
+                  </div>
+                </div>
+
+                <div class="card stat calc-target" data-tt="kpi-owe">
+                  <div class="s-head">
+                    <span class="s-k">Hiệu Suất OWE</span>
+                    <span class="s-en">Overall Efficiency</span>
+                  </div>
+                  <div class="s-mid">
+                    <span class="s-pct c-pass">78.5%</span>
+                    <span class="pct-chip fill-pass">MỤC TIÊU 75%</span>
+                  </div>
+                  <div class="s-sub">
+                    <div class="ss"><span class="ssk">SAM:</span><span class="ssv">28.5m</span></div>
+                    <div class="ss"><span class="ssk">LĐ:</span><span class="ssv">28</span></div>
+                  </div>
+                </div>
+
+                <div class="card stat calc-target" data-tt="kpi-defect">
+                  <div class="s-head">
+                    <span class="s-k">Tỉ Lệ Lỗi KCS</span>
+                    <span class="s-en">Defect Rate</span>
+                  </div>
+                  <div class="s-mid">
+                    <span class="s-pct c-pass">1.8%</span>
+                    <span class="pct-chip fill-pass">&le; 5.0% ĐẠT</span>
+                  </div>
+                  <div class="s-sub">
+                    <div class="ss"><span class="ssk">Lỗi:</span><span class="ssv">8</span></div>
+                    <div class="ss"><span class="ssk">Kiểm:</span><span class="ssv">452</span></div>
+                  </div>
+                </div>
+
+                <div class="card stat calc-target" data-tt="kpi-endday">
+                  <div class="s-head">
+                    <span class="s-k">Dự Báo Ra Chuyền</span>
+                    <span class="s-en">End Day Forecast</span>
+                  </div>
+                  <div class="s-mid">
+                    <span class="s-pct" style="font-size: 32px; color: var(--brand-ink);">26-09</span>
+                    <span class="pct-chip fill-pass">ĐÚNG HẠN KH</span>
+                  </div>
+                  <div class="s-sub">
+                    <div class="ss"><span class="ssk">KH:</span><span class="ssv">26-09</span></div>
+                    <div class="ss"><span class="ssk">Lệch:</span><span class="ssv">0 ngày</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 5 Khung giờ (Slots) -->
+            <div class="hours-sec">
+              <div class="sec-label">Theo Dõi 5 Khung Giờ Ca Sản Xuất (492 phút làm việc hữu ích)</div>
+              <div class="hours">
+                <!-- Slot 1 -->
+                <div class="hour calc-target" data-tt="slot-item">
+                  <div class="h-time">07:30 - 09:30</div>
+                  <div class="h-pair">
+                    <div class="hc"><span class="hk">Kế hoạch</span><span class="hv">108</span></div>
+                    <div class="hc act is-pass"><span class="hk">Thực tế</span><span class="hv">112</span></div>
+                  </div>
+                </div>
+                <!-- Slot 2 -->
+                <div class="hour calc-target" data-tt="slot-item">
+                  <div class="h-time">09:30 - 11:30</div>
+                  <div class="h-pair">
+                    <div class="hc"><span class="hk">Kế hoạch</span><span class="hv">117</span></div>
+                    <div class="hc act is-pass"><span class="hk">Thực tế</span><span class="hv">120</span></div>
+                  </div>
+                </div>
+                <!-- Slot 3 -->
+                <div class="hour calc-target" data-tt="slot-item">
+                  <div class="h-time">12:30 - 14:30</div>
+                  <div class="h-pair">
+                    <div class="hc"><span class="hk">Kế hoạch</span><span class="hv">117</span></div>
+                    <div class="hc act is-pass"><span class="hk">Thực tế</span><span class="hv">115</span></div>
+                  </div>
+                </div>
+                <!-- Slot 4 -->
+                <div class="hour calc-target" data-tt="slot-item">
+                  <div class="h-time">14:30 - 16:30</div>
+                  <div class="h-pair">
+                    <div class="hc"><span class="hk">Kế hoạch</span><span class="hv">108</span></div>
+                    <div class="hc act is-pass"><span class="hk">Thực tế</span><span class="hv">105</span></div>
+                  </div>
+                </div>
+                <!-- Slot 5 -->
+                <div class="hour calc-target" data-tt="slot-item">
+                  <div class="h-time">Sau 16:30</div>
+                  <div class="h-pair">
+                    <div class="hc"><span class="hk">Kế hoạch</span><span class="hv">30</span></div>
+                    <div class="hc act is-empty" style="background: rgba(255,255,255,0.05);"><span class="hk">Thực tế</span><span class="hv" style="color: rgba(255,255,255,0.4);">—</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Hành động khắc phục (HĐKP) -->
+            <div class="rc calc-target" data-tt="box-hdkp">
+              <div class="rc-h">⚠️ Ghi Nhận &amp; Hành Động Khắc Phục (HĐKP Tổ Trưởng)</div>
+              <div class="rc-item">
+                <span class="rc-t" style="font-weight:700; color:var(--warn-ink);">Mốc 14:30:</span>
+                <span>Cụm 3 (Tra tay) đứt chỉ liên tục do đổi cuộn chỉ mới $\rightarrow$ Tổ trưởng đã chỉnh lại sức căng đồng tiền máy may trạm 8, chuyền ổn định lại lúc 14:50.</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cột PO / Kế hoạch xuất hàng (EHD) -->
+          <div class="ehd calc-target" data-tt="box-po">
+            <div class="e-head">
+              <div class="t1">Kế Hoạch PO / EHD</div>
+              <div class="t2">Early Handling Date &amp; Order Qty</div>
+            </div>
+            <div class="e-list">
+              <div class="e-item">
+                <div>
+                  <div class="e-po">PO-883491-A</div>
+                  <div class="e-date">EHD: 24/09/2026 (Anh Quốc)</div>
+                </div>
+                <div class="e-qty">4,500 <small>ÁO</small></div>
+              </div>
+              <div class="e-item">
+                <div>
+                  <div class="e-po">PO-883492-B</div>
+                  <div class="e-date">EHD: 27/09/2026 (Đức)</div>
+                </div>
+                <div class="e-qty">4,000 <small>ÁO</small></div>
+              </div>
+              <div class="e-item">
+                <div>
+                  <div class="e-po">PO-883493-C</div>
+                  <div class="e-date">EHD: 30/09/2026 (Nhật Bản)</div>
+                </div>
+                <div class="e-qty">4,008 <small>ÁO</small></div>
+              </div>
+            </div>
+            <div class="e-total">
+              <span>Tổng SL Đơn Mẹ</span>
+              <span class="mono">12,508 <small>SP</small></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TV-2: CÂN BẰNG 6 CỤM MAY & BIỂU ĐỒ SẢN LƯỢNG
+           ==================================================================== -->
+      <section class="stage-inner" id="view-tv2" style="display: none;">
+        <!-- HEADER CHUNG -->
+        <div class="hdr">
+          <div class="hdr-line">
+            <span class="lk">Tổ Sản Xuất</span>
+            <span class="lv">TỔ 4</span>
+            <span class="style">PL-351375-SS26 · 28 LĐ</span>
+          </div>
+          <div class="hdr-div"></div>
+          <div class="hdr-fields">
+            <div class="fld"><span class="k">Số Đơn Hàng</span><span class="v demand mono">PL-351375-SS26-(12508)</span></div>
+            <div class="fld"><span class="k">Khách Hàng</span><span class="v">MONTANE</span></div>
+            <div class="fld"><span class="k">Rải Chuyền</span><span class="v mono">10-09-2026</span></div>
+            <div class="fld"><span class="k">Lao Động</span><span class="v mono">28 LĐ</span></div>
+            <div class="fld calc-target" data-tt="tv2-target-slot"><span class="k">Mục Tiêu Đến Mốc</span><span class="v mono ok">450 SP</span></div>
+          </div>
+          <div class="hdr-clock">
+            <span class="date">22/09/2026 · Thứ Ba</span>
+            <span class="time" id="clock-tv2">15:30:45</span>
+          </div>
+        </div>
+
+        <!-- BODY TV-2 -->
+        <div class="tv2-body">
+          <!-- 6 Thẻ Cụm Trạm -->
+          <div class="clusters">
+            <!-- Cụm 1 -->
+            <div class="card cl calc-target" data-tt="tv2-cl-card">
+              <div class="cl-name">CỤM 1 · THÂN TRƯỚC (May túi, mổ cơi)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--pass-ink);">470</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,520</span>
+              </div>
+            </div>
+
+            <!-- Cụm 2 -->
+            <div class="card cl calc-target" data-tt="tv2-cl-card">
+              <div class="cl-name">CỤM 2 · THÂN SAU (Chắp đô, may ly)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--pass-ink);">465</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,480</span>
+              </div>
+            </div>
+
+            <!-- Cụm 3 -->
+            <div class="card cl calc-target" data-tt="tv2-cl-card">
+              <div class="cl-name">CỤM 3 · TAY ÁO (May bo, tra nẹp)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--fail-ink);">430</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,210</span>
+              </div>
+            </div>
+
+            <!-- Cụm 4 -->
+            <div class="card cl calc-target" data-tt="tv2-cl-card">
+              <div class="cl-name">CỤM 4 · CỔ ÁO (Ép keo, tra cổ)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--pass-ink);">455</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,400</span>
+              </div>
+            </div>
+
+            <!-- Cụm 5 -->
+            <div class="card cl calc-target" data-tt="tv2-cl-card">
+              <div class="cl-name">CỤM 5 · LẮP RÁP (Vào tay, chắp sườn)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--pass-ink);">458</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,380</span>
+              </div>
+            </div>
+
+            <!-- Cụm 6 (KCS) -->
+            <div class="card cl calc-target" data-tt="tv2-cl-kcs" style="border: 2px solid var(--brand-500); background: var(--brand-tint);">
+              <div class="cl-name" style="color: var(--brand-600);">CỤM 6 · KCS KIỂM ĐẠT (Ra chuyền)</div>
+              <div class="cl-mid">
+                <span class="cl-big" style="color: var(--pass-ink);">452</span>
+                <span class="cl-unit">SP</span>
+              </div>
+              <div class="cl-sub">
+                <span class="l">Lũy kế:</span>
+                <span class="v">10,306</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Biểu đồ cột Cân bằng 6 Cụm May -->
+          <div class="card chartcard calc-target" data-tt="tv2-chartcard">
+            <div class="panel-title">📊 BIỂU ĐỒ CÂN BẰNG SẢN LƯỢNG 6 CỤM SO VỚI MỤC TIÊU MỐC (450 SP)</div>
+            <div class="chart">
+              <div class="yax">
+                <span>0</span>
+                <span>100</span>
+                <span>200</span>
+                <span>300</span>
+                <span>400</span>
+                <span>500</span>
+              </div>
+              <div class="plot">
+                <!-- Đường mục tiêu -->
+                <div class="tline" style="bottom: 90%;">
+                  <span class="tlabel">Mục tiêu mốc: 450 SP</span>
+                </div>
+
+                <div class="bars">
+                  <!-- Cột 1: 470 SP (104.4%) -->
+                  <div class="bw">
+                    <div class="bar-cluster pass" style="height: 94%;">
+                      <span class="bar-main">470</span>
+                      <span class="bar-ratio">104.4%</span>
+                    </div>
+                  </div>
+                  <!-- Cột 2: 465 SP (103.3%) -->
+                  <div class="bw">
+                    <div class="bar-cluster pass" style="height: 93%;">
+                      <span class="bar-main">465</span>
+                      <span class="bar-ratio">103.3%</span>
+                    </div>
+                  </div>
+                  <!-- Cột 3: 430 SP (95.5%) -> Fail -->
+                  <div class="bw">
+                    <div class="bar-cluster fail" style="height: 86%;">
+                      <span class="bar-main">430</span>
+                      <span class="bar-ratio">95.5%</span>
+                    </div>
+                  </div>
+                  <!-- Cột 4: 455 SP (101.1%) -->
+                  <div class="bw">
+                    <div class="bar-cluster pass" style="height: 91%;">
+                      <span class="bar-main">455</span>
+                      <span class="bar-ratio">101.1%</span>
+                    </div>
+                  </div>
+                  <!-- Cột 5: 458 SP (101.8%) -->
+                  <div class="bw">
+                    <div class="bar-cluster pass" style="height: 92%;">
+                      <span class="bar-main">458</span>
+                      <span class="bar-ratio">101.8%</span>
+                    </div>
+                  </div>
+                  <!-- Cột 6 (KCS): 452 SP (100.4%) -->
+                  <div class="bw">
+                    <div class="bar-cluster pass" style="height: 90.4%;">
+                      <span class="bar-main">452</span>
+                      <span class="bar-ratio">100.4%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="xax">
+                <div class="xl">Cụm 1: Thân trước</div>
+                <div class="xl">Cụm 2: Thân sau</div>
+                <div class="xl" style="color: var(--fail-ink);">Cụm 3: Tay áo (Nghẽn)</div>
+                <div class="xl">Cụm 4: Cổ áo</div>
+                <div class="xl">Cụm 5: Lắp ráp</div>
+                <div class="xl" style="color: var(--brand-ink);">Cụm 6: KCS Ra Chuyền</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TV-3: CHẤT LƯỢNG & THỐNG KÊ LỖI KCS (QLCL INTEGRATION)
+           ==================================================================== -->
+      <section class="stage-inner" id="view-tv3" style="display: none;">
+        <!-- HEADER CHUNG -->
+        <div class="hdr">
+          <div class="hdr-line">
+            <span class="lk">Tổ Sản Xuất</span>
+            <span class="lv">TỔ 4</span>
+            <span class="style">PL-351375-SS26 · QC Dashboard</span>
+          </div>
+          <div class="hdr-div"></div>
+          <div class="hdr-fields">
+            <div class="fld"><span class="k">Số Đơn Hàng</span><span class="v demand mono">PL-351375-SS26-(12508)</span></div>
+            <div class="fld"><span class="k">Khách Hàng</span><span class="v">MONTANE</span></div>
+            <div class="fld"><span class="k">Tiêu Chuẩn Lỗi Max</span><span class="v mono" style="color:#FCD34D;">&le; 5.0%</span></div>
+            <div class="fld"><span class="k">Nguồn Dữ Liệu</span><span class="v" style="color:#BBF7D0;">Hệ thống QLCL</span></div>
+          </div>
+          <div class="hdr-clock">
+            <span class="date">22/09/2026 · Thứ Ba</span>
+            <span class="time" id="clock-tv3">15:30:45</span>
+          </div>
+        </div>
+
+        <!-- BODY TV-3 -->
+        <div class="tv3-body">
+          <!-- Top 4 Thẻ KPI QC -->
+          <div class="kpis-qc">
+            <div class="card kp calc-target" data-tt="tv3-tongkiem">
+              <div class="kp-head">
+                <span class="k">Tổng Kiểm Tra</span>
+                <span class="en">Total Inspected</span>
+              </div>
+              <div class="kp-mid">
+                <span class="kp-big" style="color: var(--brand-ink);">460</span>
+                <span class="chip" style="background: var(--divider);">100% SP</span>
+              </div>
+            </div>
+
+            <div class="card kp calc-target" data-tt="tv3-tongdat">
+              <div class="kp-head">
+                <span class="k">Kiểm Đạt (Pass)</span>
+                <span class="en">Total Passed</span>
+              </div>
+              <div class="kp-mid">
+                <span class="kp-big" style="color: var(--pass-ink);">452</span>
+                <span class="chip pass">98.2%</span>
+              </div>
+            </div>
+
+            <div class="card kp calc-target" data-tt="tv3-tongloi">
+              <div class="kp-head">
+                <span class="k">Sản Phẩm Lỗi</span>
+                <span class="en">Defective Items</span>
+              </div>
+              <div class="kp-mid">
+                <span class="kp-big" style="color: var(--fail-ink);">8</span>
+                <span class="chip fail">8 LỖI PHÁT SINH</span>
+              </div>
+            </div>
+
+            <div class="card kp calc-target" data-tt="tv3-tyloi">
+              <div class="kp-head">
+                <span class="k">Tỉ Lệ Lỗi Ca (%)</span>
+                <span class="en">Defect Rate</span>
+              </div>
+              <div class="kp-mid">
+                <span class="kp-big" style="color: var(--pass-ink);">1.74%</span>
+                <span class="chip pass">ĐẠT CHỈ TIÊU &le;5%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Main 2 Cột: Biểu đồ theo giờ & Phân tích lỗi Pareto -->
+          <div class="main-qc">
+            <!-- Cột trái: Tỉ lệ lỗi theo 5 Khung Giờ Ca -->
+            <div class="card qc-box-left calc-target" data-tt="tv3-hourly-chart">
+              <div class="sec-label" style="margin-bottom:0;">Biểu Đồ Tỉ Lệ Lỗi KCS Theo 5 Khung Giờ Ca</div>
+              <div class="hourly-qc-bars">
+                <!-- Slot 1 -->
+                <div class="h-col">
+                  <span class="h-bar-val">1.8% (2)</span>
+                  <div class="h-bar" style="height: 36%;"></div>
+                  <span class="h-lbl">07:30-09:30</span>
+                </div>
+                <!-- Slot 2 -->
+                <div class="h-col">
+                  <span class="h-bar-val">0.8% (1)</span>
+                  <div class="h-bar" style="height: 16%;"></div>
+                  <span class="h-lbl">09:30-11:30</span>
+                </div>
+                <!-- Slot 3 -->
+                <div class="h-col">
+                  <span class="h-bar-val">1.7% (2)</span>
+                  <div class="h-bar" style="height: 34%;"></div>
+                  <span class="h-lbl">12:30-14:30</span>
+                </div>
+                <!-- Slot 4 (Tăng nhẹ do đứt chỉ) -->
+                <div class="h-col">
+                  <span class="h-bar-val" style="color: var(--fail-solid);">2.8% (3)</span>
+                  <div class="h-bar" style="height: 56%; background: var(--fail-solid);"></div>
+                  <span class="h-lbl" style="color: var(--fail-ink);">14:30-16:30</span>
+                </div>
+                <!-- Slot 5 -->
+                <div class="h-col">
+                  <span class="h-bar-val">0%</span>
+                  <div class="h-bar" style="height: 4%; background: var(--divider);"></div>
+                  <span class="h-lbl">Sau 16:30</span>
+                </div>
+              </div>
+              <div style="font-size: 12px; color: var(--ink-3); display: flex; justify-content: space-between;">
+                <span>Ngưỡng cảnh báo đỏ: &gt; 5.0%</span>
+                <span>Số trong ngoặc là (Số sản phẩm lỗi)</span>
+              </div>
+            </div>
+
+            <!-- Cột phải: Top 3 Mã Lỗi & Bộ phận phát sinh -->
+            <div class="card qc-box-right calc-target" data-tt="tv3-top-errors">
+              <div class="sec-label" style="margin-bottom:0;">Top 3 Dạng Lỗi KCS Nhiều Nhất Trong Ca</div>
+              <div class="top-errors">
+                <div class="err-row">
+                  <div>
+                    <div class="err-name">1. ĐỨT CHỈ / BỎ MŨI (Mã: E01 - May sườn, tra tay)</div>
+                    <div style="font-size: 12px; color: var(--ink-3);">Bộ phận gây lỗi: Cụm 3 (Công đoạn máy 1 kim)</div>
+                  </div>
+                  <div class="err-qty">4 <small>LỖI</small></div>
+                </div>
+
+                <div class="err-row">
+                  <div>
+                    <div class="err-name">2. LỆCH MÍ / NHĂN DIỄU CỔ (Mã: E04 - Tra cổ áo)</div>
+                    <div style="font-size: 12px; color: var(--ink-3);">Bộ phận gây lỗi: Cụm 4 (May cổ)</div>
+                  </div>
+                  <div class="err-qty">2 <small>LỖI</small></div>
+                </div>
+
+                <div class="err-row">
+                  <div>
+                    <div class="err-name">3. BẨN DẦU MÁY (Mã: E12 - Bán thành phẩm)</div>
+                    <div style="font-size: 12px; color: var(--ink-3);">Bộ phận gây lỗi: Cụm 1 (Mổ cơi túi)</div>
+                  </div>
+                  <div class="err-qty">2 <small>LỖI</small></div>
+                </div>
+              </div>
+
+              <!-- Cảnh báo chất lượng -->
+              <div class="rc" style="margin-top: auto; padding: 8px 14px;">
+                <div class="rc-h" style="font-size: 11px;">HÀNH ĐỘNG QC CHUYỀN</div>
+                <div style="font-size: 12px;">Đã kiểm tra lại áp lực chân vịt và thay kim số 11 tại trạm tra tay 8 để triệt tiêu lỗi bỏ mũi.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ====================================================================
+           TV-4: LỘ TRÌNH RA CHUYỀN & ĐƯỜNG CONG NĂNG SUẤT (LEARNING CURVE)
+           ==================================================================== -->
+      <section class="stage-inner" id="view-tv4" style="display: none;">
+        <!-- HEADER CHUNG -->
+        <div class="hdr">
+          <div class="hdr-line">
+            <span class="lk">Tổ Sản Xuất</span>
+            <span class="lv">TỔ 4</span>
+            <span class="style">PL-351375-SS26 · Lộ Trình Ra Chuyền</span>
+          </div>
+          <div class="hdr-div"></div>
+          <div class="hdr-fields">
+            <div class="fld"><span class="k">Tổng Kế Hoạch (SLKH)</span><span class="v mono gold">12,508 SP</span></div>
+            <div class="fld calc-target" data-tt="tv4-dmkt"><span class="k">Định Mức Kỹ Thuật (ĐMKT)</span><span class="v mono">18.5 SP/LĐ</span></div>
+            <div class="fld calc-target" data-tt="tv4-ndsx"><span class="k">Nhịp Độ NĐSX Chuẩn</span><span class="v mono ok">57.0 Giây (Cấp 2)</span></div>
+            <div class="fld"><span class="k">Lao Động Biên Chế</span><span class="v mono">28 Lao Động</span></div>
+          </div>
+          <div class="hdr-clock">
+            <span class="date">22/09/2026 · Thứ Ba</span>
+            <span class="time" id="clock-tv4">15:30:45</span>
+          </div>
+        </div>
+
+        <!-- BODY TV-4 -->
+        <div class="tv4-body">
+          <!-- Legend chú thích -->
+          <div class="card legend">
+            <span class="lh">Chú Thích Bảng Lộ Trình:</span>
+            <div class="li"><span class="sw pass"></span> Đạt / Vượt Kế Hoạch Ngày</div>
+            <div class="li"><span class="sw fail"></span> Chưa Đạt Kế Hoạch</div>
+            <div class="li"><span class="sw gold"></span> Cột Mốc Đạt 100% Đường Cong (★)</div>
+            <div class="li"><span class="sw current"></span> Ngày Sản Xuất Hiện Tại</div>
+          </div>
+
+          <!-- Bảng chi tiết Lộ Trình Theo Ngày -->
+          <div class="card day-card">
+            <div class="day-tbl-wrap">
+              <table class="day-tbl">
+                <thead>
+                  <tr>
+                    <th class="rowhead">Chỉ Số Theo Ngày</th>
+                    <th>Ngày 1<br><small>10/09</small></th>
+                    <th>Ngày 2<br><small>11/09</small></th>
+                    <th>Ngày 3<br><small>12/09</small></th>
+                    <th>Ngày 4<br><small>15/09</small></th>
+                    <th>Ngày 5<br><small>16/09</small></th>
+                    <th>Ngày 6<br><small>17/09</small></th>
+                    <th class="d100">Ngày 7 ★<br><small>18/09 (100%)</small></th>
+                    <th>Ngày 8<br><small>19/09</small></th>
+                    <th>Ngày 9<br><small>21/09</small></th>
+                    <th class="current">Ngày 10 (Hôm nay)<br><small>22/09</small></th>
+                    <th>Ngày 11<br><small>23/09</small></th>
+                    <th>Ngày 12<br><small>24/09</small></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <!-- Lao động -->
+                  <tr class="calc-target" data-tt="tv4-row-workers">
+                    <td class="rowname">Lao Động (LĐ)<small>Số thợ may trên chuyền</small></td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td>28</td>
+                    <td style="background: rgba(60,104,174,0.15); color: var(--brand-ink);">28</td>
+                    <td style="color: var(--ink-3);">28</td>
+                    <td style="color: var(--ink-3);">28</td>
+                  </tr>
+
+                  <!-- Tỷ lệ đường cong (%) -->
+                  <tr class="calc-target" data-tt="tv4-row-curve">
+                    <td class="rowname">Đường Cong (% Curve)<small>Học tập nâng dần năng suất</small></td>
+                    <td>35%</td>
+                    <td>50%</td>
+                    <td>65%</td>
+                    <td>75%</td>
+                    <td>85%</td>
+                    <td>95%</td>
+                    <td style="background: #FEFAF0; color: var(--gold-dark); font-weight: 800;">100% ★</td>
+                    <td>100%</td>
+                    <td>100%</td>
+                    <td style="background: rgba(60,104,174,0.15); font-weight: 800;">100%</td>
+                    <td style="color: var(--ink-3);">100%</td>
+                    <td style="color: var(--ink-3);">100%</td>
+                  </tr>
+
+                  <!-- Mục tiêu ngày -->
+                  <tr class="calc-target" data-tt="tv4-row-target">
+                    <td class="rowname">Mục Tiêu Ngày (Target)<small>Sản lượng cần ra chuyền</small></td>
+                    <td class="target">181</td>
+                    <td class="target">259</td>
+                    <td class="target">337</td>
+                    <td class="target">389</td>
+                    <td class="target">440</td>
+                    <td class="target">492</td>
+                    <td class="target" style="font-weight: 800; background: #FEFAF0;">518</td>
+                    <td class="target">518</td>
+                    <td class="target">518</td>
+                    <td class="target" style="background: rgba(60,104,174,0.15);">480</td>
+                    <td class="target" style="color: var(--ink-3);">518</td>
+                    <td class="target" style="color: var(--ink-3);">518</td>
+                  </tr>
+
+                  <!-- Thực tế ngày -->
+                  <tr class="calc-target" data-tt="tv4-row-actual">
+                    <td class="rowname">Thực Tế Ra Chuyền<small>Sản lượng KCS kiểm đạt</small></td>
+                    <td class="pass-cell">190</td>
+                    <td class="pass-cell">270</td>
+                    <td class="fail-cell">320</td>
+                    <td class="pass-cell">405</td>
+                    <td class="pass-cell">450</td>
+                    <td class="pass-cell">500</td>
+                    <td class="pass-cell" style="font-weight: 800;">525</td>
+                    <td class="pass-cell">520</td>
+                    <td class="pass-cell">515</td>
+                    <td class="pass-cell" style="background: var(--pass-soft); color: var(--pass-ink); font-size: 22px;">452</td>
+                    <td style="color: var(--ink-3); background: var(--surface-2);">—</td>
+                    <td style="color: var(--ink-3); background: var(--surface-2);">—</td>
+                  </tr>
+
+                  <!-- Tỷ lệ hoàn thành % -->
+                  <tr class="calc-target" data-tt="tv4-row-pct">
+                    <td class="rowname">% Đạt Kế Hoạch<small>Thực tế / Mục tiêu</small></td>
+                    <td class="pass-cell">105.0%</td>
+                    <td class="pass-cell">104.2%</td>
+                    <td class="fail-cell">95.0%</td>
+                    <td class="pass-cell">104.1%</td>
+                    <td class="pass-cell">102.3%</td>
+                    <td class="pass-cell">101.6%</td>
+                    <td class="pass-cell" style="font-weight: 800;">101.4%</td>
+                    <td class="pass-cell">100.4%</td>
+                    <td class="pass-cell">99.4%</td>
+                    <td class="pass-cell" style="font-weight: 800; font-size: 22px;">94.2%</td>
+                    <td style="color: var(--ink-3); background: var(--surface-2);">—</td>
+                    <td style="color: var(--ink-3); background: var(--surface-2);">—</td>
+                  </tr>
+
+                  <!-- Lũy kế thực tế -->
+                  <tr class="calc-target" data-tt="tv4-row-cum">
+                    <td class="rowname">Lũy Kế Thực Hiện<small>Tổng tích lũy đến ngày</small></td>
+                    <td>190</td>
+                    <td>460</td>
+                    <td>780</td>
+                    <td>1,185</td>
+                    <td>1,635</td>
+                    <td>2,135</td>
+                    <td style="background: #FEFAF0; font-weight: 800;">2,660</td>
+                    <td>3,180</td>
+                    <td>3,695</td>
+                    <td style="background: rgba(60,104,174,0.15); color: var(--pass-ink); font-size: 22px;">10,306</td>
+                    <td style="color: var(--ink-3);">—</td>
+                    <td style="color: var(--ink-3);">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <div class="trainer-footer">
+    Hệ thống Dashboard Chuyền Treo &amp; Chuyền Bệt · Triển khai chuẩn hoá theo kiến trúc XN2 &amp; b_line
+  </div>
+</main>
+
+<!-- FLOATING TOOLTIP TRAINING MODAL -->
+<div id="training-tooltip">
+  <div class="tt-head">
+    <div class="tt-title" id="ttTitle">Tên Chỉ Số</div>
+    <div class="tt-badge" id="ttBadge">TV-1 · KPI</div>
+  </div>
+  <div class="tt-desc" id="ttDesc">
+    Ý nghĩa giải thích nghiệp vụ của chỉ số trong sản xuất may công nghiệp.
+  </div>
+  <div class="tt-formula-box">
+    <div class="tt-formula-label">📐 Công Thức Tính Toán (Code Logic)</div>
+    <div class="tt-formula-math" id="ttFormula">Công thức toán học</div>
+  </div>
+  <div class="tt-example" id="ttExample">
+    <b>Ví dụ thực tế:</b> 452 / 480 * 100 = 94.2%
+  </div>
+  <div class="tt-note" id="ttNote">
+    💡 Ghi chú: Logic xử lý trong file app/queries.py và app/tv.py
+  </div>
+</div>
+
+<!-- FORMULA CHEAT SHEET MODAL -->
+<div class="modal-backdrop" id="formulaModal" onclick="closeFormulaModal(event)">
+  <div class="modal-content" onclick="event.stopPropagation()">
+    <div class="modal-hdr">
+      <h2>📐 Bảng Tra Cứu Toàn Bộ Công Thức 4 Màn Hình TV</h2>
+      <button class="btn-tool" onclick="closeFormulaModal()">✕ Đóng</button>
+    </div>
+    <div class="modal-body">
+      <!-- TV-1 -->
+      <div class="formula-card">
+        <h4>1. TV-1: Nhịp Độ Sản Xuất (Takt Time / NĐSX)</h4>
+        <code>Takt_KH (giây) = 29520 / Kế_Hoạch_Ngày</code>
+        <code>Takt_TT (giây) = Số_Giây_Làm_Việc_Đã_Qua / Sản_Lượng_Thực_Tế</code>
+        <p>• 29,520 giây = 8 giờ 12 phút = 492 phút làm việc hữu ích (đã trừ 2 lần nghỉ giữa ca 9 phút).<br>
+           • Tỷ lệ nhịp độ % = (Takt_KH / Takt_TT) * 100%. Nếu Takt thực tế nhanh hơn kế hoạch thì tỷ lệ > 100% (Màu Xanh PASS).</p>
+      </div>
+
+      <!-- TV-1 OWE -->
+      <div class="formula-card">
+        <h4>2. TV-1: Hiệu Suất Tổng Thể (OWE - Overall Worker Efficiency)</h4>
+        <code>OWE (%) = (SAM * Sản_Lượng_BP) / (Số_Phút_Đã_Qua * Tổng_Lao_Động) * 100%</code>
+        <p>• SAM: Thời gian định mức kỹ thuật để may xong 1 sản phẩm (Standard Allowed Minutes).<br>
+           • Sản lượng BP: Số lượng sản phẩm quy đổi theo hệ thống MES (StRole = 13 & IsLastSeq = 1).</p>
+      </div>
+
+      <!-- TV-1 Slots -->
+      <div class="formula-card">
+        <h4>3. TV-1: Phân Bổ 5 Khung Giờ Ca (Slots)</h4>
+        <code>Slot 1: 07:30 - 09:30 (111 phút, trừ 9m nghỉ giải lao 09:00 - 09:09)</code>
+        <code>Slot 2: 09:30 - 11:30 (120 phút)</code>
+        <code>Slot 3: 12:30 - 14:30 (120 phút)</code>
+        <code>Slot 4: 14:30 - 16:30 (111 phút, trừ 9m nghỉ giải lao 15:00 - 15:09)</code>
+        <code>Slot 5: Sau 16:30 (30 phút chính ca đến 17:00 + tăng ca)</code>
+        <p>Tổng thời gian làm việc chuẩn cả ngày = 111 + 120 + 120 + 111 + 30 = 492 phút.</p>
+      </div>
+
+      <!-- TV-2 -->
+      <div class="formula-card">
+        <h4>4. TV-2: Cân Bằng Cụm & Cụm Nút Thắt Cổ Chai (Bottleneck)</h4>
+        <code>Tỷ Lệ Cụm (%) = (Sản_Lượng_Cụm_Thực_Tế / Mục_Tiêu_Đến_Mốc) * 100%</code>
+        <p>• 6 Cụm trạm may phản ánh tiến độ từ Thân trước, Thân sau, Tay áo, Cổ áo, Lắp ráp đến KCS Kiểm đạt.<br>
+           • Cụm có tỷ lệ thấp nhất chính là điểm nghẽn (Bottleneck) làm chậm dòng chảy của cả chuyền.</p>
+      </div>
+
+      <!-- TV-3 -->
+      <div class="formula-card">
+        <h4>5. TV-3: Tỉ Lệ Chất Lượng QC & Lỗi May KCS</h4>
+        <code>Tổng_Kiểm = Tổng_Đạt (Pass) + Tổng_Lỗi (Defects)</code>
+        <code>Tỉ_Lệ_Lỗi (%) = (Tổng_Lỗi / Tổng_Kiểm) * 100%</code>
+        <p>• Ngưỡng mục tiêu tiêu chuẩn xưởng may: Tỉ lệ lỗi phải &le; 5.0%. Dữ liệu tích hợp tự động từ phần mềm Quản Lý Chất Lượng (QLCL).</p>
+      </div>
+
+      <!-- TV-4 -->
+      <div class="formula-card">
+        <h4>6. TV-4: Kế Hoạch Theo Ngày & Đường Cong Năng Suất (Learning Curve)</h4>
+        <code>Mục_Tiêu_Ngày_n = ĐMKT * Lao_Động_Ngày_n * (Tỷ_Lệ_Curve_n / 100)</code>
+        <p>• Đường cong học tập năng suất tăng dần: 35% &rarr; 50% &rarr; 65% &rarr; 75% &rarr; 85% &rarr; 95% &rarr; 100% (Ngày đạt 100% định mức ★).<br>
+           • Bỏ qua Chủ nhật và các ngày nghỉ lễ khi tính chu kỳ ngày làm việc (Workday Index).</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==========================================================================
+   JAVASCRIPT: SCALE VIEWPORT, DATA DICTIONARY & INTERACTIVE TOOLTIP
+   ========================================================================== -->
+<script>
+/* 1. AUTO RESIZE / SCALE VIEWPORT KHỚP VỚI KHUNG 16:9 */
+function resizeStage() {
+  const outer = document.getElementById('stageOuter');
+  const container = document.getElementById('screenContainer');
+  if (!outer || !container) return;
+
+  const w = outer.clientWidth;
+  const h = outer.clientHeight;
+  const scale = Math.min(w / 1920, h / 1080);
+  container.style.transform = `scale(${scale})`;
+}
+window.addEventListener('resize', resizeStage);
+window.addEventListener('load', resizeStage);
+
+/* 2. CHUYỂN ĐỔI MÀN HÌNH GIỮA 4 TV */
+let currentTV = 1;
+const TV_INFO = {
+  1: {
+    title: 'TV-1 · TỔNG QUAN TÌNH HÌNH SẢN XUẤT',
+    purpose: 'Theo dõi tiến độ đơn hàng mẹ, sản lượng theo ngày, 5 khung giờ ca, nhịp độ Takt Time, hiệu suất OWE và kế hoạch xuất hàng PO.'
+  },
+  2: {
+    title: 'TV-2 · CÂN BẰNG TIẾN ĐỘ 6 CỤM MAY',
+    purpose: 'Trực quan hóa sản lượng qua 6 cụm trạm công đoạn may, nhận diện trạm thắt nút cổ chai (Bottleneck) so với mục tiêu mốc.'
+  },
+  3: {
+    title: 'TV-3 · CHI TIẾT TỈ LỆ CHẤT LƯỢNG & QC KCS',
+    purpose: 'Thống kê tỷ lệ lỗi may theo 5 khung giờ, phân tích bộ phận gây lỗi, Top 3 mã lỗi KCS và các hành động kiểm soát chất lượng.'
+  },
+  4: {
+    title: 'TV-4 · LỘ TRÌNH RA CHUYỀN & ĐƯỜNG CONG NĂNG SUẤT',
+    purpose: 'Theo dõi tiến độ đơn hàng qua từng ngày theo đường cong học tập (Learning Curve), mốc 100% định mức kỹ thuật và dự báo về đích.'
+  }
+};
+
+function switchTV(tvId) {
+  currentTV = tvId;
+
+  // Ẩn tất cả views
+  for (let i = 1; i <= 4; i++) {
+    const view = document.getElementById(`view-tv${i}`);
+    if (view) view.style.display = (i === tvId) ? 'flex' : 'none';
+  }
+
+  // Cập nhật tabs
+  const tabBtns = document.querySelectorAll('.tv-tab-btn');
+  tabBtns.forEach((btn, idx) => {
+    btn.classList.toggle('active', (idx + 1) === tvId);
+  });
+
+  // Cập nhật banner
+  document.getElementById('bannerTVTitle').textContent = TV_INFO[tvId].title;
+  document.getElementById('bannerTVPurpose').textContent = TV_INFO[tvId].purpose;
+}
+
+/* 3. ĐỒNG HỒ REALTIME TRÊN HEADER */
+function updateClocks() {
+  const now = new Date();
+  const timeStr = now.toTimeString().split(' ')[0];
+  for (let i = 1; i <= 4; i++) {
+    const el = document.getElementById(`clock-tv${i}`);
+    if (el) el.textContent = timeStr;
+  }
+}
+setInterval(updateClocks, 1000);
+updateClocks();
+
+/* 4. CHẾ ĐỘ HƯỚNG DẪN (GUIDE MODE) */
+let isGuideMode = false;
+function toggleGuideMode() {
+  isGuideMode = !isGuideMode;
+  document.body.classList.toggle('guide-mode-on', isGuideMode);
+  const btn = document.getElementById('btnGuideMode');
+  if (btn) {
+    btn.classList.toggle('active-guide', isGuideMode);
+    btn.innerHTML = isGuideMode ? '⚡ Đang Bật Hướng Dẫn' : '💡 Chế độ Hướng Dẫn';
+  }
+}
+
+/* 5. TỰ ĐỘNG TRÌNH CHIẾU SLIDESHOW (TV GALLERY MODE) */
+let autoSlideTimer = null;
+function toggleAutoSlide() {
+  const btn = document.getElementById('btnAutoSlide');
+  if (autoSlideTimer) {
+    clearInterval(autoSlideTimer);
+    autoSlideTimer = null;
+    btn.innerHTML = '▶ Trình Chiếu Auto (15s)';
+    btn.style.background = '';
+  } else {
+    btn.innerHTML = '⏸ Đang Chiếu Auto (15s)';
+    btn.style.background = '#22C55E';
+    autoSlideTimer = setInterval(() => {
+      let nextTV = (currentTV % 4) + 1;
+      switchTV(nextTV);
+    }, 15000);
+  }
+}
+
+/* 6. MODAL CÔNG THỨC */
+function openFormulaModal() {
+  document.getElementById('formulaModal').classList.add('active');
+}
+function closeFormulaModal(e) {
+  if (e && e.target !== e.currentTarget && e.target.tagName !== 'BUTTON') return;
+  document.getElementById('formulaModal').classList.remove('active');
+}
+
+/* 7. DICTIONARY DỮ LIỆU & POPUP TOOLTIP CHI TIẾT */
+const TRAINING_DATA = {
+  "header-line": {
+    title: "Tổ Sản Xuất & Lao Động",
+    badge: "Header Chung",
+    desc: "Tổ may thực tế (Line) đang sản xuất mã hàng và số lượng lao động (thợ may) phân bổ trong chuyền.",
+    formula: "Lấy từ bảng app.tPlanMaster hoặc tab Rải chuyền trong Google Sheets",
+    example: "Tổ 4 với 28 lao động may trực tiếp.",
+    note: "Số thợ may ảnh hưởng trực tiếp đến nhịp độ và mục tiêu sản lượng ngày."
+  },
+  "header-demand": {
+    title: "Số Đơn Hàng / Nhu Cầu Mẹ",
+    badge: "Header Chung",
+    desc: "Mã định danh đơn hàng gốc của khách hàng (Nhu Cầu Mẹ), có thể được chia thành nhiều nhu cầu con trên từng tổ.",
+    formula: "Format: PL-[Mã hàng]-[Mùa]-([Tổng số lượng])",
+    example: "PL-351375-SS26-(12508) &rarr; Mã 351375, Mùa SS26, SLKH = 12,508 áo.",
+    note: "Được đồng bộ tự động từ hệ thống kế hoạch sản xuất xưởng may."
+  },
+  "header-firstday": {
+    title: "Ngày Rải Chuyền (First Hang Date)",
+    badge: "Header Chung",
+    desc: "Ngày bắt đầu đưa nguyên phụ liệu / bán thành phẩm vào chuyền may để khởi động đơn hàng.",
+    formula: "FirstHangDate = Ngày ca làm việc đầu tiên ghi nhận bán thành phẩm",
+    example: "Rải chuyền ngày 10/09/2026, làm căn cứ tính số ngày làm việc theo đường cong năng suất.",
+    note: "Chủ nhật và các ngày nghỉ lễ được tự động loại trừ."
+  },
+  "header-wip": {
+    title: "Bán Thành Phẩm Trên Chuyền (WIP)",
+    badge: "Header Chung",
+    desc: "Work In Progress: Tổng số lượng chi tiết bán thành phẩm đang luân chuyển giữa các trạm may trên chuyền.",
+    formula: "WIP = Tổng đầu vào Cụm 1 - Tổng đầu ra KCS Cụm 6",
+    example: "WIP hiện tại = 342 sản phẩm trên chuyền.",
+    note: "WIP quá cao gây ứ đọng vốn; WIP quá thấp gây đứt chuyền thợ ngồi chờ hàng."
+  },
+  "header-target": {
+    title: "Mục Tiêu Sản Lượng Ngày",
+    badge: "TV-1 · KPI",
+    desc: "Số lượng sản phẩm KCS kiểm đạt cần hoàn thành trong ngày làm việc hôm nay.",
+    formula: "Target_Day = ĐMKT * Lao_Động * Tỷ_Lệ_Đường_Cong_Ngày",
+    example: "Target = 18.5 SP/LĐ * 28 LĐ * 100% = 480 SP/ngày (khi đã đạt 100% curve).",
+    note: "Được tính tự động dựa trên ngày thứ N của mã hàng theo đường cong học tập."
+  },
+  "kpi-hero": {
+    title: "Tiến Độ Kế Hoạch Mẹ (Cumulative %)",
+    badge: "TV-1 · Hero KPI",
+    desc: "Tỷ lệ phần trăm hoàn thành đơn hàng mẹ tính từ ngày rải chuyền đầu tiên đến thời điểm hiện tại.",
+    formula: "% Đạt = (Lũy_Kế_Thực_Hiện / Tổng_SLKH) * 100%",
+    example: "(10,306 SP / 12,508 SP) * 100% = 82.4% (Còn lại 2,202 SP).",
+    note: "Nguồn sự thật sản lượng: Trạm chốt kiểm tra StRole = 13 & IsLastSeq = 1."
+  },
+  "kpi-dayqty": {
+    title: "Sản Lượng Ngày & % Đạt Chỉ Tiêu",
+    badge: "TV-1 · Thống Kê",
+    desc: "So sánh sản lượng thành phẩm may ra chuyền trong ngày so với mục tiêu kế hoạch đề ra.",
+    formula: "% Đạt Ngày = (Sản_Lượng_Thực_Tế_Ngày / Mục_Tiêu_Ngày) * 100%",
+    example: "(452 SP / 480 SP) * 100% = 94.2% (Đạt tiêu chuẩn ca).",
+    note: "Sản lượng được tính theo đơn vị quy đổi BP của hệ thống chuyền."
+  },
+  "kpi-takt": {
+    title: "Nhịp Độ Sản Xuất (Takt Time)",
+    badge: "TV-1 · Thống Kê",
+    desc: "Thời gian bình quân (giây) để hoàn thành 1 sản phẩm ra khỏi dây chuyền may.",
+    formula: "Takt_KH = 29520 / KH_Ngày | Takt_TT = Giây_Làm_Việc_Đã_Qua / Sản_Lượng_TT",
+    example: "KH = 29520s / 480 SP = 61.5s/SP. Thực tế = 58.0s/SP &rarr; Hiệu suất 106% (Nhanh hơn định mức).",
+    note: "29,520 giây = 492 phút làm việc hữu ích đã trừ 18 phút nghỉ giải lao."
+  },
+  "kpi-owe": {
+    title: "Hiệu Suất Tổng Thể (OWE)",
+    badge: "TV-1 · Thống Kê",
+    desc: "Overall Worker Efficiency: Đo lường mức độ tận dụng thời gian lao động so với định mức may chuẩn (SAM).",
+    formula: "OWE (%) = (SAM * Sản_Lượng_BP) / (Phút_Đã_Làm * Tổng_Lao_Động) * 100%",
+    example: "(28.5 phút * 452 SP) / (410 phút * 28 LĐ) * 100% = 78.5% (Mục tiêu chuẩn &ge;75%).",
+    note: "SAM (Standard Allowed Minutes) là thời gian chuẩn may 1 áo do phòng kỹ thuật ban hành."
+  },
+  "kpi-defect": {
+    title: "Tỉ Lệ Lỗi KCS Kiểm Tra",
+    badge: "TV-1 · Thống Kê",
+    desc: "Tỷ lệ sản phẩm bị lỗi trong tổng số sản phẩm được KCS kiểm tra tại trạm cuối.",
+    formula: "% Lỗi = (Số_Sản_Phẩm_Lỗi / Tổng_Sản_Phẩm_Kiểm_Tra) * 100%",
+    example: "(8 lỗi / 460 kiểm) * 100% = 1.74% (Mục tiêu &le; 5.0% - Đạt Xanh).",
+    note: "Dữ liệu được đồng bộ từ hệ thống QLCL trung tâm."
+  },
+  "kpi-endday": {
+    title: "Dự Báo Ngày Kết Thúc Đơn Hàng",
+    badge: "TV-1 · Thống Kê",
+    desc: "Dự báo ngày hoàn tất toàn bộ số lượng đơn hàng mẹ dựa trên năng suất thực tế hiện tại.",
+    formula: "Ngày hoàn tất = Ngày hiện tại + (SL_Còn_Lại / Năng_Suất_Bình_Quân_Ngày)",
+    example: "Dự kiến kết thúc: 26/09/2026 (Trùng khớp 100% kế hoạch giao hàng).",
+    note: "Tự động trừ ngày Chủ nhật và ngày lễ xí nghiệp."
+  },
+  "slot-item": {
+    title: "Khung Giờ Ca Làm Việc (Slot)",
+    badge: "TV-1 · Khung Giờ",
+    desc: "Theo dõi sản lượng mục tiêu và thực tế trong từng khoảng thời gian ca làm việc.",
+    formula: "Ca ngày chia làm 5 Slot: 111m, 120m, 120m, 111m, 30m = 492 phút.",
+    example: "Slot 07:30 - 09:30: Kế hoạch 108 SP, Thực tế đạt 112 SP &rarr; PASS (Xanh).",
+    note: "Giúp tổ trưởng phát hiện sớm tình trạng tụt sản lượng ngay trong từng 2 tiếng."
+  },
+  "box-hdkp": {
+    title: "Hành Động Khắc Phục (HĐKP / CAPAction)",
+    badge: "TV-1 · Vận Hành",
+    desc: "Ghi nhận nguyên nhân gốc rễ và hành động xử lý trực tiếp tại chuyền khi có sự cố phát sinh.",
+    formula: "Nhập trực tiếp từ giao diện tổ trưởng (/entry) hoặc cột HĐKP Google Sheet",
+    example: "Xử lý đứt chỉ trạm tra tay 8 bằng cách chỉnh lại sức căng chỉ và thay kim số 11.",
+    note: "Lưu vết để họp rút kinh nghiệm ca và cải tiến chuyền may."
+  },
+  "box-po": {
+    title: "Kế Hoạch Xuất Hàng (PO & EHD)",
+    badge: "TV-1 · Xuất Hàng",
+    desc: "Danh sách Purchase Order (PO), số lượng đặt và ngày xuất hàng cam kết (Early Handling Date).",
+    formula: "Tổng số lượng các PO = Tổng số lượng Kế hoạch mẹ (12,508 SP)",
+    example: "PO-883491-A: 4,500 SP xuất ngày 24/09 sang thị trường Anh.",
+    note: "Ưu tiên may cuốn chiếu theo thứ tự ngày EHD gần nhất."
+  },
+  "tv2-target-slot": {
+    title: "Mục Tiêu Đến Mốc Thời Gian (Target to Slot)",
+    badge: "TV-2 · Cân Bằng",
+    desc: "Sản lượng kế hoạch cần đạt được tính đến khung giờ hiện tại của ca làm việc.",
+    formula: "Target_Slot = Target_Cả_Ngày * (Phút_Đã_Trôi_Qua / 492 phút)",
+    example: "Đến 15:30 (khoảng 380 phút làm việc) mục tiêu mốc là 450 SP.",
+    note: "Dùng làm đường kẻ tham chiếu màu cam trên biểu đồ 6 cụm."
+  },
+  "tv2-cl-card": {
+    title: "Sản Lượng Cụm Công Đoạn May",
+    badge: "TV-2 · Cụm Trạm",
+    desc: "Sản lượng bán thành phẩm đi qua từng cụm công đoạn chuyên biệt trong ngày và lũy kế.",
+    formula: "Sản lượng cụm lấy từ lần scan thẻ công đoạn tại trạm chốt cụm",
+    example: "Cụm 1 Thân trước = 470 SP; Cụm 3 Tay áo = 430 SP.",
+    note: "Cụm có sản lượng thấp hơn mục tiêu mốc (Màu đỏ) là cụm đang bị nghẽn (Bottleneck)."
+  },
+  "tv2-cl-kcs": {
+    title: "Cụm 6: KCS Kiểm Đạt (Hàng Ra Chuyền)",
+    badge: "TV-2 · Thành Phẩm",
+    desc: "Cụm cuối cùng của dây chuyền may: Kiểm tra chất lượng và chốt sản lượng thành phẩm hoàn chỉnh.",
+    formula: "StRole = 13 AND IsLastSeq = 1 (Công thức vàng tính sản lượng ra chuyền)",
+    example: "Hôm nay Cụm 6 đạt 452 SP &rarr; Bằng chính xác sản lượng ngày của TV-1.",
+    note: "Nguồn sự thật duy nhất cho sản lượng thành phẩm xuất xưởng."
+  },
+  "tv2-chartcard": {
+    title: "Biểu Đồ Cột Cân Bằng 6 Cụm May",
+    badge: "TV-2 · Biểu Đồ",
+    desc: "Trực quan hóa so sánh sản lượng 6 cụm so với đường mục tiêu mốc (450 SP).",
+    formula: "Tỷ lệ % = (Sản_Lượng_Cụm / 450 SP) * 100%",
+    example: "Cụm 1 đạt 104.4% (Xanh), Cụm 3 chỉ đạt 95.5% (Đỏ - Cần tăng cường thợ hỗ trợ).",
+    note: "Giúp quản đốc điều phối thợ may hỗ trợ giữa các cụm để cân bằng chuyền."
+  },
+  "tv3-tongkiem": {
+    title: "Tổng Số Sản Phẩm Kiểm Tra (Total Inspected)",
+    badge: "TV-3 · Chất Lượng",
+    desc: "Tổng số lượng sản phẩm được nhân viên KCS kiểm tra tại trạm kiểm định chất lượng.",
+    formula: "Tổng Kiểm = Tổng Đạt (Pass) + Tổng Lỗi (Defects)",
+    example: "452 đạt + 8 lỗi = 460 sản phẩm được kiểm tra.",
+    note: "Tỷ lệ kiểm tra đạt 100% sản lượng ra chuyền."
+  },
+  "tv3-tongdat": {
+    title: "Sản Phẩm Kiểm Đạt (Passed Items)",
+    badge: "TV-3 · Chất Lượng",
+    desc: "Số lượng sản phẩm may đạt đầy đủ tiêu chuẩn kỹ thuật của khách hàng, được dán tem Pass.",
+    formula: "Sản phẩm kiểm tra lần 1 không có lỗi hoặc đã sửa chữa đạt",
+    example: "452 sản phẩm kiểm đạt, chiếm 98.26% tổng số kiểm.",
+    note: "Khớp đúng với số lượng ghi nhận tại Cụm 6 (TV-2) và TV-1."
+  },
+  "tv3-tongloi": {
+    title: "Số Lượng Lỗi Phát Sinh (Defects)",
+    badge: "TV-3 · Chất Lượng",
+    desc: "Tổng số lượt phát hiện khuyết tật may trong quá trình KCS kiểm tra tại chuyền.",
+    formula: "Đếm tổng số lượt ghi nhận lỗi trên app QLCL",
+    example: "Ghi nhận 8 lỗi trong ngày.",
+    note: "Các sản phẩm lỗi được trả về trạm công nhân may tương ứng để sửa lại."
+  },
+  "tv3-tyloi": {
+    title: "Tỉ Lệ Lỗi KCS Ca (% Defect Rate)",
+    badge: "TV-3 · Chất Lượng",
+    desc: "Chỉ số đánh giá chất lượng tay nghề và độ ổn định của thiết bị máy móc trên chuyền.",
+    formula: "Tỉ Lệ Lỗi = (Tổng_Lỗi / Tổng_Kiểm) * 100%",
+    example: "(8 lỗi / 460 kiểm) * 100% = 1.74% (Đạt tiêu chuẩn &le; 5.0%).",
+    note: "Nếu vượt quá 5.0%, hệ thống tự động đổi sang màu đỏ cảnh báo."
+  },
+  "tv3-hourly-chart": {
+    title: "Biểu Đồ Tỉ Lệ Lỗi Theo 5 Khung Giờ",
+    badge: "TV-3 · Biểu Đồ",
+    desc: "Theo dõi biến động lỗi phát sinh trong từng khung giờ làm việc của ca.",
+    formula: "% Lỗi Slot = (Số lỗi trong slot / Số kiểm trong slot) * 100%",
+    example: "Slot 14:30 - 16:30 tăng lên 2.8% do đứt chỉ tại trạm tra tay 8.",
+    note: "Giúp cán bộ kỹ thuật và bảo trì can thiệp kịp thời đúng thời điểm phát sinh sự cố."
+  },
+  "tv3-top-errors": {
+    title: "Top Dạng Lỗi & Phân Tích Pareto",
+    badge: "TV-3 · Pareto",
+    desc: "Thống kê những dạng lỗi xuất hiện nhiều nhất để tập trung nguồn lực xử lý dứt điểm.",
+    formula: "Sắp xếp số lượng lỗi giảm dần theo mã lỗi KCS",
+    example: "Top 1: Đứt chỉ (4 lỗi); Top 2: Lệch mí cổ (2 lỗi); Top 3: Bẩn dầu (2 lỗi).",
+    note: "Chiếm hơn 80% tổng số lỗi phát sinh trên toàn dây chuyền."
+  },
+  "tv4-dmkt": {
+    title: "Định Mức Kỹ Thuật (ĐMKT)",
+    badge: "TV-4 · Định Mức",
+    desc: "Năng suất tiêu chuẩn ban hành cho 1 lao động may trong 1 ngày làm việc chuẩn (8.2 giờ).",
+    formula: "ĐMKT = 29,520 giây / (SAM_Giây / Hệ_Số_Hiệu_Quả)",
+    example: "18.5 sản phẩm/lao động/ngày đối với mã hàng áo khoác PL-351375.",
+    note: "Là căn cứ để tính toán mục tiêu sản lượng từng ngày theo đường cong học tập."
+  },
+  "tv4-ndsx": {
+    title: "Nhịp Độ Sản Xuất Chuẩn (NĐSX)",
+    badge: "TV-4 · Định Mức",
+    desc: "Thời gian tiêu chuẩn để một sản phẩm hoàn thành đi qua một vị trí công việc.",
+    formula: "NĐSX (giây) = 29520 / (Lao_Động_Biên_Chế * ĐMKT)",
+    example: "29520 / (28 LĐ * 18.5) = 57.0 giây &rarr; Xếp Cấp 2 (Nhịp độ từ 45s - 120s).",
+    note: "Cấp 1: >120s; Cấp 2: 45-120s; Cấp 3: <45s (mã may nhanh)."
+  },
+  "tv4-row-workers": {
+    title: "Lao Động Phân Bổ Theo Ngày",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Số lượng công nhân may thực tế làm việc trên chuyền trong từng ngày sản xuất.",
+    formula: "Ghi nhận theo báo cáo điểm danh đầu ca",
+    example: "Duy trì ổn định 28 lao động may suốt quá trình triển khai mã hàng.",
+    note: "Biến động lao động sẽ làm thay đổi mục tiêu sản lượng của ngày đó."
+  },
+  "tv4-row-curve": {
+    title: "Đường Cong Học Tập Năng Suất (Learning Curve %)",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Tỷ lệ tăng dần hiệu suất theo thời gian khi công nhân làm quen với công đoạn may mới.",
+    formula: "Ngày 1 (35%) &rarr; Ngày 2 (50%) &rarr; Ngày 3 (65%) &rarr; Ngày 7 (100% ★)",
+    example: "Ngày 7 (18/09) là cột mốc đạt 100% công suất thiết kế chuẩn.",
+    note: "Mã hàng phức tạp có đường cong học tập dài ngày hơn mã hàng cơ bản."
+  },
+  "tv4-row-target": {
+    title: "Mục Tiêu Sản Lượng Ngày (Target)",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Sản lượng kế hoạch giao cho tổ may trong từng ngày làm việc cụ thể.",
+    formula: "Target = ĐMKT * Lao_Động * Tỷ_Lệ_Đường_Cong",
+    example: "Ngày 1: 18.5 * 28 * 35% = 181 SP &rarr; Ngày 7 (100%): 518 SP.",
+    note: "Mục tiêu nâng dần theo từng ngày giúp tổ trưởng và công nhân có lộ trình phấn đấu rõ ràng."
+  },
+  "tv4-row-actual": {
+    title: "Thực Tế Sản Lượng Ra Chuyền Theo Ngày",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Sản lượng thành phẩm thực tế may xong và được KCS nghiệm thu trong từng ngày.",
+    formula: "Tổng số lượng KCS kiểm đạt trong ca làm việc của ngày đó",
+    example: "Ngày 1 đạt 190 SP (vượt kế hoạch); Ngày 3 đạt 320 SP (chưa đạt); Hôm nay đạt 452 SP.",
+    note: "Ô nền Xanh là Đạt/Vượt; Ô nền Đỏ là Chưa đạt chỉ tiêu ngày."
+  },
+  "tv4-row-pct": {
+    title: "Tỷ Lệ % Đạt Kế Hoạch Ngày",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Tỷ số giữa sản lượng thực tế ra chuyền so với mục tiêu kế hoạch của ngày đó.",
+    formula: "% Đạt = (Thực_Tế / Mục_Tiêu) * 100%",
+    example: "Ngày 1 đạt 105.0% (Vượt); Ngày 3 đạt 95.0% (Thiếu 17 SP); Hôm nay đạt 94.2%.",
+    note: "Giúp đánh giá độ ổn định và khả năng bám sát tiến độ của tổ may."
+  },
+  "tv4-row-cum": {
+    title: "Lũy Kế Sản Lượng Thực Hiện",
+    badge: "TV-4 · Lộ Trình",
+    desc: "Tổng số sản phẩm tích lũy từ ngày đầu tiên rải chuyền đến hết ngày báo cáo.",
+    formula: "Lũy_Kế_Ngày_n = Lũy_Kế_Ngày_(n-1) + Thực_Tế_Ngày_n",
+    example: "Đến hôm nay ngày 10, tổ đã hoàn thành lũy kế 10,306 áo / 12,508 áo kế hoạch.",
+    note: "Dùng để so sánh với đường cong kế hoạch lũy kế toàn đơn hàng."
+  }
+};
+
+/* 8. XỬ LÝ SỰ KIỆN HOVER ĐỂ HIỆN TOOLTIP */
+const tooltip = document.getElementById('training-tooltip');
+const targets = document.querySelectorAll('.calc-target');
+
+targets.forEach(target => {
+  target.addEventListener('mouseenter', (e) => {
+    const key = target.getAttribute('data-tt');
+    const data = TRAINING_DATA[key];
+    if (!data) return;
+
+    document.getElementById('ttTitle').textContent = data.title;
+    document.getElementById('ttBadge').textContent = data.badge;
+    document.getElementById('ttDesc').textContent = data.desc;
+    document.getElementById('ttFormula').textContent = data.formula;
+    document.getElementById('ttExample').innerHTML = `<b>Ví dụ thực tế:</b> ${data.example}`;
+    document.getElementById('ttNote').innerHTML = `💡 ${data.note}`;
+
+    positionTooltip(e);
+    tooltip.classList.add('show');
+  });
+
+  target.addEventListener('mousemove', (e) => {
+    positionTooltip(e);
+  });
+
+  target.addEventListener('mouseleave', () => {
+    tooltip.classList.remove('show');
+  });
+});
+
+function positionTooltip(e) {
+  const pad = 16;
+  let x = e.clientX + pad;
+  let y = e.clientY + pad;
+
+  const ttWidth = 440;
+  const ttHeight = tooltip.offsetHeight || 300;
+
+  if (x + ttWidth > window.innerWidth - 20) {
+    x = e.clientX - ttWidth - pad;
+  }
+  if (y + ttHeight > window.innerHeight - 20) {
+    y = e.clientY - ttHeight - pad;
+  }
+
+  tooltip.style.left = `${Math.max(10, x)}px`;
+  tooltip.style.top = `${Math.max(10, y)}px`;
+}
+</script>
+</body>
+</html>

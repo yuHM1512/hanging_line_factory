@@ -2,43 +2,153 @@
 {% block title %}Đăng nhập · Hanging Conveyor Dashboard{% endblock %}
 
 {% block content %}
-<link rel="stylesheet" href="/static/css/admin.css">
+<style>
+  .login-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 1.5rem;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(0, 24, 72, 0.10), transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(0, 86, 210, 0.06), transparent 40%),
+      var(--surface);
+  }
+
+  .login-card {
+    width: min(100%, 400px);
+    background: var(--surface-container-lowest);
+    border-radius: 1.5rem;
+    padding: 2.5rem 2rem 2rem;
+    box-shadow: 0 24px 64px rgba(0, 24, 72, 0.08);
+    text-align: center;
+  }
+
+  .login-logo {
+    display: block;
+    max-height: 100px;
+    margin: 0 auto 1.5rem;
+  }
+
+  .login-title {
+    margin: 0 0 0.25rem;
+    font-family: "Manrope", sans-serif;
+    font-size: clamp(1.5rem, 4vw, 1.85rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--on-surface);
+  }
+
+  .login-subtitle {
+    margin: 0 0 1.75rem;
+    font-size: 0.88rem;
+    color: var(--on-surface-variant);
+  }
+
+  .login-input {
+    display: block;
+    width: 100%;
+    min-height: 3.2rem;
+    padding: 0.85rem 1rem;
+    background: var(--surface-container-low);
+    border: none;
+    border-radius: 1rem;
+    font: inherit;
+    font-size: 1rem;
+    color: var(--on-surface);
+    text-align: center;
+    transition: background 0.15s, box-shadow 0.15s;
+  }
+
+  .login-input::placeholder {
+    color: var(--outline);
+  }
+
+  .login-input:focus {
+    outline: none;
+    background: var(--surface-container-lowest);
+    box-shadow: 0 0 0 2px rgba(0, 24, 72, 0.25);
+  }
+
+  .login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.55rem;
+    width: 100%;
+    min-height: 3.2rem;
+    margin-top: 0.85rem;
+    padding: 0.8rem 1.5rem;
+    border: none;
+    border-radius: 1rem;
+    background: linear-gradient(135deg, var(--primary), var(--primary-container));
+    color: var(--on-primary);
+    font: inherit;
+    font-family: "Manrope", sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.1s;
+    box-shadow: 0 8px 24px rgba(0, 24, 72, 0.18);
+  }
+
+  .login-btn:hover { filter: brightness(1.1); }
+  .login-btn:active { transform: translateY(1px); }
+
+  .login-hint {
+    margin: 1.25rem 0 0;
+    font-size: 0.82rem;
+    color: var(--on-surface-variant);
+  }
+
+  .login-error {
+    min-height: 1.4rem;
+    margin: 0.85rem 0 0;
+    color: var(--error);
+    font-weight: 600;
+    font-size: 0.88rem;
+  }
+
+  .login-footer {
+    margin-top: 1.5rem;
+    padding-top: 1.25rem;
+    font-size: 0.78rem;
+    color: var(--outline);
+  }
+
+  .login-footer strong {
+    color: var(--on-surface-variant);
+  }
+</style>
 
 <main class="login-shell">
-  <section class="login-panel">
-    <div class="login-brand">
-      <span class="brand-mark"></span>
-      <div>
-        <p class="login-eyebrow">Hanging Conveyor</p>
-        <h1>Đăng nhập hệ thống</h1>
-      </div>
-    </div>
+  <section class="login-card">
+    <img src="/static/img/logo.png" alt="HACHIBA" class="login-logo">
 
-    <p class="login-copy">
-      Dùng <strong>admin</strong> để vào khu vực set up.
-      Tổ trưởng đăng nhập bằng mã nhân viên để vào màn hình nhập liệu.
-    </p>
+    <h1 class="login-title">Hanging Conveyor</h1>
+    <p class="login-subtitle">Hệ thống quản lý sản xuất chuyền treo XN2</p>
 
-    <form id="login-form" class="login-stack">
-      <label class="field">
-        <span class="field-label">Tài khoản</span>
-        <input id="login-user-id" type="text" name="UserID" autocomplete="username" placeholder="Ví dụ: admin hoặc H3724" required />
-      </label>
-      <button class="btn btn-primary login-submit" type="submit">Đăng nhập</button>
+    <form id="login-form">
+      <input
+        id="login-user-id"
+        class="login-input"
+        type="text"
+        name="UserID"
+        autocomplete="username"
+        placeholder="Nhập mã nhân viên"
+        required
+      />
+      <button class="login-btn" type="submit">
+        <span class="material-symbols-outlined">login</span>
+        Đăng nhập
+      </button>
     </form>
 
-    <div class="login-role-grid">
-      <article class="login-role-card">
-        <h2>Admin</h2>
-        <p>Quản lý nhu cầu, 6 cụm, SAM, tài khoản và cấu hình dashboard.</p>
-      </article>
-      <article class="login-role-card">
-        <h2>Tổ trưởng</h2>
-        <p>Nhập liệu Lỗi, Kiểm lại và Máy hỏng trên điện thoại tại <code>/entry</code>.</p>
-      </article>
-    </div>
-
+    <p class="login-hint">Đăng nhập với mã nhân viên trên hệ thống</p>
     <p id="login-error" class="login-error" aria-live="polite"></p>
+
+    <div class="login-footer">
+      <strong>HACHIBA</strong> · Xí nghiệp 2
+    </div>
   </section>
 </main>
 {% endblock %}

@@ -11,7 +11,9 @@ class FlatQCAPIClientTests(unittest.TestCase):
         response = Mock()
         response.json.return_value = payload
         with patch.dict(os.environ, {'QLCL_API_URL': 'https://qlcl.example.test/',
-                                     'QLCL_API_KEY': 'test-key', 'QLCL_DON_VI': 'XN3'}), patch('httpx.get', return_value=response) as get:
+                                     'QLCL_API_KEY': 'test-key'}), \
+                patch('app.flat_sheet.APP_UNIT', 'XN3'), \
+                patch('httpx.get', return_value=response) as get:
             self.assertEqual(quality('mother', '2026-09-15'), payload)
         self.assertEqual(get.call_args.args[0], 'https://qlcl.example.test/api/tv3/flat-qc-data')
         self.assertEqual(get.call_args.kwargs['headers'], {'X-API-Key': 'test-key'})
