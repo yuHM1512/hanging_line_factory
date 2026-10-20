@@ -46,6 +46,7 @@ def dashboard(screen, mono, the_date):
     p, q = d['plan'], d['qc']
     line = re.search(r'L\s*(\d+)', p['team'], re.I)
     header = dict(To=line.group(1) if line else p['team'], MaDonKH=p['demand'],
+        LatestDemand=p['demand'],
         MONo=mono, StyleNo=p['style'], Customer=p['customer'], FirstHangDate=p['first'],
         Workers=d['workers'], WIP=d['wip'], TPT=d['tpt'], PhanLoaiDH=p['category'],
         LoaiHang=p['category'], DailyAim=d['target'], ReportDate=d['selected'])

@@ -10,6 +10,7 @@ from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
 
 from . import db
+from .settings import APP_UNIT
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -90,7 +91,12 @@ def page_login(request: Request):
     if user:
         return RedirectResponse(next_url or role_home(user), status_code=303)
     return templates.TemplateResponse(
-        "login.html", {"request": request, "next_url": next_url or ""}
+        "login.html",
+        {
+            "request": request,
+            "next_url": next_url or "",
+            "app_unit": APP_UNIT,
+        },
     )
 
 

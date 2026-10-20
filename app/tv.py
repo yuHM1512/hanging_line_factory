@@ -259,6 +259,9 @@ def _resolve_plan_full(mono: str) -> dict:
         "CASE WHEN pm.SLKH + ISNULL(adj.AdjustmentQty, 0) < 0 THEN 0 "
         "     ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS SLKH, pm.DailyAim, "
         "pm.Customer, pm.NhuCauMe, "
+        "(SELECT TOP 1 pm2.SoDonHang FROM app.tPlanMaster pm2 "
+        " WHERE pm2.NhuCauMe = pm.NhuCauMe "
+        " ORDER BY pm2.CreatedAt DESC, pm2.FirstHangDate DESC, pm2.MONo DESC) AS LatestDemand, "
         "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.LuyKeChuyenTiep, "
         "sam.SAM, sam.OWE_Target, "
         "(SELECT MIN(pm2.FirstHangDate) FROM app.tPlanMaster pm2 "
@@ -344,9 +347,17 @@ def _scan_count_for_cluster(
     mono: str, route_step_odr: int,
     from_date: Optional[date] = None,
     to_date: Optional[date] = None,
+    *,
+    head_only: bool = False,
 ) -> int:
-    """Số scan (cumulative qty) cho cluster — single query (CTE + count merged)."""
+    """Số scan (cumulative qty) cho cluster — single query.
+
+    ``head_only`` is used for the first configured cluster when calculating
+    WIP.  Combined route steps can have a different scan-to-piece ratio, so
+    they must not be used as the input quantity for comparison with KCS.
+    """
     where_date = ""
+    seq_filter = "AND IsCombine = 0" if head_only else ""
     params: list[Any] = [mono, route_step_odr, mono]
     if from_date and to_date:
         where_date = "AND rw.ShtDate BETWEEN ? AND ?"
@@ -358,7 +369,7 @@ def _scan_count_for_cluster(
     rows = db.query(
         f"""
         ;WITH Steps AS (
-          SELECT ds.Odr, ds.SeqNo,
+          SELECT ds.Odr, ds.SeqNo, ds.IsCombine,
                  MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
                    OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
           FROM {{MES_DB}}.dbo.tRouteDS ds
@@ -367,7 +378,8 @@ def _scan_count_for_cluster(
           WHERE mm.MONo = ?
         ),
         ClusterSeqs AS (
-          SELECT DISTINCT SeqNo FROM Steps WHERE HeadOdr = ?
+          SELECT DISTINCT SeqNo FROM Steps
+          WHERE HeadOdr = ? {seq_filter}
         )
         SELECT cs.SeqNo, COUNT(*) AS Qty
         FROM ClusterSeqs cs
@@ -922,7 +934,16 @@ def api_tv1(
     first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
     last_cluster = _configured_last_cluster(plan)
     if first_cluster:
-        in_qty = _scan_count_for_cluster(mono, first_cluster["RouteStepOdr"], first_hang, the_date)
+        # Cụm đầu vào phải cùng đơn vị đếm với C6/KCS: chỉ lấy SeqNo đầu
+        # (IsCombine=0). Nếu lấy cả các bước combine, min() có thể thấp giả
+        # tạo và làm WIP bị clamp về 0 dù C1 thực tế lớn hơn C6.
+        in_qty = _scan_count_for_cluster(
+            mono,
+            first_cluster["RouteStepOdr"],
+            first_hang,
+            the_date,
+            head_only=True,
+        )
         if last_cluster and last_cluster["Role"] == "last":
             out_qty = cum_qty
         elif last_cluster:
@@ -965,11 +986,13 @@ def api_tv1(
     )
 
     ma_don_kh = plan["SoDonHang"].lstrip("#")
+    latest_demand = (plan.get("LatestDemand") or plan["SoDonHang"] or "").lstrip("#")
 
     return {
         "header": {
             "Tổ": plan["LineNoOut"],
             "MaDonKH": ma_don_kh,
+            "LatestDemand": latest_demand,
             "MONo": mono,
             "StyleNo": plan["StyleNo"],
             "Customer": plan["Customer"],

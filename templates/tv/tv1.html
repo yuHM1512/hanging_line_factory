@@ -21,12 +21,13 @@
   .hdr-line .lv { font-family: var(--font-mono); font-weight: 700; font-size: 44px; line-height: 1; letter-spacing: .01em; }
   .hdr-line .style { margin-top: 3px; font-size: 15px; font-weight: 600; color: #BBF7D0; letter-spacing: .01em; }
   .hdr-div { width: 1px; height: 64px; background: rgba(255,255,255,.18); }
-  .hdr-fields { display: grid; grid-template-columns: repeat(6, auto); justify-content: space-between; gap: var(--s-5); align-items: center; }
+  .hdr-fields { display: grid; grid-template-columns: repeat(7, auto); justify-content: space-between; gap: var(--s-5); align-items: center; }
   .fld { display: flex; flex-direction: column; gap: 6px; }
   .fld .k { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; color: rgba(255,255,255,.7); font-weight: 600; }
   .fld .v { font-size: 26px; font-weight: 700; line-height: 1; }
   .fld .v.mono { font-family: var(--font-mono); letter-spacing: -.01em; }
   .fld .v.demand { font-size: 22px; color: #DDE7F8; letter-spacing: 0; }
+  .fld .v.latest-demand { font-size: 20px; color: #DDE7F8; letter-spacing: 0; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hdr-clock { text-align: right; display: flex; flex-direction: column; gap: 4px; padding-left: var(--s-4); border-left: 1px solid rgba(255,255,255,.18); }
   .hdr-clock .date { font-size: 14px; color: rgba(255,255,255,.78); letter-spacing: .04em; font-weight: 500; }
   .hdr-clock .time { font-family: var(--font-mono); font-weight: 700; font-size: 38px; line-height: 1; color: #fff; }
@@ -155,6 +156,7 @@
     <div class="hdr-div"></div>
     <div class="hdr-fields">
       <div class="fld"><span class="k">Số đơn hàng</span><span class="v demand mono" id="h-demand">—</span></div>
+      <div class="fld"><span class="k">Nhu cầu mới nhất</span><span class="v latest-demand mono" id="h-latest-demand" title="">—</span></div>
       <div class="fld"><span class="k">K.Hàng / Customer</span><span class="v" id="h-customer">—</span></div>
       <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-firstday">—</span></div>
       <div class="fld"><span class="k">Hàng tồn / WIP</span><span class="v mono" id="h-wip">—</span></div>
@@ -375,6 +377,10 @@ function render(d) {
   document.getElementById('h-workers').textContent = h.Workers || '—';
   document.getElementById('h-workers2').textContent = h.Workers || '—';
   document.getElementById('h-demand').textContent = h.MaDonKH || '—';
+  const latestDemand = h.LatestDemand || h.MaDonKH || '—';
+  const latestDemandEl = document.getElementById('h-latest-demand');
+  latestDemandEl.textContent = latestDemand;
+  latestDemandEl.title = latestDemand;
   document.getElementById('h-customer').textContent = h.Customer || '—';
   document.getElementById('h-firstday').textContent = h.FirstHangDate ? h.FirstHangDate.substring(5).replace('-', '-') : '—';
   document.getElementById('h-wip').textContent = fmtNum(h.WIP);
