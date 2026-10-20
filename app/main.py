@@ -76,7 +76,6 @@ def _output_sync_loop() -> None:
 def _sam_sync_loop() -> None:
     logger.info("SAM auto-sync started, interval=%s minutes", _SAM_SYNC_INTERVAL)
     while True:
-        time.sleep(_SAM_SYNC_INTERVAL * 60)
         try:
             result = admin._do_sam_sync(actor="auto-sync")
             logger.info(
@@ -87,6 +86,7 @@ def _sam_sync_loop() -> None:
             )
         except Exception:
             logger.exception("SAM auto-sync failed")
+        time.sleep(_SAM_SYNC_INTERVAL * 60)
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
