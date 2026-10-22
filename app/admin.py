@@ -429,10 +429,12 @@ def api_plan_candidates(request: Request):
     Không yêu cầu sản lượng tại trạm 13 vì kế hoạch có thể đã bắt đầu chạy
     nhưng chưa ra đến công đoạn chốt sản lượng. Khi đó vẫn cần cho phép setup
     MONo trước; API daily-output sẽ trả tổng trạm 13 bằng 0.
-    `style_no` lọc theo Mã hàng, còn `page`/`page_size` phân trang kết quả.
+    `style_no` lọc theo Mã hàng, `mono` lọc theo tên MONo,
+    còn `page`/`page_size` phân trang kết quả.
     """
     force_refresh = request.query_params.get("refresh") == "1"
     style_filter = request.query_params.get("style_no", "").strip().casefold()
+    mono_filter = request.query_params.get("mono", "").strip().casefold()
     try:
         page = max(1, int(request.query_params.get("page", "1")))
     except ValueError:
@@ -492,6 +494,11 @@ def api_plan_candidates(request: Request):
         candidates = [
             row for row in candidates
             if style_filter in str(row.get("StyleNo") or "").casefold()
+        ]
+    if mono_filter:
+        candidates = [
+            row for row in candidates
+            if mono_filter in str(row.get("MONo") or "").casefold()
         ]
     total = len(candidates)
     page_count = max(1, (total + page_size - 1) // page_size)

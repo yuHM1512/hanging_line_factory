@@ -11,6 +11,10 @@
     Chọn MONo để khai báo
   </h3>
   <div class="row-flex">
+    <label class="field" style="min-width:280px; margin:0;">
+      <span class="field-label">Lọc theo MONo</span>
+      <input type="search" id="cand-mono-filter" placeholder="Nhập tên MONo..." autocomplete="off" />
+    </label>
     <label class="field" style="min-width:240px; margin:0;">
       <span class="field-label">Lọc theo Mã hàng</span>
       <input type="search" id="cand-style-filter" placeholder="Nhập mã hàng..." autocomplete="off" />
@@ -374,6 +378,8 @@ async function loadCands(forceRefresh = false) {
   });
   const styleFilter = document.getElementById('cand-style-filter').value.trim();
   if (styleFilter) params.set('style_no', styleFilter);
+  const monoFilter = document.getElementById('cand-mono-filter').value.trim();
+  if (monoFilter) params.set('mono', monoFilter);
   if (forceRefresh) params.set('refresh', '1');
   const data = await Admin.fetchJSON(`${API}/candidates?${params}`);
   renderCands(data.items);
@@ -545,6 +551,13 @@ document.querySelector('#cand-next').addEventListener('click', () => {
   loadCands();
 });
 document.querySelector('#cand-style-filter').addEventListener('input', () => {
+  clearTimeout(candidateFilterTimer);
+  candidateFilterTimer = setTimeout(() => {
+    candidatePage = 1;
+    loadCands();
+  }, 250);
+});
+document.querySelector('#cand-mono-filter').addEventListener('input', () => {
   clearTimeout(candidateFilterTimer);
   candidateFilterTimer = setTimeout(() => {
     candidatePage = 1;
