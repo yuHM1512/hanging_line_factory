@@ -37,7 +37,10 @@ def key(value):
 def number(value):
     if value in (None, ""):
         return None
-    return float(str(value).replace(",", "").strip())
+    s = str(value).replace(",", "").strip()
+    if s.startswith("#"):  # Sheets formula error (#N/A, #VALUE!, #REF!, …)
+        return None
+    return float(s)
 
 
 def sheet_date(value):
