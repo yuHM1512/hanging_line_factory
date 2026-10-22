@@ -424,7 +424,11 @@ def api_plan_candidates(request: Request):
     """List MONo từ MES `tMOM` chưa có trong app.tPlanMaster, kèm 2 điều kiện lọc.
 
     1. MIN(ShtDate) trong tRecentWork >= PLAN_CANDIDATE_START_DATE
-    2. Có sản lượng ra chuyền > 0 (SUM(Qty) WHERE StRole=13 AND IsLastSeq=1)
+    2. Đã có hoạt động sản xuất (SUM(Qty) > 0 ở bất kỳ trạm nào)
+
+    Không yêu cầu sản lượng tại trạm 13 vì kế hoạch có thể đã bắt đầu chạy
+    nhưng chưa ra đến công đoạn chốt sản lượng. Khi đó vẫn cần cho phép setup
+    MONo trước; API daily-output sẽ trả tổng trạm 13 bằng 0.
     """
     force_refresh = request.query_params.get("refresh") == "1"
     now = time.monotonic()
@@ -433,20 +437,17 @@ def api_plan_candidates(request: Request):
 
     rows = db.query(
         """
-        WITH FinalOutput AS (
+        WITH ProductionActivity AS (
             SELECT rw.MONo, SUM(rw.Qty) AS QtyOut
             FROM {MES_DB}.dbo.tRecentWork rw
-            INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
             WHERE rw.ShtDate >= ?
-              AND st.StRole = 13
-              AND rw.IsLastSeq = 1
               AND rw.MONo IS NOT NULL
               AND rw.MONo <> ''
             GROUP BY rw.MONo
             HAVING SUM(rw.Qty) > 0
         )
-        SELECT fo.MONo
-        FROM FinalOutput fo
+        SELECT pa.MONo
+        FROM ProductionActivity pa
         WHERE EXISTS (
             SELECT 1
             FROM {MES_DB}.dbo.tMOM mm

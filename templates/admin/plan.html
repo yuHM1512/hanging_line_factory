@@ -282,7 +282,9 @@ async function openDailyModal(mono) {
   try {
     const data = await Admin.fetchJSON(`${API}/candidates/${encodeURIComponent(mono)}/daily-output`);
     if (!data.rows.length) {
-      body.innerHTML = '<p class="muted">Chưa có dữ liệu.</p>';
+      body.innerHTML = `
+        <p class="muted">Chưa có sản lượng tại trạm 13.</p>
+        <p style="font-weight:700; text-align:right; font-family:monospace;">Tổng: 0</p>`;
       return;
     }
     // Format ngày dd/M
