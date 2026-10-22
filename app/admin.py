@@ -451,20 +451,20 @@ def api_plan_candidates(request: Request):
         WHERE EXISTS (
             SELECT 1
             FROM {MES_DB}.dbo.tMOM mm
-            WHERE mm.MONo = fo.MONo
+            WHERE mm.MONo = pa.MONo
         )
           AND NOT EXISTS (
             SELECT 1
             FROM app.tPlanMaster pm
-            WHERE pm.MONo = fo.MONo
+            WHERE pm.MONo = pa.MONo
           )
           AND NOT EXISTS (
             SELECT 1
             FROM {MES_DB}.dbo.tRecentWork rw_before
-            WHERE rw_before.MONo = fo.MONo
+            WHERE rw_before.MONo = pa.MONo
               AND rw_before.ShtDate < ?
           )
-        ORDER BY fo.MONo
+        ORDER BY pa.MONo
         """,
         (PLAN_CANDIDATE_START_DATE, PLAN_CANDIDATE_START_DATE),
     )
