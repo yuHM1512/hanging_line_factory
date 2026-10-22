@@ -11,6 +11,10 @@
     Chọn MONo để khai báo
   </h3>
   <div class="row-flex">
+    <label class="field" style="min-width:240px; margin:0;">
+      <span class="field-label">Lọc theo Mã hàng</span>
+      <input type="search" id="cand-style-filter" placeholder="Nhập mã hàng..." autocomplete="off" />
+    </label>
     <button class="btn btn-tertiary" id="btn-refresh-cands">Tải lại</button>
   </div>
   <table class="data-table" id="tbl-cands">
@@ -28,6 +32,13 @@
       <tr><td colspan="6" class="muted">Đang tải...</td></tr>
     </tbody>
   </table>
+  <div id="cand-pagination" class="row-flex" style="align-items:center; justify-content:space-between; margin-top:12px;">
+    <span id="cand-page-info" class="muted"></span>
+    <div style="display:flex; gap:8px; align-items:center;">
+      <button class="btn btn-tertiary btn-sm" id="cand-prev" type="button">‹ Trước</button>
+      <button class="btn btn-tertiary btn-sm" id="cand-next" type="button">Sau ›</button>
+    </div>
+  </div>
 </div>
 
 <!-- Modal: sản lượng theo ngày -->
@@ -223,6 +234,9 @@ const API = '/admin/api/plan';
 const API_DEMAND = '/admin/api/demand';
 let pendingPOs = [];
 let editingGuid = null;  // null = create mode; guid string = edit mode
+let candidatePage = 1;
+const candidatePageSize = 25;
+let candidateFilterTimer = null;
 
 async function loadMothersInto(currentValue = '') {
   const input = document.querySelector('input[name="NhuCauMe"]');
@@ -266,6 +280,19 @@ function renderCands(rows) {
       </td>
     </tr>
   `).join('');
+}
+
+function renderCandidatePagination(meta) {
+  const info = document.getElementById('cand-page-info');
+  const prev = document.getElementById('cand-prev');
+  const next = document.getElementById('cand-next');
+  const first = meta.total ? ((meta.page - 1) * meta.page_size) + 1 : 0;
+  const last = Math.min(meta.page * meta.page_size, meta.total);
+  info.textContent = meta.total
+    ? `${first}–${last} / ${meta.total} Mono · Trang ${meta.page}/${meta.page_count}`
+    : '0 Mono';
+  prev.disabled = meta.page <= 1;
+  next.disabled = meta.page >= meta.page_count;
 }
 
 // --- Modal sản lượng theo ngày ---
@@ -341,9 +368,16 @@ document.querySelector('#tbl-cands').addEventListener('click', (e) => {
 async function loadCands(forceRefresh = false) {
   const tbody = document.querySelector('#tbl-cands tbody');
   tbody.innerHTML = '<tr><td colspan="6" class="muted">Đang tải...</td></tr>';
-  const suffix = forceRefresh ? '?refresh=1' : '';
-  const rows = await Admin.fetchJSON(`${API}/candidates${suffix}`);
-  renderCands(rows);
+  const params = new URLSearchParams({
+    page: String(candidatePage),
+    page_size: String(candidatePageSize),
+  });
+  const styleFilter = document.getElementById('cand-style-filter').value.trim();
+  if (styleFilter) params.set('style_no', styleFilter);
+  if (forceRefresh) params.set('refresh', '1');
+  const data = await Admin.fetchJSON(`${API}/candidates?${params}`);
+  renderCands(data.items);
+  renderCandidatePagination(data);
 }
 
 function renderPlans(rows) {
@@ -496,7 +530,27 @@ function parsePOBulkText(text) {
   return { rows, errors };
 }
 
-document.querySelector('#btn-refresh-cands').addEventListener('click', () => loadCands(true));
+document.querySelector('#btn-refresh-cands').addEventListener('click', () => {
+  candidatePage = 1;
+  loadCands(true);
+});
+document.querySelector('#cand-prev').addEventListener('click', () => {
+  if (candidatePage > 1) {
+    candidatePage -= 1;
+    loadCands();
+  }
+});
+document.querySelector('#cand-next').addEventListener('click', () => {
+  candidatePage += 1;
+  loadCands();
+});
+document.querySelector('#cand-style-filter').addEventListener('input', () => {
+  clearTimeout(candidateFilterTimer);
+  candidateFilterTimer = setTimeout(() => {
+    candidatePage = 1;
+    loadCands();
+  }, 250);
+});
 
 async function openCreate(r) {
   editingGuid = null;

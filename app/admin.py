@@ -421,7 +421,7 @@ def api_demand_delete(nhu_cau_me: str, user: dict = Depends(auth.require_admin))
 # ============================================================
 @router.get("/api/plan/candidates")
 def api_plan_candidates(request: Request):
-    """List MONo từ MES `tMOM` chưa có trong app.tPlanMaster, kèm 2 điều kiện lọc.
+    """List MONo từ MES `tMOM` chưa có trong app.tPlanMaster, có lọc và phân trang.
 
     1. MIN(ShtDate) trong tRecentWork >= PLAN_CANDIDATE_START_DATE
     2. Đã có hoạt động sản xuất (SUM(Qty) > 0 ở bất kỳ trạm nào)
@@ -429,54 +429,81 @@ def api_plan_candidates(request: Request):
     Không yêu cầu sản lượng tại trạm 13 vì kế hoạch có thể đã bắt đầu chạy
     nhưng chưa ra đến công đoạn chốt sản lượng. Khi đó vẫn cần cho phép setup
     MONo trước; API daily-output sẽ trả tổng trạm 13 bằng 0.
+    `style_no` lọc theo Mã hàng, còn `page`/`page_size` phân trang kết quả.
     """
     force_refresh = request.query_params.get("refresh") == "1"
+    style_filter = request.query_params.get("style_no", "").strip().casefold()
+    try:
+        page = max(1, int(request.query_params.get("page", "1")))
+    except ValueError:
+        page = 1
+    try:
+        page_size = int(request.query_params.get("page_size", "25"))
+    except ValueError:
+        page_size = 25
+    page_size = min(100, max(10, page_size))
     now = time.monotonic()
     if not force_refresh and _plan_candidate_cache["expires_at"] > now:
-        return _plan_candidate_cache["rows"]
+        candidates = _plan_candidate_cache["rows"]
+    else:
+        rows = db.query(
+            """
+            WITH ProductionActivity AS (
+                SELECT rw.MONo, SUM(rw.Qty) AS QtyOut
+                FROM {MES_DB}.dbo.tRecentWork rw
+                WHERE rw.ShtDate >= ?
+                  AND rw.MONo IS NOT NULL
+                  AND rw.MONo <> ''
+                GROUP BY rw.MONo
+                HAVING SUM(rw.Qty) > 0
+            )
+            SELECT pa.MONo
+            FROM ProductionActivity pa
+            WHERE EXISTS (
+                SELECT 1
+                FROM {MES_DB}.dbo.tMOM mm
+                WHERE mm.MONo = pa.MONo
+            )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM app.tPlanMaster pm
+                WHERE pm.MONo = pa.MONo
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM {MES_DB}.dbo.tRecentWork rw_before
+                WHERE rw_before.MONo = pa.MONo
+                  AND rw_before.ShtDate < ?
+              )
+            ORDER BY pa.MONo
+            """,
+            (PLAN_CANDIDATE_START_DATE, PLAN_CANDIDATE_START_DATE),
+        )
+        candidates = []
+        for r in rows:
+            mono = r["MONo"]
+            parts = parse_mono(mono)
+            if parts["SoDonHang"] and parts["StyleNo"]:
+                candidates.append({"MONo": mono, **parts})
+        _plan_candidate_cache["rows"] = candidates
+        _plan_candidate_cache["expires_at"] = now + PLAN_CANDIDATE_CACHE_TTL_SECONDS
 
-    rows = db.query(
-        """
-        WITH ProductionActivity AS (
-            SELECT rw.MONo, SUM(rw.Qty) AS QtyOut
-            FROM {MES_DB}.dbo.tRecentWork rw
-            WHERE rw.ShtDate >= ?
-              AND rw.MONo IS NOT NULL
-              AND rw.MONo <> ''
-            GROUP BY rw.MONo
-            HAVING SUM(rw.Qty) > 0
-        )
-        SELECT pa.MONo
-        FROM ProductionActivity pa
-        WHERE EXISTS (
-            SELECT 1
-            FROM {MES_DB}.dbo.tMOM mm
-            WHERE mm.MONo = pa.MONo
-        )
-          AND NOT EXISTS (
-            SELECT 1
-            FROM app.tPlanMaster pm
-            WHERE pm.MONo = pa.MONo
-          )
-          AND NOT EXISTS (
-            SELECT 1
-            FROM {MES_DB}.dbo.tRecentWork rw_before
-            WHERE rw_before.MONo = pa.MONo
-              AND rw_before.ShtDate < ?
-          )
-        ORDER BY pa.MONo
-        """,
-        (PLAN_CANDIDATE_START_DATE, PLAN_CANDIDATE_START_DATE),
-    )
-    out = []
-    for r in rows:
-        mono = r["MONo"]
-        parts = parse_mono(mono)
-        if parts["SoDonHang"] and parts["StyleNo"]:
-            out.append({"MONo": mono, **parts})
-    _plan_candidate_cache["rows"] = out
-    _plan_candidate_cache["expires_at"] = now + PLAN_CANDIDATE_CACHE_TTL_SECONDS
-    return out
+    if style_filter:
+        candidates = [
+            row for row in candidates
+            if style_filter in str(row.get("StyleNo") or "").casefold()
+        ]
+    total = len(candidates)
+    page_count = max(1, (total + page_size - 1) // page_size)
+    page = min(page, page_count)
+    start = (page - 1) * page_size
+    return {
+        "items": candidates[start:start + page_size],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "page_count": page_count,
+    }
 
 
 @router.get("/api/plan/candidates/{mono}/daily-output")
