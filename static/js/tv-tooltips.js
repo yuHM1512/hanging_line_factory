@@ -105,6 +105,23 @@
       return data;
     }
 
+    if (el.classList.contains('chartcard')) {
+      const targetLabel = text(el, '.tlabel');
+      const targetValue = num(targetLabel);
+      const names = [...el.querySelectorAll('.xax .xl')].map(x => text(x));
+      const bars = [...el.querySelectorAll('.bar-cluster')].map((bar, i) => {
+        const actual = num(text(bar, '.bar-main'));
+        const displayedRatio = text(bar, '.bar-ratio');
+        return `${names[i] || `Cụm ${i + 1}`}: ${fmt(actual)} SP (${displayedRatio || ratio(actual, targetValue)})`;
+      });
+      data.title = 'Biểu đồ năng suất theo cụm';
+      data.desc = 'So sánh sản lượng thực tế của từng cụm công đoạn với mục tiêu tại mốc thời gian đang xem.';
+      data.formula = `Mức đạt cụm = Sản lượng thực tế / Mục tiêu mốc × 100% = số trên cột / ${fmt(targetValue)} SP.`;
+      data.example = `${targetLabel || `Mục tiêu mốc: ${fmt(targetValue)} SP`}. ${bars.join(' · ')}.`;
+      data.note = 'Cột đỏ thấp hơn mục tiêu là cụm cần ưu tiên kiểm tra; cột xanh đã đạt mục tiêu.';
+      return data;
+    }
+
     if (el.classList.contains('kp')) {
       const label = text(el, '.k');
       const value = text(el, '.kp-big');
@@ -121,6 +138,34 @@
       data.title = 'Tỷ lệ lỗi theo mốc giờ';
       data.formula = 'Tỷ lệ lỗi từng mốc = Số lỗi tại mốc / Sản lượng đã kiểm tại mốc × 100%.';
       data.example = `Số thực tế theo mốc: ${values.join(' · ')}.`;
+      return data;
+    }
+
+    if (el.classList.contains('right-qc-body')) {
+      data.title = 'Phân tích lỗi chất lượng';
+      data.desc = 'Phân bổ lỗi theo bộ phận và mã lỗi để xác định điểm cần tập trung cải thiện.';
+      data.formula = 'Tỷ trọng lỗi = Số lỗi của bộ phận hoặc mã lỗi / Tổng số lỗi × 100%.';
+      data.example = 'Có thể lọc theo bộ phận để xem lại Top lỗi tương ứng.';
+      data.note = 'Ưu tiên xử lý bộ phận hoặc mã lỗi có số lượng lặp lại cao nhất.';
+      return data;
+    }
+
+    if (el.classList.contains('rc')) {
+      data.title = 'Nguyên nhân và hành động khắc phục';
+      data.desc = 'Ghi nhận nguyên nhân không đạt và hành động xử lý theo từng mốc giờ.';
+      data.formula = 'Mỗi mốc giờ được đối chiếu giữa sản lượng thực tế và mục tiêu của mốc đó.';
+      data.example = text(el, '.rc-empty') || 'Các nguyên nhân và hành động đang được ghi nhận trong ca.';
+      data.note = 'Dùng nội dung này để theo dõi việc xử lý ngay trong ca làm việc.';
+      return data;
+    }
+
+    if (el.classList.contains('ehd')) {
+      const total = text(el, '#ehd-total');
+      data.title = 'Thông tin xuất hàng';
+      data.desc = 'Danh sách PO, ngày xuất dự kiến và số lượng cần bàn giao.';
+      data.formula = 'Tổng số lượng xuất = tổng số lượng PCS của các PO đang hiển thị.';
+      data.example = `Tổng hiện tại: ${total || '—'}.`;
+      data.note = 'Ưu tiên theo dõi các PO có ngày xuất gần nhất.';
       return data;
     }
 
