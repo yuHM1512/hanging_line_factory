@@ -68,7 +68,13 @@
       const values = [...el.querySelectorAll('.s-sub .ssv')].map(x => num(x.textContent));
       const current = text(el, '.s-pct');
       data.title = label || 'Chỉ số sản xuất';
-      if (label.includes('SL Ngày')) {
+      if (label.includes('Ngày kết thúc')) {
+        const dates = [...el.querySelectorAll('.edv')].map(x => text(x));
+        data.desc = 'So sánh ngày hoàn thành theo kế hoạch ban đầu với ngày dự kiến theo tình hình sản xuất hiện tại.';
+        data.formula = `KH = ngày kết thúc ban đầu do Điều độ nhập (${dates[0] || '—'}); TT = ngày dự báo tính lại theo năng suất thực tế hiện tại (${dates[1] || '—'}).`;
+        data.example = `KH: ${dates[0] || '—'} · TT: ${dates[1] || '—'} · ${text(el, '.pct-chip') || 'chưa có kết luận'}.`;
+        data.note = 'KH là mốc kế hoạch gốc; TT thay đổi theo sản lượng thực tế, năng suất và lịch làm việc còn lại.';
+      } else if (label.includes('SL Ngày')) {
         data.formula = `% đạt ngày = Thực hiện / Kế hoạch × 100% = ${fmt(values[1])} / ${fmt(values[0])} × 100% = ${current}`;
         data.example = `Kế hoạch ${fmt(values[0])} SP; thực hiện ${fmt(values[1])} SP; chênh lệch ${fmt(values[1] - values[0])} SP.`;
       } else if (label.includes('Takt')) {
