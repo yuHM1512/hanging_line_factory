@@ -1,5 +1,22 @@
 // Shared admin helpers
 window.Admin = (() => {
+  function formatErrorDetail(detail) {
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) {
+      const messages = detail.map((item) => {
+        if (typeof item === 'string') return item;
+        const message = item?.msg || item?.message || item?.error;
+        const location = Array.isArray(item?.loc) ? item.loc.filter(Boolean).join(' → ') : '';
+        return location && message ? `${location}: ${message}` : (message || JSON.stringify(item));
+      }).filter(Boolean);
+      return messages.join('; ');
+    }
+    if (detail && typeof detail === 'object') {
+      return detail.msg || detail.message || detail.error || JSON.stringify(detail);
+    }
+    return '';
+  }
+
   async function fetchJSON(url, opts = {}) {
     const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
     const resp = await fetch(url, { ...opts, headers });
@@ -10,7 +27,7 @@ window.Admin = (() => {
       throw new Error(`HTTP ${resp.status} (không phải JSON)`);
     }
     if (!resp.ok) {
-      const msg = data && data.detail ? data.detail : `HTTP ${resp.status}`;
+      const msg = formatErrorDetail(data && data.detail) || `HTTP ${resp.status}`;
       if (resp.status === 401 || msg === 'Chưa đăng nhập' || msg === 'Chua dang nhap') {
         const current = window.location.pathname + window.location.search + window.location.hash;
         window.location.href = '/login?next=' + encodeURIComponent(current);
@@ -103,5 +120,5 @@ window.Admin = (() => {
     return false;
   }
 
-  return { fetchJSON, toast, escape, logout, confirmDelete, validateForm };
+  return { fetchJSON, toast, escape, logout, confirmDelete, validateForm, formatErrorDetail };
 })();
