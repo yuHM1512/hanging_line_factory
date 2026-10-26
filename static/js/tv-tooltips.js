@@ -28,7 +28,7 @@
     const selectors = [
       '.hdr .hdr-line', '.hdr .fld',
       '.hero', '.stat', '.hour', '.rc', '.ehd',
-      '.cl', '.chartcard', '.kp', '.left-qc-body', '.right-qc-body',
+      '.cl', '.bar-cluster', '.kp', '.left-qc-body', '.right-qc-body',
       '#row-workers', '#row-mix'
     ];
     root.querySelectorAll(selectors.join(',')).forEach((el) => {
@@ -102,6 +102,23 @@
       data.title = `${text(el, '.cl-name')} · Sản lượng hiện tại`;
       data.formula = `Mức đạt cụm = Sản lượng cụm / Mục tiêu mốc × 100% = ${fmt(actual)} / ${fmt(targetValue)} × 100% = ${ratio(actual, targetValue)}`;
       data.example = `Hôm nay ${fmt(actual)} SP; lũy kế ${text(el, '.cl-sub .v') || '—'} SP; trạng thái ${text(el, '.pct-chip') || '—'}.`;
+      return data;
+    }
+
+    if (el.classList.contains('bar-cluster')) {
+      const chart = el.closest('.chartcard');
+      const bars = chart ? [...chart.querySelectorAll('.bar-cluster')] : [];
+      const index = bars.indexOf(el);
+      const names = chart ? [...chart.querySelectorAll('.xax .xl')].map(x => text(x)) : [];
+      const actual = num(text(el, '.bar-main'));
+      const targetLabel = text(chart, '.tlabel');
+      const targetValue = num(targetLabel);
+      const displayedRatio = text(el, '.bar-ratio') || ratio(actual, targetValue);
+      data.title = names[index] || `Trạm ${index + 1}`;
+      data.desc = 'Sản lượng thực tế của riêng trạm đang được chọn trên biểu đồ TV-2.';
+      data.formula = `Mức đạt trạm = Sản lượng thực tế / Mục tiêu mốc × 100% = ${fmt(actual)} / ${fmt(targetValue)} × 100% = ${displayedRatio}.`;
+      data.example = `Trạm này đang ra ${fmt(actual)} SP; mục tiêu mốc là ${fmt(targetValue)} SP.`;
+      data.note = displayedRatio === '—' ? 'Chưa đủ dữ liệu để kết luận trạng thái trạm.' : (el.classList.contains('pass') ? 'Trạm đã đạt mục tiêu tại mốc hiện tại.' : 'Trạm chưa đạt mục tiêu tại mốc hiện tại.');
       return data;
     }
 
