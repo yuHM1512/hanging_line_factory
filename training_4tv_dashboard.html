@@ -96,10 +96,11 @@ body {
   background: rgba(15, 27, 49, 0.95);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255,255,255,0.12);
-  padding: 10px 24px;
-  display: flex;
+  padding: 12px 20px;
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(640px, 1.8fr) auto;
   align-items: center;
-  justify-content: space-between;
+  gap: 18px;
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -109,22 +110,26 @@ body {
 .trainer-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
+  min-width: 0;
 }
 
 .brand-badge {
-  background: linear-gradient(135deg, #0056D2, #00B4D8);
+  background: linear-gradient(135deg, #1677E8, #08A9C8);
   color: #fff;
   font-family: var(--font-head);
   font-weight: 800;
-  font-size: 13px;
-  padding: 5px 12px;
-  border-radius: var(--r-sm);
+  font-size: 11px;
+  line-height: 1.25;
+  padding: 8px 10px;
+  border-radius: 9px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   display: flex;
   align-items: center;
   gap: 6px;
+  flex: 0 0 auto;
+  white-space: nowrap;
 }
 
 .brand-badge::before {
@@ -145,27 +150,35 @@ body {
 .trainer-title {
   color: #fff;
   font-family: var(--font-head);
-  font-size: 16px;
-  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.2;
+  font-weight: 800;
   letter-spacing: -0.01em;
+  min-width: 0;
 }
 
 .trainer-title small {
   display: block;
+  margin-top: 4px;
   font-size: 11px;
   font-weight: 500;
   color: #8E9FB8;
   font-family: var(--font-mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* TV Tabs */
 .tv-tabs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   background: rgba(0, 0, 0, 0.4);
   padding: 4px;
   border-radius: 12px;
   border: 1px solid rgba(255,255,255,0.08);
   gap: 4px;
+  min-width: 0;
 }
 
 .tv-tab-btn {
@@ -174,14 +187,18 @@ body {
   color: #94A3B8;
   font-family: var(--font-head);
   font-weight: 700;
-  font-size: 13px;
-  padding: 8px 18px;
+  font-size: 12px;
+  line-height: 1.2;
+  padding: 7px 9px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
-  display: flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  min-width: 0;
+  text-align: left;
 }
 
 .tv-tab-btn:hover {
@@ -198,31 +215,57 @@ body {
 .tv-tab-btn .tab-num {
   font-family: var(--font-mono);
   background: rgba(0,0,0,0.25);
-  font-size: 11px;
-  padding: 2px 6px;
+  font-size: 10px;
+  padding: 5px 6px;
   border-radius: 4px;
+  white-space: nowrap;
+}
+
+.tv-tab-btn .tab-label {
+  display: block;
 }
 
 /* Action tools */
 .trainer-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
 }
 
 .btn-tool {
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.15);
   color: #E2E8F0;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 14px;
+  font-size: 11px;
+  line-height: 1.2;
+  font-weight: 700;
+  padding: 8px 10px;
   border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   transition: all 0.2s;
+  min-height: 42px;
+  white-space: nowrap;
+}
+
+.btn-tool .tool-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.btn-tool .tool-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.btn-tool .tool-copy small {
+  color: #93A4BD;
+  font-size: 9px;
+  font-weight: 600;
 }
 
 .btn-tool:hover {
@@ -245,51 +288,111 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px;
-  gap: 16px;
+  padding: 16px 20px 20px;
+  gap: 14px;
 }
 
 .banner-desc {
   width: 100%;
   max-width: 1560px;
-  background: linear-gradient(90deg, #112344, #1B3564);
+  background: linear-gradient(100deg, #112344, #1B3564);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--r-md);
-  padding: 12px 20px;
-  display: flex;
-  justify-content: space-between;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
+  gap: 20px;
   color: #E2E8F0;
   font-size: 13px;
 }
 
 .banner-desc .left {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(245px, 0.42fr) minmax(0, 1fr);
   align-items: center;
-  gap: 14px;
+  gap: 18px;
+  min-width: 0;
+}
+
+.banner-desc .current-view {
+  min-width: 0;
+}
+
+.banner-desc .eyebrow {
+  display: block;
+  margin-bottom: 3px;
+  color: #8EA9D1;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .banner-desc .tv-cur-name {
+  display: block;
   font-family: var(--font-head);
   font-weight: 800;
-  font-size: 16px;
+  font-size: 15px;
+  line-height: 1.25;
   color: #67E8F9;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 
 .banner-desc .tv-cur-purpose {
   color: #CBD5E1;
   border-left: 2px solid rgba(255,255,255,0.2);
-  padding-left: 14px;
+  padding-left: 18px;
+  line-height: 1.45;
 }
 
 .banner-desc .hint {
-  color: #FCD34D;
+  color: #DCE8F8;
   font-weight: 600;
-  font-size: 12px;
+  font-size: 11px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 9px;
+  max-width: 255px;
+  line-height: 1.35;
+  padding: 8px 11px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+}
+
+.banner-desc .hint-icon {
+  font-size: 16px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 1500px) {
+  .trainer-bar {
+    grid-template-columns: minmax(250px, 0.8fr) minmax(580px, 1.7fr) auto;
+    gap: 12px;
+    padding-inline: 14px;
+  }
+  .brand-badge { display: none; }
+  .trainer-title { font-size: 15px; }
+  .tv-tab-btn { font-size: 11px; padding-inline: 7px; }
+  .btn-tool { padding-inline: 8px; }
+  .btn-tool .tool-copy small { display: none; }
+}
+
+@media (max-width: 1180px) {
+  .trainer-bar { grid-template-columns: 1fr auto; }
+  .tv-tabs { grid-column: 1 / -1; grid-row: 2; }
+  .trainer-actions { grid-column: 2; grid-row: 1; }
+  .banner-desc { grid-template-columns: 1fr; gap: 10px; }
+  .banner-desc .hint { max-width: none; }
+}
+
+@media (max-width: 720px) {
+  .trainer-bar { position: relative; grid-template-columns: 1fr; }
+  .trainer-actions { grid-column: 1; grid-row: 2; flex-wrap: wrap; }
+  .tv-tabs { grid-row: 3; grid-template-columns: repeat(2, 1fr); }
+  .banner-desc .left { grid-template-columns: 1fr; gap: 10px; }
+  .banner-desc .tv-cur-purpose { border-left: 0; border-top: 1px solid rgba(255,255,255,0.16); padding: 10px 0 0; }
 }
 
 /* Viewport stage 1920x1080 scaled */
@@ -1376,39 +1479,39 @@ body {
 <!-- TOP TRAINING NAVIGATION BAR -->
 <header class="trainer-bar">
   <div class="trainer-brand">
-    <div class="brand-badge">Trực Quan Hóa Tivi</div>
+    <div class="brand-badge">Đào tạo · 4 TV</div>
     <div class="trainer-title">
-      Hệ Thống Đào Tạo Chỉ Số 4 Màn Hình TV (XN2 &amp; Chuyền Bệt)
-      <small>Mã kế hoạch mẫu: flat:PL-351375-SS26-(12508) · Tổ L4</small>
+      Dashboard đào tạo chỉ số sản xuất
+      <small>XN2 &amp; Chuyền bệt · Mẫu PL-351375-SS26-(12508) · Tổ L4</small>
     </div>
   </div>
 
   <!-- Tabs chuyển đổi 4 TV -->
   <nav class="tv-tabs" id="tvTabs">
     <button class="tv-tab-btn active" onclick="switchTV(1)">
-      <span class="tab-num">TV-1</span> Tổng Quan Sản Lượng &amp; Nhịp Độ
+      <span class="tab-num">TV-1</span><span class="tab-label">Tổng quan &amp; nhịp độ</span>
     </button>
     <button class="tv-tab-btn" onclick="switchTV(2)">
-      <span class="tab-num">TV-2</span> Cân Bằng 6 Cụm May
+      <span class="tab-num">TV-2</span><span class="tab-label">Cân bằng 6 cụm may</span>
     </button>
     <button class="tv-tab-btn" onclick="switchTV(3)">
-      <span class="tab-num">TV-3</span> Chất Lượng &amp; Lỗi KCS
+      <span class="tab-num">TV-3</span><span class="tab-label">Chất lượng &amp; lỗi KCS</span>
     </button>
     <button class="tv-tab-btn" onclick="switchTV(4)">
-      <span class="tab-num">TV-4</span> Lộ Trình Ra Chuyền (Curve)
+      <span class="tab-num">TV-4</span><span class="tab-label">Lộ trình ra chuyền</span>
     </button>
   </nav>
 
   <!-- Công cụ hỗ trợ đào tạo -->
   <div class="trainer-actions">
     <button class="btn-tool" id="btnGuideMode" onclick="toggleGuideMode()" title="Làm nổi bật các chỉ số có công thức">
-      💡 Chế độ Hướng Dẫn
+      <span class="tool-icon">💡</span><span class="tool-copy">Hướng dẫn<small>Highlight KPI</small></span>
     </button>
     <button class="btn-tool" onclick="openFormulaModal()">
-      📐 Tra Cứu Công Thức
+      <span class="tool-icon">📐</span><span class="tool-copy">Công thức<small>Tra cứu nhanh</small></span>
     </button>
     <button class="btn-tool" id="btnAutoSlide" onclick="toggleAutoSlide()">
-      ▶ Trình Chiếu Auto (15s)
+      <span class="tool-icon">▶</span><span class="tool-copy">Tự động<small>15 giây / màn</small></span>
     </button>
   </div>
 </header>
@@ -1419,13 +1522,17 @@ body {
   <!-- Banner mô tả mục đích từng TV -->
   <div class="banner-desc">
     <div class="left">
-      <span class="tv-cur-name" id="bannerTVTitle">TV-1 · TỔNG QUAN TÌNH HÌNH SẢN XUẤT</span>
+      <div class="current-view">
+        <span class="eyebrow">Đang xem</span>
+        <span class="tv-cur-name" id="bannerTVTitle">TV-1 · TỔNG QUAN SẢN XUẤT</span>
+      </div>
       <span class="tv-cur-purpose" id="bannerTVPurpose">
         Theo dõi tiến độ đơn hàng mẹ, sản lượng theo ngày, 5 khung giờ ca, nhịp độ Takt Time, hiệu suất OWE và kế hoạch xuất hàng PO.
       </span>
     </div>
     <div class="hint">
-      <span>👉 Rê chuột vào bất kỳ ô số nào để xem công thức &amp; giải thích nghiệp vụ</span>
+      <span class="hint-icon">☝️</span>
+      <span>Rê chuột lên ô số để xem công thức và giải thích nghiệp vụ.</span>
     </div>
   </div>
 
@@ -1461,6 +1568,10 @@ body {
             <div class="fld calc-target" data-tt="header-wip">
               <span class="k">Bán Thành Phẩm (WIP)</span>
               <span class="v mono">342 SP</span>
+            </div>
+            <div class="fld calc-target" data-tt="header-tpt">
+              <span class="k">TPT (phút)</span>
+              <span class="v mono">331</span>
             </div>
             <div class="fld calc-target" data-tt="header-target">
               <span class="k">Mục Tiêu Ngày</span>
@@ -2237,9 +2348,10 @@ body {
       <!-- TV-1 OWE -->
       <div class="formula-card">
         <h4>2. TV-1: Hiệu Suất Tổng Thể (OWE - Overall Worker Efficiency)</h4>
-        <code>OWE (%) = (SAM * Sản_Lượng_BP) / (Số_Phút_Đã_Qua * Tổng_Lao_Động) * 100%</code>
+        <code>OWE (%) = (SAM × Sản_Lượng) / (Phút_Đã_Làm × Số_LĐ_Thực_Tế) × 100%</code>
         <p>• SAM: Thời gian định mức kỹ thuật để may xong 1 sản phẩm (Standard Allowed Minutes).<br>
-           • Sản lượng BP: Số lượng sản phẩm quy đổi theo hệ thống MES (StRole = 13 & IsLastSeq = 1).</p>
+           • Số LĐ thực tế: Lấy từ hệ thống MES (không dùng biên chế), Phút đã làm: giữa ca dùng phút đã qua, cuối ca = 492 phút.<br>
+           • Sản lượng: Sản phẩm qua KCS kiểm đạt (StRole = 13 & IsLastSeq = 1).</p>
       </div>
 
       <!-- TV-1 Slots -->
@@ -2302,19 +2414,19 @@ window.addEventListener('load', resizeStage);
 let currentTV = 1;
 const TV_INFO = {
   1: {
-    title: 'TV-1 · TỔNG QUAN TÌNH HÌNH SẢN XUẤT',
+    title: 'TV-1 · TỔNG QUAN SẢN XUẤT',
     purpose: 'Theo dõi tiến độ đơn hàng mẹ, sản lượng theo ngày, 5 khung giờ ca, nhịp độ Takt Time, hiệu suất OWE và kế hoạch xuất hàng PO.'
   },
   2: {
-    title: 'TV-2 · CÂN BẰNG TIẾN ĐỘ 6 CỤM MAY',
+    title: 'TV-2 · CÂN BẰNG 6 CỤM MAY',
     purpose: 'Trực quan hóa sản lượng qua 6 cụm trạm công đoạn may, nhận diện trạm thắt nút cổ chai (Bottleneck) so với mục tiêu mốc.'
   },
   3: {
-    title: 'TV-3 · CHI TIẾT TỈ LỆ CHẤT LƯỢNG & QC KCS',
+    title: 'TV-3 · CHẤT LƯỢNG & LỖI KCS',
     purpose: 'Thống kê tỷ lệ lỗi may theo 5 khung giờ, phân tích bộ phận gây lỗi, Top 3 mã lỗi KCS và các hành động kiểm soát chất lượng.'
   },
   4: {
-    title: 'TV-4 · LỘ TRÌNH RA CHUYỀN & ĐƯỜNG CONG NĂNG SUẤT',
+    title: 'TV-4 · LỘ TRÌNH RA CHUYỀN',
     purpose: 'Theo dõi tiến độ đơn hàng qua từng ngày theo đường cong học tập (Learning Curve), mốc 100% định mức kỹ thuật và dự báo về đích.'
   }
 };
@@ -2359,7 +2471,9 @@ function toggleGuideMode() {
   const btn = document.getElementById('btnGuideMode');
   if (btn) {
     btn.classList.toggle('active-guide', isGuideMode);
-    btn.innerHTML = isGuideMode ? '⚡ Đang Bật Hướng Dẫn' : '💡 Chế độ Hướng Dẫn';
+    btn.innerHTML = isGuideMode
+      ? '<span class="tool-icon">⚡</span><span class="tool-copy">Đang hướng dẫn<small>Highlight KPI</small></span>'
+      : '<span class="tool-icon">💡</span><span class="tool-copy">Hướng dẫn<small>Highlight KPI</small></span>';
   }
 }
 
@@ -2370,10 +2484,10 @@ function toggleAutoSlide() {
   if (autoSlideTimer) {
     clearInterval(autoSlideTimer);
     autoSlideTimer = null;
-    btn.innerHTML = '▶ Trình Chiếu Auto (15s)';
+    btn.innerHTML = '<span class="tool-icon">▶</span><span class="tool-copy">Tự động<small>15 giây / màn</small></span>';
     btn.style.background = '';
   } else {
-    btn.innerHTML = '⏸ Đang Chiếu Auto (15s)';
+    btn.innerHTML = '<span class="tool-icon">⏸</span><span class="tool-copy">Đang trình chiếu<small>15 giây / màn</small></span>';
     btn.style.background = '#22C55E';
     autoSlideTimer = setInterval(() => {
       let nextTV = (currentTV % 4) + 1;
@@ -2420,10 +2534,18 @@ const TRAINING_DATA = {
   "header-wip": {
     title: "Bán Thành Phẩm Trên Chuyền (WIP)",
     badge: "Header Chung",
-    desc: "Work In Progress: Tổng số lượng chi tiết bán thành phẩm đang luân chuyển giữa các trạm may trên chuyền.",
-    formula: "WIP = Tổng đầu vào Cụm 1 - Tổng đầu ra KCS Cụm 6",
-    example: "WIP hiện tại = 342 sản phẩm trên chuyền.",
+    desc: "Work In Progress: Tổng số bán thành phẩm đang luân chuyển giữa các cụm công đoạn trên chuyền. Xem chi tiết từng cụm ở TV-2.",
+    formula: "WIP = Luỹ kế Cụm 1 (đầu vào) − Luỹ kế Cụm 6 / KCS (đầu ra). Các con số cụm hiển thị trên TV-2.",
+    example: "WIP hiện tại = 342 SP. (Cụm 1 luỹ kế 794 SP − KCS luỹ kế 452 SP = 342 SP trên chuyền).",
     note: "WIP quá cao gây ứ đọng vốn; WIP quá thấp gây đứt chuyền thợ ngồi chờ hàng."
+  },
+  "header-tpt": {
+    title: "TPT (phút) — Thời Gian Xử Lý Hết Hàng Trên Chuyền",
+    badge: "Header Chung",
+    desc: "Throughput Time: Số phút cần để chuyền xử lý xong toàn bộ bán thành phẩm đang có trên chuyền, nếu giữ nguyên nhịp sản xuất hiện tại.",
+    formula: "TPT = (WIP + 1) × Takt thực tế (đổi sang phút). WIP lấy từ Cụm 1 − Cụm 6 (TV-2).",
+    example: "(342 + 1) × 58,0 giây ÷ 60 = 331 phút ≈ 0,67 ca làm việc.",
+    note: "TPT càng ngắn thì hàng trên chuyền được giải phóng càng nhanh. Nếu TPT > 1 ca → cần kiểm tra tình trạng ứ đọng."
   },
   "header-target": {
     title: "Mục Tiêu Sản Lượng Ngày",
@@ -2460,10 +2582,10 @@ const TRAINING_DATA = {
   "kpi-owe": {
     title: "Hiệu Suất Tổng Thể (OWE)",
     badge: "TV-1 · Thống Kê",
-    desc: "Overall Worker Efficiency: Đo lường mức độ tận dụng thời gian lao động so với định mức may chuẩn (SAM).",
-    formula: "OWE (%) = (SAM * Sản_Lượng_BP) / (Phút_Đã_Làm * Tổng_Lao_Động) * 100%",
-    example: "(28.5 phút * 452 SP) / (410 phút * 28 LĐ) * 100% = 78.5% (Mục tiêu chuẩn &ge;75%).",
-    note: "SAM (Standard Allowed Minutes) là thời gian chuẩn may 1 áo do phòng kỹ thuật ban hành."
+    desc: "Overall Worker Efficiency: Đo lường mức độ tận dụng thời gian lao động so với định mức may chuẩn (SAM). Dùng số lao động thực tế và phút đã làm (không phải biên chế hay cả ca).",
+    formula: "OWE (%) = (SAM × Sản_Lượng) / (Phút_Đã_Làm × Số_LĐ_Thực_Tế) × 100%",
+    example: "(28.5 phút × 452 SP) / (410 phút × 28 LĐ) × 100% = 112.2% (Mục tiêu chuẩn &ge;75%).",
+    note: "SAM (Standard Allowed Minutes) là thời gian chuẩn may 1 sản phẩm do phòng kỹ thuật ban hành. Giữa ca dùng phút đã làm, cuối ca dùng 492 phút."
   },
   "kpi-defect": {
     title: "Tỉ Lệ Lỗi KCS Kiểm Tra",

@@ -966,10 +966,11 @@ def api_tv1(
     # TPT (phút)
     tpt_min = round((wip + 1) * takt_real / 60) if takt_real else 0
 
-    # OWE
+    # OWE — dùng workers (thực tế) và elapsed minutes (cho ngày hôm nay)
     owe_pct = 0.0
-    if sam and today_qty and ld:
-        rpt = WORK_MINUTES_PER_DAY * ld / today_qty
+    if sam and today_qty and workers:
+        owe_minutes = elapsed / 60 if the_date == date.today() else WORK_MINUTES_PER_DAY
+        rpt = owe_minutes * workers / today_qty
         owe_pct = round(sam / rpt * 100, 1) if rpt else 0
 
     # End dates
