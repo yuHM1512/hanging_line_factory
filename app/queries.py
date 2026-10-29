@@ -52,6 +52,7 @@ NORMALIZED_WORK_CTE = """
                     )
             END AS digit_tail
         ) mo3
+        WHERE CAST(rw.BeginTime AS DATE) = rw.ShtDate
     )
 """
 

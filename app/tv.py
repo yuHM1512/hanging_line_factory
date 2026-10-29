@@ -1177,6 +1177,7 @@ def api_tv3(
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo = ? AND rw.ShtDate = ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
         (mono, the_date),
     )
@@ -1380,6 +1381,7 @@ def api_tv4(
                 FROM {{MES_DB}}.dbo.tRecentWork rw
                 INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
                 WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+                  AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
                   AND rw.MONo IN ({ph})""",
             mono_list,
         )
