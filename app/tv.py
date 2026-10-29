@@ -453,6 +453,7 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
         FROM {MES_DB}.dbo.tRecentWork rw
         WHERE rw.MONo = ? AND rw.SeqNo = ?
           AND rw.ShtDate = ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.BeginTime
         """,
         (mono, tail_seq_no, the_date),
@@ -472,6 +473,8 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     """KCS scan theo slot 1-5 cho ngày the_date.
 
     Filter giống công thức vàng: StRole=13 AND IsLastSeq=1.
+    Với ngày hôm nay: loại bỏ scan có BeginTime trong tương lai (đồng hồ lệch
+    hoặc dữ liệu không hợp lệ), tránh hiển thị sản lượng ở slot chưa đến giờ.
     """
     rows = db.query(
         """
@@ -480,6 +483,7 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo = ? AND rw.ShtDate = ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
         (mono, the_date),
     )
@@ -601,6 +605,7 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo = ? AND rw.ShtDate = ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           AND rw.DefectiveQty > 0
         """,
         (mono, the_date),
@@ -662,7 +667,7 @@ def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
 
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
     """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13 AND IsLastSeq=1)."""
-    where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1"
+    where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1 AND CAST(rw.BeginTime AS DATE) = rw.ShtDate"
     params: list[Any] = [mono]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
@@ -697,6 +702,7 @@ def _kcs_bulk(mono: str, the_date: date) -> dict:
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo = ? AND rw.ShtDate <= ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
         """,
         (mono, the_date),
@@ -1279,6 +1285,7 @@ def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
         WHERE st.StRole = 13 AND rw.IsLastSeq = 1
           AND rw.MONo IN ({placeholders})
           AND rw.ShtDate BETWEEN ? AND ?
+          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
         mono_list + [from_date, to_date],
     )
