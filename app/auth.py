@@ -47,7 +47,12 @@ def get_session_user(request: Request) -> Optional[dict]:
 
 
 def role_home(user: dict) -> str:
-    return "/admin" if (user.get("Role") or "").lower() == "admin" else "/entry"
+    role = (user.get("Role") or "").lower()
+    if role == "admin":
+        return "/admin"
+    if role == "operator":
+        return "/entry/station"
+    return "/entry"
 
 
 def safe_next_url(value: Optional[str]) -> Optional[str]:

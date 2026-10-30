@@ -20,9 +20,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const enabled = document.getElementById('flat-enabled');
   const message = document.getElementById('flat-message');
   const add = (op = {}) => {
-    const row = document.createElement('label'); row.className = 'field';
-    row.innerHTML = '<span class="field-label">Tên công đoạn</span><input maxlength="200" required><button type="button" class="btn btn-soft">Bỏ công đoạn</button>';
-    row.dataset.id = op.id || ''; row.querySelector('input').value = op.name || '';
+    const row = document.createElement('div'); row.className = 'field';
+    row.innerHTML = '<span class="field-label">Tên công đoạn</span>'
+      + '<input class="flat-op-name" maxlength="200" placeholder="Tên công đoạn" required>'
+      + '<span class="field-label">Mã nhân viên phụ trách</span>'
+      + '<input class="flat-op-emp" maxlength="50" placeholder="Mã NV (để trống nếu chưa phân)">'
+      + '<button type="button" class="btn btn-soft">Bỏ công đoạn</button>';
+    row.dataset.id = op.id || '';
+    row.querySelector('.flat-op-name').value = op.name || '';
+    row.querySelector('.flat-op-emp').value = op.assigned_emp_id || '';
     row.querySelector('button').onclick = () => row.remove(); ops.append(row);
   };
   async function refreshDemands() {
@@ -46,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('flat-add').onclick = () => { enabled.checked = true; add(); };
   form.onsubmit = async e => {
     e.preventDefault(); const key = select.value;
-    const operations = [...ops.children].map(row => ({id: row.dataset.id ? Number(row.dataset.id) : null, name: row.querySelector('input').value.trim()}));
+    const operations = [...ops.children].map(row => ({id: row.dataset.id ? Number(row.dataset.id) : null, name: row.querySelector('.flat-op-name').value.trim(), assigned_emp_id: row.querySelector('.flat-op-emp').value.trim() || null}));
     const button = form.querySelector('button.btn-primary'); button.disabled = true;
     try {
       await Admin.fetchJSON('/admin/api/flat-line?key=' + encodeURIComponent(key), {method: 'PUT', body: JSON.stringify({enabled: enabled.checked, operations})});

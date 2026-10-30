@@ -32,6 +32,7 @@
       <span class="field-label">Vai trò</span>
       <select name="Role">
         <option value="to_truong">Tổ trưởng</option>
+        <option value="operator">Công nhân trạm bệt</option>
         <option value="admin">Admin</option>
       </select>
     </label>
@@ -111,6 +112,8 @@ async function load() {
       <td>${u.Dept ?? ''}</td>
       <td>${u.Role === 'admin'
         ? '<span class="role-badge admin">Admin</span>'
+        : u.Role === 'operator'
+        ? '<span class="role-badge lead">Công nhân bệt</span>'
         : '<span class="role-badge lead">Tổ trưởng</span>'}</td>
       <td class="muted">${u.CreatedAt || ''}</td>
       <td class="col-action">

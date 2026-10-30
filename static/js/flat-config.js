@@ -4,19 +4,25 @@ window.FlatConfig = (() => {
   const ops = document.getElementById('flat-ops');
   function toggle() {
     fields.hidden = !enabled.checked;
-    ops.querySelectorAll('input').forEach(input => input.required = enabled.checked);
+    ops.querySelectorAll('.flat-op-name').forEach(input => input.required = enabled.checked);
   }
   function add(op = {}) {
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;gap:8px;margin:10px 0;align-items:end';
     const label = document.createElement('label'); label.className = 'field'; label.style.flex = '1';
     label.textContent = 'Tên công đoạn';
-    const input = document.createElement('input'); input.maxLength = 200;
+    const input = document.createElement('input'); input.className = 'flat-op-name'; input.maxLength = 200;
     input.value = op.name || ''; input.required = enabled.checked;
-    label.append(input); row.dataset.id = op.id || '';
+    label.append(input);
+    const empLabel = document.createElement('label'); empLabel.className = 'field'; empLabel.style.width = '160px';
+    empLabel.textContent = 'Mã NV phụ trách';
+    const emp = document.createElement('input'); emp.className = 'flat-op-emp'; emp.maxLength = 50;
+    emp.placeholder = 'Mã NV'; emp.value = op.assigned_emp_id || '';
+    empLabel.append(emp);
+    row.dataset.id = op.id || '';
     const remove = document.createElement('button'); remove.type = 'button';
     remove.className = 'btn btn-soft'; remove.textContent = 'Bỏ'; remove.onclick = () => row.remove();
-    row.append(label, remove); ops.append(row);
+    row.append(label, empLabel, remove); ops.append(row);
   }
   enabled.onchange = () => { if (enabled.checked && !ops.children.length) add(); toggle(); };
   document.getElementById('flat-add').onclick = () => add();
@@ -30,7 +36,9 @@ window.FlatConfig = (() => {
     },
     value() {
       return {enabled:enabled.checked, operations:[...ops.children].map(row => ({
-        id:row.dataset.id ? Number(row.dataset.id) : null, name:row.querySelector('input').value.trim(),
+        id:row.dataset.id ? Number(row.dataset.id) : null,
+        name:row.querySelector('.flat-op-name').value.trim(),
+        assigned_emp_id:row.querySelector('.flat-op-emp').value.trim() || null,
       }))};
     },
   };

@@ -31,6 +31,7 @@ def check_demand(key: str, user: dict, enabled: bool = True) -> dict:
 class OperationIn(BaseModel):
     id: int | None = None
     name: str = Field(min_length=1, max_length=200)
+    assigned_emp_id: str | None = Field(None, max_length=50)
 
 
 class ConfigIn(BaseModel):
@@ -42,7 +43,8 @@ class ConfigIn(BaseModel):
 def config(key: str, user: dict = Depends(auth.require_admin)):
     row = check_demand(key, user, False)
     return {'enabled': bool(row['TrackFlatLine']), 'operations': db.query(
-        'SELECT ID AS id, Name AS name FROM app.tFlatOperation WHERE NhuCauMe=? AND IsActive=1 ORDER BY SortOrder, ID', (key,))}
+        'SELECT ID AS id, Name AS name, AssignedEmpID AS assigned_emp_id '
+        'FROM app.tFlatOperation WHERE NhuCauMe=? AND IsActive=1 ORDER BY SortOrder, ID', (key,))}
 
 
 @router.put('/admin/api/flat-line')
@@ -67,10 +69,11 @@ def apply_config(cur, key: str, body: ConfigIn):
     cur.execute('UPDATE app.tDemandRoot SET TrackFlatLine=? WHERE NhuCauMe=?', (body.enabled, key))
     cur.execute('UPDATE app.tFlatOperation SET IsActive=0 WHERE NhuCauMe=?', (key,))
     for index, op in enumerate(body.operations):
+        emp = (op.assigned_emp_id or '').strip() or None
         if op.id is None:
-            cur.execute('INSERT INTO app.tFlatOperation (NhuCauMe,Name,SortOrder) VALUES (?,?,?)', (key, op.name.strip(), index))
+            cur.execute('INSERT INTO app.tFlatOperation (NhuCauMe,Name,SortOrder,AssignedEmpID) VALUES (?,?,?,?)', (key, op.name.strip(), index, emp))
         else:
-            cur.execute('UPDATE app.tFlatOperation SET Name=?,SortOrder=?,IsActive=1 WHERE ID=? AND NhuCauMe=?', (op.name.strip(), index, op.id, key))
+            cur.execute('UPDATE app.tFlatOperation SET Name=?,SortOrder=?,IsActive=1,AssignedEmpID=? WHERE ID=? AND NhuCauMe=?', (op.name.strip(), index, emp, op.id, key))
             if cur.rowcount != 1:
                 raise HTTPException(422, 'Công đoạn không thuộc nhu cầu')
 
@@ -157,3 +160,105 @@ def edit_report(report_id: int, body: EditIn, user: dict = Depends(auth.require_
         cur.execute('UPDATE app.tFlatReport SET ReportDate=?,Qty=?,UpdatedBy=?,UpdatedAt=SYSDATETIME() WHERE ID=?', (body.day, body.qty, user['UserID'], report_id))
         conn.commit()
     return {'ok': True}
+
+
+# ============================================================
+# Real-time operator station (+1 / -1)
+# ============================================================
+@router.get('/entry/station')
+def station_page(request: Request, user: dict = Depends(auth.require_user)):
+    return templates.TemplateResponse('entry/station.html', {
+        'request': request,
+        'user': user,
+        'today': date.today().isoformat(),
+        'app_unit': APP_UNIT,
+    })
+
+
+def _operator_emp(user: dict) -> str | None:
+    """Mã nhân viên dùng để lọc công đoạn. Admin xem tất cả (None)."""
+    if user.get('Role', '').lower() == 'admin':
+        return None
+    return user['UserID']
+
+
+@router.get('/entry/api/station/my-ops')
+def my_stations(day: date, user: dict = Depends(auth.require_user)):
+    """Các công đoạn bệt đang gán cho mã NV đang đăng nhập + số đã báo trong ngày."""
+    emp = _operator_emp(user)
+    where = 'o.IsActive=1 AND d.TrackFlatLine=1'
+    params: tuple = (day,)
+    if emp is not None:
+        where += ' AND o.AssignedEmpID=?'
+        params = (day, emp)
+    return db.query(
+        'SELECT o.ID AS OperationID, o.Name AS OperationName, o.NhuCauMe, '
+        'd.StyleNo, d.[LineNo] AS [LineNo], o.AssignedEmpID, '
+        'ISNULL((SELECT SUM(r.Qty) FROM app.tFlatReport r '
+        '        WHERE r.OperationID=o.ID AND r.ReportDate=?),0) AS TodayQty '
+        'FROM app.tFlatOperation o '
+        'JOIN app.tDemandRoot d ON d.NhuCauMe=o.NhuCauMe '
+        'WHERE ' + where + ' ORDER BY d.NhuCauMe, o.SortOrder, o.ID',
+        params,
+    )
+
+
+def _check_operation_access(cur, operation_id: int, user: dict) -> dict:
+    cur.execute(
+        'SELECT o.NhuCauMe, o.AssignedEmpID, o.IsActive, d.TrackFlatLine '
+        'FROM app.tFlatOperation o JOIN app.tDemandRoot d ON d.NhuCauMe=o.NhuCauMe '
+        'WHERE o.ID=?', (operation_id,))
+    row = cur.fetchone()
+    if not row:
+        raise HTTPException(404, 'Công đoạn không tồn tại')
+    nhu_cau_me, assigned, is_active, track = row
+    is_admin = user.get('Role', '').lower() == 'admin'
+    if not is_admin:
+        if not is_active or not track:
+            raise HTTPException(400, 'Công đoạn chưa được theo dõi')
+        if assigned != user['UserID']:
+            raise HTTPException(403, 'Công đoạn không được phân cho bạn')
+    return {'NhuCauMe': nhu_cau_me}
+
+
+def _today_qty(cur, operation_id: int, day: date) -> int:
+    cur.execute('SELECT ISNULL(SUM(Qty),0) FROM app.tFlatReport WHERE OperationID=? AND ReportDate=?', (operation_id, day))
+    return int(cur.fetchone()[0])
+
+
+class PulseIn(BaseModel):
+    operation_id: int
+    day: date
+
+
+@router.post('/entry/api/station/pulse')
+def pulse_add(body: PulseIn, user: dict = Depends(auth.require_user)):
+    """Ghi nhận 1 sản phẩm (nút +1). Mỗi lần bấm = 1 dòng Qty=1 kèm thời gian."""
+    if body.day > date.today():
+        raise HTTPException(422, 'Không báo ngày tương lai')
+    with db.get_conn() as conn:
+        conn.autocommit = False
+        cur = conn.cursor()
+        _check_operation_access(cur, body.operation_id, user)
+        cur.execute('INSERT INTO app.tFlatReport (OperationID,ReportDate,Qty,CreatedBy) VALUES (?,?,1,?)', (body.operation_id, body.day, user['UserID']))
+        qty = _today_qty(cur, body.operation_id, body.day)
+        conn.commit()
+    return {'ok': True, 'today_qty': qty}
+
+
+@router.post('/entry/api/station/undo')
+def pulse_undo(body: PulseIn, user: dict = Depends(auth.require_user)):
+    """Hoàn tác (nút -1): xoá dòng mới nhất của công đoạn trong ngày."""
+    with db.get_conn() as conn:
+        conn.autocommit = False
+        cur = conn.cursor()
+        _check_operation_access(cur, body.operation_id, user)
+        cur.execute(
+            'DELETE FROM app.tFlatReport WHERE ID = ('
+            '  SELECT TOP 1 ID FROM app.tFlatReport '
+            '  WHERE OperationID=? AND ReportDate=? ORDER BY CreatedAt DESC, ID DESC)',
+            (body.operation_id, body.day))
+        removed = cur.rowcount
+        qty = _today_qty(cur, body.operation_id, body.day)
+        conn.commit()
+    return {'ok': True, 'today_qty': qty, 'removed': removed}
