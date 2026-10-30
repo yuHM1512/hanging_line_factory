@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Báo sản lượng trạm bệt{% endblock %}
+{% block content %}
+<link rel="stylesheet" href="/static/css/admin.css">
+<link rel="stylesheet" href="/static/css/station.css?v=20261030f">
+
+<main class="st-main">
+  <header class="st-header">
+    <button class="st-hdr-btn st-hdr-btn--back" id="st-back" type="button" aria-label="Chọn công đoạn khác" hidden>
+      <span class="material-symbols-outlined">arrow_back</span>
+    </button>
+    <div class="st-badge">{{ app_unit }}</div>
+    <div class="st-hdr-info">
+      <strong>Báo Trạm Bệt</strong>
+      <span>{{ user.DisplayName or user.UserID }} · Tổ {{ user.Dept if user.Dept is not none else "?" }}</span>
+    </div>
+    <button class="st-hdr-btn" id="st-logout" type="button" aria-label="Đăng xuất">
+      <span class="material-symbols-outlined">logout</span>
+    </button>
+  </header>
+
+  <section id="st-picker" class="st-picker" hidden>
+    <h2 class="st-section-title">Chọn nhu cầu được phân</h2>
+    <div id="st-picker-list" class="st-picker-list"></div>
+  </section>
+
+  <section id="st-empty" class="st-empty" hidden>
+    <div class="st-empty-icon">
+      <span class="material-symbols-outlined">assignment_late</span>
+    </div>
+    <strong>Chưa được phân công đoạn nào</strong>
+    <p>Liên hệ quản lý để được gán mã nhân viên vào công đoạn chuyền bệt.</p>
+  </section>
+
+  <section id="st-counter" class="st-counter" hidden>
+    <div class="st-counter-body">
+      <div class="st-counter-meta">
+        <div class="st-counter-plan" id="st-plan"></div>
+        <div class="st-op-select-wrap">
+          <select class="st-op-select" id="st-op-select"></select>
+          <span class="material-symbols-outlined st-op-select-icon">unfold_more</span>
+        </div>
+      </div>
+      <div class="st-counter-card">
+        <div class="st-counter-num" id="st-qty">0</div>
+        <div class="st-counter-unit">sản phẩm hôm nay</div>
+      </div>
+      <button class="st-undo" id="st-minus" type="button">
+        <span class="material-symbols-outlined">undo</span>
+        Hoàn tác (−1)
+      </button>
+    </div>
+    <p class="st-hint">Mỗi lần bấm <b>GHI</b> được tính ngay lên bảng TV</p>
+    <button class="st-pulse" id="st-plus" type="button">
+      <span class="material-symbols-outlined">add</span>
+      <span>GHI 1 SẢN PHẨM</span>
+    </button>
+  </section>
+
+  <div id="toast" class="toast" role="status"></div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script src="/static/js/admin.js"></script>
+<script>window.ST_TODAY = {{ today|tojson }};</script>
+<script src="/static/js/station.js?v=20261030c"></script>
+{% endblock %}
