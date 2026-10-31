@@ -603,7 +603,14 @@ async function openEdit(guid) {
   f.StyleNo.value = p.StyleNo;
   f.LineNo.value = p.LineNoOut;
   f.NhuCauMe.value = p.NhuCauMe || p.SoDonHang;
-  await FlatConfig.load(f.NhuCauMe.value);
+  // Nạp cấu hình chuyền bệt KHÔNG được chặn mở form: plan không có DemandRoot
+  // sẽ làm /admin/api/flat-line trả 404. Bắt lỗi để vẫn hiện vùng sửa.
+  try {
+    await FlatConfig.load(f.NhuCauMe.value);
+  } catch (err) {
+    FlatConfig.reset();
+    Admin.toast('Không nạp được cấu hình chuyền bệt (nhu cầu mẹ chưa khai báo gốc). Vẫn có thể sửa các thông tin khác.', 'error');
+  }
   f.DMKT.value = p.DMKT || '';
   f.PhanLoaiDH.value = p.PhanLoaiDH || '';
   f.LDBienChe.value = p.LDBienChe || '';
