@@ -5,6 +5,65 @@
 {% block subheading %}Thiết lập tỷ lệ sản lượng ngoài giờ riêng cho từng Nhu cầu mẹ theo ngày. Cấu hình chỉ áp dụng khi xem ngày quá khứ trên TV-1.{% endblock %}
 
 {% block body %}
+<style>
+/* Vùng nhập liệu nổi bật — dùng chênh lệch màu nền + elevation, không dùng đường kẻ (No-Line Rule) */
+.panel-entry {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(180deg, #eef4ff 0%, #ffffff 60%);
+  box-shadow: 0 14px 38px -8px rgba(0, 24, 72, 0.18),
+              0 4px 12px -4px rgba(0, 24, 72, 0.08);
+}
+.panel-entry::before {           /* thanh nhấn trái: khối màu, không phải divider */
+  content: '';
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, #0056d2, #001848);
+}
+.panel-entry .panel-title { color: #001848; }
+.panel-entry .panel-title .material-symbols-outlined { color: #0056d2; }
+.entry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-left: 0.5rem;
+  padding: 0.15rem 0.6rem;
+  font-family: "Inter", sans-serif;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #0056d2;
+  background: #dfe9ff;
+  border-radius: 999px;
+}
+.entry-badge .material-symbols-outlined { font-size: 15px; color: #0056d2; }
+/* Input trên nền panel đã tô màu → để trắng cho bật lên, tăng tương phản */
+.panel-entry .field input,
+.panel-entry .field select,
+.panel-entry .field textarea {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1.5px rgba(0, 86, 210, 0.22);
+}
+.panel-entry .field input:focus,
+.panel-entry .field select:focus,
+.panel-entry .field textarea:focus {
+  background: #ffffff;
+  box-shadow: inset 0 0 0 2px #0056d2, 0 0 0 4px rgba(0, 86, 210, 0.14);
+  outline: none;
+}
+/* Ô tỷ lệ ngoài giờ là trọng tâm → cỡ chữ lớn, nổi bật nhất */
+.panel-entry input[name="OvertimePercent"] {
+  font-size: 1.35rem;
+  font-weight: 700;
+  font-family: "Manrope", sans-serif;
+  color: #001848;
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+.panel-entry .field-label { color: #001848; }
+</style>
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">filter_alt</span>
@@ -24,10 +83,15 @@
       </select>
     </label>
     <label class="field">
-      <span class="field-label">Ngày phân bổ</span>
+      <span class="field-label">Từ ngày</span>
       <input type="date" id="sel-date" disabled />
     </label>
+    <label class="field">
+      <span class="field-label">Đến ngày</span>
+      <input type="date" id="sel-date-to" disabled />
+    </label>
   </div>
+  <p class="muted small" style="margin-top:.5rem">Để trống cả hai ô = cấu hình <strong>Mặc định</strong> (mọi ngày). Chọn <em>Từ ngày</em> và bỏ trống <em>Đến ngày</em> = một ngày. Chọn cả hai = áp dụng cho từng ngày trong giai đoạn.</p>
   <div id="demand-info" class="muted" style="margin-top:.5rem" hidden></div>
 </div>
 
@@ -51,10 +115,11 @@
   <p class="muted small" style="margin-top:.5rem">Chọn ngày ở trên để thêm hoặc sửa cấu hình cho ngày cụ thể. Dòng "Mặc định" áp dụng cho mọi ngày chưa có cấu hình riêng.</p>
 </div>
 
-<div class="panel" id="panel-config" hidden>
+<div class="panel panel-entry" id="panel-config" hidden>
   <h3 class="panel-title">
     <span class="material-symbols-outlined">lock_clock</span>
     <span id="config-title">Tỷ lệ quy đổi ngoài giờ</span>
+    <span class="entry-badge"><span class="material-symbols-outlined">edit_note</span>Nhập liệu</span>
   </h3>
   <form id="form-config" class="row-form">
     <label class="field">
@@ -103,6 +168,7 @@ const API = '/admin/api/historical-output-allocation';
 const selLine = document.getElementById('sel-line');
 const selDemand = document.getElementById('sel-demand');
 const selDate = document.getElementById('sel-date');
+const selDateTo = document.getElementById('sel-date-to');
 const demandInfo = document.getElementById('demand-info');
 const panelExisting = document.getElementById('panel-existing');
 const panelConfig = document.getElementById('panel-config');
@@ -112,6 +178,7 @@ const btnDelete = document.getElementById('btn-delete');
 const SENTINEL = '1900-01-01';
 let currentDemand = '';
 let currentDate = '';
+let currentDateTo = '';
 
 async function loadLines() {
   try {
@@ -125,8 +192,11 @@ async function loadLines() {
 
 function resetAfterDemand() {
   currentDate = '';
+  currentDateTo = '';
   selDate.value = '';
   selDate.disabled = true;
+  selDateTo.value = '';
+  selDateTo.disabled = true;
   demandInfo.hidden = true;
   panelExisting.hidden = true;
   panelConfig.hidden = true;
@@ -170,13 +240,27 @@ selDemand.addEventListener('change', async () => {
   demandInfo.innerHTML = `<strong>${Admin.escape(currentDemand)}</strong> · Mã hàng ${Admin.escape(opt.dataset.style || '—')} · SLKH ${Number(opt.dataset.slkh || 0).toLocaleString('vi-VN')} pcs`;
   demandInfo.hidden = false;
   selDate.disabled = false;
+  selDateTo.disabled = false;
   currentDate = '';
+  currentDateTo = '';
   selDate.value = '';
+  selDateTo.value = '';
   await loadExisting();
 });
 
 selDate.addEventListener('change', () => {
   currentDate = selDate.value || '';
+  selDateTo.min = currentDate;
+  // Nếu Đến ngày đang trước Từ ngày thì xoá để tránh khoảng âm.
+  if (currentDateTo && currentDate && currentDateTo < currentDate) {
+    currentDateTo = '';
+    selDateTo.value = '';
+  }
+  loadConfig();
+});
+
+selDateTo.addEventListener('change', () => {
+  currentDateTo = selDateTo.value || '';
   loadConfig();
 });
 
@@ -221,7 +305,11 @@ panelExisting.addEventListener('click', (e) => {
   } else {
     selDate.value = d;
     currentDate = d;
+    selDateTo.min = d;
   }
+  // Sửa từ bảng = một ngày cụ thể, xoá khoảng Đến ngày.
+  selDateTo.value = '';
+  currentDateTo = '';
   loadConfig();
 });
 
@@ -235,11 +323,21 @@ async function loadConfig() {
   formConfig.Notes.value = config?.Notes || '';
   btnDelete.hidden = !config;
 
-  const label = currentDate || 'Mặc định (tất cả ngày)';
+  let label;
+  if (currentDateTo && currentDateTo !== currentDate) {
+    label = `Từ ${currentDate} đến ${currentDateTo}`;
+  } else {
+    label = currentDate || 'Mặc định (tất cả ngày)';
+  }
   document.getElementById('config-title').textContent = `Tỷ lệ ngoài giờ — ${label}`;
-  document.getElementById('audit-info').textContent = config
-    ? `Cập nhật bởi ${config.UpdatedBy || '—'} lúc ${config.UpdatedAt || '—'}`
-    : 'Chưa có cấu hình. TV-1 đang dùng giờ quét thực tế.';
+  if (currentDateTo && currentDateTo !== currentDate) {
+    document.getElementById('audit-info').textContent =
+      `Lưu sẽ áp dụng tỷ lệ này cho từng ngày từ ${currentDate} đến ${currentDateTo}. Giá trị minh hoạ lấy theo cấu hình ngày ${currentDate}.`;
+  } else {
+    document.getElementById('audit-info').textContent = config
+      ? `Cập nhật bởi ${config.UpdatedBy || '—'} lúc ${config.UpdatedAt || '—'}`
+      : 'Chưa có cấu hình. TV-1 đang dùng giờ quét thực tế.';
+  }
 
   panelConfig.hidden = false;
   panelPreview.hidden = false;
@@ -285,11 +383,15 @@ formConfig.addEventListener('submit', async (event) => {
       body: JSON.stringify({
         NhuCauMe: currentDemand,
         AllocationDate: currentDate || SENTINEL,
+        AllocationDateTo: (currentDate && currentDateTo && currentDateTo !== currentDate) ? currentDateTo : null,
         OvertimePercent: Number(fd.get('OvertimePercent')),
         Notes: fd.get('Notes') || null,
       }),
     });
-    Admin.toast(result.action === 'created' ? 'Đã tạo cấu hình.' : 'Đã cập nhật tỷ lệ.', 'ok');
+    const msg = (result.days && result.days > 1)
+      ? `Đã lưu tỷ lệ cho ${result.days} ngày.`
+      : (result.action === 'created' ? 'Đã tạo cấu hình.' : 'Đã cập nhật tỷ lệ.');
+    Admin.toast(msg, 'ok');
     await loadExisting();
     await loadConfig();
   } catch (err) {

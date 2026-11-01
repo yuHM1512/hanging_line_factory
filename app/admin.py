@@ -2053,11 +2053,37 @@ def api_historical_output_allocation_detail(
     return rows
 
 
+HISTORICAL_ALLOCATION_SENTINEL = "1900-01-01"
+
+
 class HistoricalOutputAllocationIn(AdminModel):
     nhu_cau_me: str = Field(..., alias="NhuCauMe")
-    allocation_date: str = Field("1900-01-01", alias="AllocationDate")
+    allocation_date: str = Field(HISTORICAL_ALLOCATION_SENTINEL, alias="AllocationDate")
+    allocation_date_to: Optional[str] = Field(None, alias="AllocationDateTo")
     overtime_percent: float = Field(..., alias="OvertimePercent", ge=0, le=100)
     notes: Optional[str] = Field(None, alias="Notes", max_length=200)
+
+
+def _historical_allocation_dates(body: HistoricalOutputAllocationIn) -> list[str]:
+    """Danh sách ngày áp dụng: dòng Mặc định (sentinel) hoặc từng ngày trong giai đoạn."""
+    start_raw = body.allocation_date or HISTORICAL_ALLOCATION_SENTINEL
+    if start_raw == HISTORICAL_ALLOCATION_SENTINEL:
+        return [HISTORICAL_ALLOCATION_SENTINEL]
+    try:
+        start = date.fromisoformat(start_raw)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày bắt đầu không hợp lệ") from exc
+    end_raw = body.allocation_date_to or start_raw
+    try:
+        end = date.fromisoformat(end_raw)
+    except ValueError as exc:
+        raise HTTPException(400, "Ngày kết thúc không hợp lệ") from exc
+    if end < start:
+        raise HTTPException(400, "Ngày kết thúc phải sau hoặc bằng ngày bắt đầu")
+    return [
+        (start + timedelta(days=offset)).isoformat()
+        for offset in range((end - start).days + 1)
+    ]
 
 
 @router.post("/api/historical-output-allocation")
@@ -2066,28 +2092,33 @@ def api_historical_output_allocation_save(
     user: dict = Depends(auth.require_admin),
 ):
     actor = _actor_id(user)
-    alloc_date = body.allocation_date or "1900-01-01"
+    dates = _historical_allocation_dates(body)
+    created = 0
+    updated = 0
     with db.get_conn() as conn:
         cur = conn.cursor()
-        cur.execute(
-            "UPDATE app.tHistoricalOutputAllocation SET "
-            "OvertimePercent = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
-            "WHERE NhuCauMe = ? AND AllocationDate = ?",
-            (body.overtime_percent, body.notes, actor, body.nhu_cau_me, alloc_date),
-        )
-        action = "updated"
-        if cur.rowcount == 0:
-            try:
-                cur.execute(
-                    "INSERT INTO app.tHistoricalOutputAllocation "
-                    "(NhuCauMe, AllocationDate, OvertimePercent, Notes, UpdatedBy) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (body.nhu_cau_me, alloc_date, body.overtime_percent, body.notes, actor),
-                )
-                action = "created"
-            except Exception as exc:  # noqa: BLE001
-                raise HTTPException(400, f"Lưu tỷ lệ thất bại: {exc}") from exc
-    return {"ok": True, "action": action}
+        for alloc_date in dates:
+            cur.execute(
+                "UPDATE app.tHistoricalOutputAllocation SET "
+                "OvertimePercent = ?, Notes = ?, UpdatedAt = SYSDATETIME(), UpdatedBy = ? "
+                "WHERE NhuCauMe = ? AND AllocationDate = ?",
+                (body.overtime_percent, body.notes, actor, body.nhu_cau_me, alloc_date),
+            )
+            if cur.rowcount == 0:
+                try:
+                    cur.execute(
+                        "INSERT INTO app.tHistoricalOutputAllocation "
+                        "(NhuCauMe, AllocationDate, OvertimePercent, Notes, UpdatedBy) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (body.nhu_cau_me, alloc_date, body.overtime_percent, body.notes, actor),
+                    )
+                    created += 1
+                except Exception as exc:  # noqa: BLE001
+                    raise HTTPException(400, f"Lưu tỷ lệ thất bại: {exc}") from exc
+            else:
+                updated += 1
+    action = "created" if created and not updated else "updated"
+    return {"ok": True, "action": action, "created": created, "updated": updated, "days": len(dates)}
 
 
 @router.delete("/api/historical-output-allocation/{nhu_cau_me}")
