@@ -1665,6 +1665,7 @@ GS_URL = (
 SAM_FACTORY_KEYWORD = "MARCH 29"
 SAM_COL_STYLE = "CC - CONCEPTION"
 SAM_COL_VALUE = "SAM_OWE"
+SAM_COL_SOT = "SOT"
 SAM_COL_TARGET = "TARGET_OWE"
 SAM_COL_FACTORY = "Factory"
 
@@ -1730,31 +1731,43 @@ def _do_sam_sync(actor: str = "auto-sync") -> dict:
     idx_factory = header.index(SAM_COL_FACTORY)
     idx_style = header.index(SAM_COL_STYLE)
     idx_sam = header.index(SAM_COL_VALUE)
+    idx_sot = header.index(SAM_COL_SOT)
     idx_target = header.index(SAM_COL_TARGET)
 
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M")
     src_label = f"Google Sheet · synced {timestamp}"
+    src_label_sot = f"Google Sheet (SOT fallback) · synced {timestamp}"
 
     inserted = updated = skipped = 0
+    sot_fallback = 0
     invalid: list[dict] = []
 
     with db.get_conn() as conn:
         cur = conn.cursor()
         for r in rows[2:]:
-            if len(r) <= max(idx_sam, idx_target):
+            if len(r) <= max(idx_sam, idx_sot, idx_target):
                 continue
             factory = (r[idx_factory] or "").strip()
             style = (r[idx_style] or "").strip()
             sam_raw = (r[idx_sam] or "").strip()
+            sot_raw = (r[idx_sot] or "").strip()
             target_raw = (r[idx_target] or "").strip()
-            if SAM_FACTORY_KEYWORD not in factory or not style or not sam_raw:
+            if SAM_FACTORY_KEYWORD not in factory or not style:
                 continue
+            # Mã chưa có SAM_OWE → fallback dùng cột SOT làm SAM.
+            from_sot = not sam_raw and bool(sot_raw)
+            value_raw = sam_raw or sot_raw
+            if not value_raw:
+                continue
+            row_src = src_label_sot if from_sot else src_label
+            if from_sot:
+                sot_fallback += 1
             try:
-                sam_val = float(sam_raw.replace(",", "."))
+                sam_val = float(value_raw.replace(",", "."))
                 if sam_val <= 0:
                     raise ValueError("SAM <= 0")
             except ValueError:
-                invalid.append({"StyleNo": style, "raw_sam": sam_raw})
+                invalid.append({"StyleNo": style, "raw_sam": value_raw})
                 continue
             target_val: Optional[float] = None
             if target_raw:
@@ -1773,7 +1786,7 @@ def _do_sam_sync(actor: str = "auto-sync") -> dict:
                 cur.execute(
                     "INSERT INTO app.tSAM (StyleNo, SAM, OWE_Target, Source, UpdatedBy) "
                     "VALUES (?, ?, ?, ?, ?)",
-                    (style, sam_val, target_val, src_label, actor),
+                    (style, sam_val, target_val, row_src, actor),
                 )
                 inserted += 1
             else:
@@ -1783,7 +1796,7 @@ def _do_sam_sync(actor: str = "auto-sync") -> dict:
                     cur.execute(
                         "UPDATE app.tSAM SET SAM = ?, OWE_Target = ?, Source = ?, "
                         "UpdatedAt = SYSDATETIME(), UpdatedBy = ? WHERE StyleNo = ?",
-                        (sam_val, target_val, src_label, actor, style),
+                        (sam_val, target_val, row_src, actor, style),
                     )
                     updated += 1
                 else:
@@ -1794,6 +1807,7 @@ def _do_sam_sync(actor: str = "auto-sync") -> dict:
         "inserted": inserted,
         "updated": updated,
         "skipped": skipped,
+        "sot_fallback": sot_fallback,
         "invalid_count": len(invalid),
         "invalid_samples": invalid[:10],
         "synced_at": timestamp,
