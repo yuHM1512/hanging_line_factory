@@ -88,6 +88,26 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(q['reinspect_rate'], 100.0)
         self.assertEqual(q['defects_day'], 11)
 
+    def test_every_milestone_up_to_cutoff_is_selectable(self):
+        reports = [
+            report(0, n='2', ak='2', groups=[('A', '1', '2', '')]),
+            report(2, n='1', groups=[('B', '4', '1', '')]),
+            report(3, n='4', groups=[('C', '3', '4', '')]),
+            report(4, n='1', ak='5'),
+        ]
+        q = flat_quality.summarize(reports, 4)
+        w = q['windows']
+        self.assertEqual([x['window'] for x in w], ['09H30', '11H30', '14H30', '16H30', 'Sau 16H30'])
+        self.assertEqual([x['reported'] for x in w], [True, False, True, True, True])
+        self.assertEqual([r['type'] for r in w[0]['rows']], ['A'])
+        self.assertEqual(w[0]['reinspect_rate'], 100.0)
+        self.assertEqual(w[1]['rows'], [])
+        self.assertIsNone(w[1]['defects_2h'])
+        self.assertEqual([r['type'] for r in w[3]['rows']], ['C'])
+        self.assertEqual(w[4]['defects_2h'], 5)  # 16H30 + Sau 16H30
+        self.assertEqual(q['rows'], w[4]['rows'])  # top level = latest window
+        self.assertEqual(q['defects_2h'], 5)
+
     def test_table_keeps_five_rows_and_counts_the_rest(self):
         q = flat_quality.summarize([report(0, groups=[(t, '', str(i + 1), '') for i, t in enumerate('ABCDE')]),
                                     report(0, groups=[('F', '', '9', '')])], 0)

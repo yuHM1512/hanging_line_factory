@@ -45,7 +45,9 @@ def _tv3_sheet(out, q, qty):
     """TV-3 layout cũ (Sheet '3. Tx'): bảng lỗi mốc gần nhất, Top 3 lũy kế ngày, kiểm lại 2H/lũy kế."""
     counts = inspection(qty, q.get('defects_day') if q['status'] == 'ok' else None)
     out.update(
-        quality=dict(window=q['window'], rows=q['rows'], more_rows=q['more_rows'], top3=q['top3']),
+        quality=dict(window=q['window'], rows=q['rows'], more_rows=q['more_rows'], top3=q['top3'],
+            # Mọi mốc từ đầu ngày tới mốc mới nhất — TV có nút bấm xem lại mốc trước.
+            windows=q.get('windows', [])),
         kpi=dict(TongDat=qty, TongLoi=q['defects_day'], TyLeLoi=counts['pct'], DefectTarget=5,
             DefectStatus=('pass' if counts['pct'] <= 5 else 'fail') if counts['pct'] is not None else None,
             Loi2H=q['defects_2h'], KiemLaiDat2H=q['reinspect_2h'], TyLeKiemLai=q['reinspect_rate'],

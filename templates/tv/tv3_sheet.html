@@ -45,6 +45,16 @@
 }
 .panel-title .more { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--warn-ink); text-transform: none; letter-spacing: 0; }
 
+/* Nút chọn mốc — mặc định theo mốc mới nhất, bấm để xem lại mốc trước */
+.slots { display: flex; gap: var(--s-2); padding: var(--s-2) var(--s-4); background: var(--surface-2); flex-shrink: 0; }
+.slot-btn {
+  flex: 1; padding: 8px 6px; border: none; border-radius: var(--r-sm, 6px); cursor: pointer;
+  background: #fff; color: var(--ink-2); font: 700 17px/1 var(--font-mono); box-shadow: var(--sh-1);
+}
+.slot-btn.off { opacity: .45; }
+.slot-btn.latest::after { content: ' ●'; color: var(--pass-solid); font-size: 12px; vertical-align: middle; }
+.slot-btn.active { background: var(--brand-700); color: #fff; opacity: 1; }
+.slot-btn.active.past { background: var(--warn-ink); }
 .dtbl { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
 .dtbl th {
   background: var(--brand-700); color: #fff; padding: var(--s-2) var(--s-3);
@@ -158,6 +168,7 @@
         <span class="win" id="q-window">—</span>
         <span class="more" id="q-more"></span>
       </div>
+      <div class="slots" id="q-slots"></div>
       <table class="dtbl">
         <colgroup><col style="width:33%"><col style="width:27%"><col style="width:14%"><col style="width:26%"></colgroup>
         <thead>
@@ -193,7 +204,7 @@
       </div>
     </div>
     <div class="card bk">
-      <div class="bk-head">2 giờ gần nhất<span class="en" id="b-2h-en">Last 2H</span></div>
+      <div class="bk-head"><span id="b-2h-title">2 giờ gần nhất</span><span class="en" id="b-2h-en">Last 2H</span></div>
       <div class="bk-body">
         <div class="bk-cell"><span class="l">Tổng lỗi 2H · Total</span><span class="v fail" id="b-loi-2h">—</span></div>
         <div class="bk-cell"><span class="l">Kiểm lại đạt 2H · Re-inspect PASS</span><span class="v pass" id="b-kl-2h">—</span></div>
@@ -238,6 +249,11 @@ const WINDOW_LABEL = {
   'Sau 16H30': 'Mốc 16H30 + Sau 16H30 · 14H30 – hết ca',
 };
 
+const BACK_TO_LATEST_MS = 3 * 60 * 1000;  // TV không người trực: tự quay về mốc mới nhất
+let selectedSlot = null;                  // null = luôn theo mốc mới nhất
+let backTimer = null;
+let lastData = null;
+
 const $ = id => document.getElementById(id);
 const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const pad = n => String(n).padStart(2, '0');
@@ -281,6 +297,7 @@ async function loadData() {
     const data = await resp.json();
     $('dc-overlay').classList.remove('show');
     window.tvReportDate = data.header.ReportDate || INIT_DATE;
+    lastData = data;
     render(data);
     tick();
     TVSource.apply(data);
@@ -312,14 +329,46 @@ function render(d) {
     $('h-first').textContent = `${dd}/${m}/${y}`;
   }
 
-  const win = q.window;
-  $('q-window').textContent = win ? (WINDOW_LABEL[win] || 'Mốc ' + win) : 'Chưa có mốc báo cáo';
-  $('b-2h-en').textContent  = win ? 'Last 2H · ' + (WINDOW_LABEL[win] || win) : 'Last 2H';
-  $('q-more').textContent   = q.more_rows ? `+${q.more_rows} dạng lỗi khác` : '';
-
-  renderTable(q.rows || [], win, k.Loi2H);
   renderTop3(q.top3 || []);
-  renderBottom(k);
+  renderWindow(d);
+}
+
+function selectSlot(slot) {
+  const windows = (lastData && lastData.quality && lastData.quality.windows) || [];
+  const latest = windows.length ? windows[windows.length - 1].slot : null;
+  selectedSlot = slot === latest ? null : slot;
+  clearTimeout(backTimer);
+  if (selectedSlot != null) backTimer = setTimeout(() => selectSlot(null), BACK_TO_LATEST_MS);
+  if (lastData) renderWindow(lastData);
+}
+
+// Bảng lỗi + khối 2H theo mốc đang chọn; Top 3 và Lũy kế ngày luôn là cả ngày.
+function renderWindow(d) {
+  const q = d.quality || {}, k = d.kpi || {};
+  const windows = q.windows || [];
+  const latest = windows.length ? windows[windows.length - 1] : null;
+  const w = windows.find(x => x.slot === selectedSlot) || latest
+    || { window: q.window, rows: q.rows || [], more_rows: q.more_rows,
+         defects_2h: k.Loi2H, reinspect_2h: k.KiemLaiDat2H, reinspect_rate: k.TyLeKiemLai };
+  if (w === latest) selectedSlot = null;
+
+  $('q-slots').innerHTML = windows.map(x => {
+    const cls = ['slot-btn', x.reported ? '' : 'off', x === latest ? 'latest' : '',
+                 x === w ? 'active' : '', x === w && x !== latest ? 'past' : ''].join(' ');
+    return `<button class="${cls}" onclick="selectSlot(${x.slot})">${esc(x.window)}</button>`;
+  }).join('');
+  $('q-slots').hidden = windows.length < 2;
+
+  const win = w.window;
+  const past = latest && w !== latest;
+  $('q-window').textContent = (win ? (WINDOW_LABEL[win] || 'Mốc ' + win) : 'Chưa có mốc báo cáo')
+    + (past ? ' · đang xem lại' : '');
+  $('b-2h-title').textContent = past ? 'Mốc ' + win + ' (xem lại)' : '2 giờ gần nhất';
+  $('b-2h-en').textContent  = win ? (past ? 'Selected · ' : 'Last 2H · ') + (WINDOW_LABEL[win] || win) : 'Last 2H';
+  $('q-more').textContent   = w.more_rows ? `+${w.more_rows} dạng lỗi khác` : '';
+
+  renderTable(w.rows || [], win, w.defects_2h);
+  renderBottom(Object.assign({}, k, { Loi2H: w.defects_2h, KiemLaiDat2H: w.reinspect_2h, TyLeKiemLai: w.reinspect_rate }));
 }
 
 function renderTable(rows, win, reported) {

@@ -91,14 +91,22 @@ def window_slots(cutoff):
     return {LAST_FULL_SLOT, cutoff} if cutoff > LAST_FULL_SLOT else {cutoff}
 
 
-def summarize(reports, cutoff):
-    """Quality of one report day; `cutoff` is the latest reported milestone index (-1 = none)."""
-    day_blocks = _blocks(reports)
-    window = window_slots(cutoff)
-    window_blocks = _blocks([r for r in reports if r["slot"] in window])
+def _defects_of(blocks):
+    # N is the defect count the line reports for every milestone, even when Q:AJ is left blank;
+    # fall back to the parsed defect groups only when N itself is missing.
+    reported = _total(b["defect_qty"] for b in blocks)
+    if reported is not None:
+        return reported
+    parsed = [defect_qty(d) for b in blocks for d in b["defects"]]
+    return sum(parsed) if parsed else None
 
+
+def _window(reports, cutoff):
+    """Table + 2H totals of the window ending at milestone `cutoff`."""
+    slots = window_slots(cutoff)
+    blocks = _blocks([r for r in reports if r["slot"] in slots])
     rows = {}
-    for block in window_blocks:
+    for block in blocks:
         for d in block["defects"]:
             row = rows.setdefault(d["type"], dict(type=d["type"], positions=[], qty=0, cap=[]))
             row["positions"] += positions(d)
@@ -106,40 +114,44 @@ def summarize(reports, cutoff):
             if d["cap"] and d["cap"] not in row["cap"]:
                 row["cap"].append(d["cap"])
     table = sorted(rows.values(), key=lambda r: -r["qty"])
+    defects_2h = _defects_of(blocks)
+    reinspect_2h = _total(b["reinspect"] for b in blocks)
+    from .flat_sheet import SLOTS
+    return dict(
+        slot=cutoff,
+        window=SLOTS[cutoff] if cutoff >= 0 else None,
+        reported=any(r["slot"] == cutoff for r in reports),
+        rows=[dict(r, cap="; ".join(r["cap"])) for r in table[:TABLE_ROWS]],
+        more_rows=max(0, len(table) - TABLE_ROWS),
+        defects_2h=defects_2h,
+        reinspect_2h=reinspect_2h,
+        reinspect_rate=round(reinspect_2h / defects_2h * 100, 1) if defects_2h and reinspect_2h is not None else None,
+    )
 
+
+def summarize(reports, cutoff):
+    """Quality of one report day; `cutoff` is the latest reported milestone index (-1 = none).
+    Top-level table/2H fields describe the latest window; `windows` holds every milestone up to
+    `cutoff` so the TV can step back to earlier ones."""
+    day_blocks = _blocks(reports)
     ranking = {}
     for block in day_blocks:
         for d in block["defects"]:
             ranking[d["type"]] = ranking.get(d["type"], 0) + defect_qty(d)
     top3 = [dict(type=k, qty=v) for k, v in sorted(ranking.items(), key=lambda kv: -kv[1])[:3]]
 
-    # N is the defect count the line reports for every milestone, even when Q:AJ is left blank;
-    # fall back to the parsed defect groups only when N itself is missing.
-    def defects_of(blocks):
-        reported = _total(b["defect_qty"] for b in blocks)
-        if reported is not None:
-            return reported
-        parsed = [defect_qty(d) for b in blocks for d in b["defects"]]
-        return sum(parsed) if parsed else None
-
-    defects_2h = defects_of(window_blocks)
-    reinspect_2h = _total(b["reinspect"] for b in window_blocks)
-    defects_day = defects_of(day_blocks)
-    reinspect_day = _total(b["reinspect"] for b in day_blocks)
+    windows = [_window(reports, c) for c in range(cutoff + 1)]
+    latest = windows[-1] if windows else _window(reports, -1)
+    defects_day = _defects_of(day_blocks)
     has_data = any(b["defects"] or b["defect_qty"] is not None or b["reinspect"] is not None for b in day_blocks)
-    from .flat_sheet import SLOTS
     return dict(
+        {k: v for k, v in latest.items() if k not in ("slot", "reported")},
         status="ok" if has_data else "empty",
         source="sheet",
-        window=SLOTS[cutoff] if cutoff >= 0 else None,
-        rows=[dict(r, cap="; ".join(r["cap"])) for r in table[:TABLE_ROWS]],
-        more_rows=max(0, len(table) - TABLE_ROWS),
+        windows=windows,
         top3=top3,
-        defects_2h=defects_2h,
-        reinspect_2h=reinspect_2h,
-        reinspect_rate=round(reinspect_2h / defects_2h * 100, 1) if defects_2h and reinspect_2h is not None else None,
         defects_day=defects_day,
-        reinspect_day=reinspect_day,
+        reinspect_day=_total(b["reinspect"] for b in day_blocks),
         # Same key the QLCL response used, so TV-1's defect rate keeps working.
         defects=defects_day,
     )
