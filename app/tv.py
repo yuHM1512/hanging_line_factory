@@ -157,8 +157,11 @@ def page_tv3(
     mono: Optional[str] = None,
     date: Optional[date] = None,
 ):
+    from .flat_tv import PREFIX
+    # Chuyền bệt: layout chất lượng cũ đọc từ Sheet (QLCL tạm tắt). Chuyền treo giữ tv3.html (QLCL).
+    template = "tv/tv3_sheet.html" if (mono or "").startswith(PREFIX) else "tv/tv3.html"
     return templates.TemplateResponse(
-        "tv/tv3.html",
+        template,
         {"request": request, "init_mono": mono or "", "init_date": str(date) if date else ""},
     )
 
@@ -1045,6 +1048,10 @@ def api_tv1_qc(
     the_date: date = Query(..., alias="date"),
 ):
     """Lazy-loaded defect rate from QLCL — called separately so TV-1 renders instantly."""
+    from .flat_tv import PREFIX
+    if mono.startswith(PREFIX):
+        # Chuyền bệt: tỉ lệ lỗi đã tính từ Sheet trong /api/tv1; trả rỗng để TV-1 giữ nguyên giá trị đó.
+        return {}
     kcs_today = _output_kcs(mono, the_date, the_date)
     qc = _fetch_qlcl_tv3(mono, the_date)
     total_loi = qc.get("total_loi", 0) if qc.get("found") else 0

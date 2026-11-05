@@ -41,6 +41,37 @@ def pct(actual, target):
     return round(actual / target * 100, 1) if actual is not None and target else None
 
 
+def _tv3_sheet(out, q, qty):
+    """TV-3 layout cũ (Sheet '3. Tx'): bảng lỗi mốc gần nhất, Top 3 lũy kế ngày, kiểm lại 2H/lũy kế."""
+    counts = inspection(qty, q.get('defects_day') if q['status'] == 'ok' else None)
+    out.update(
+        quality=dict(window=q['window'], rows=q['rows'], more_rows=q['more_rows'], top3=q['top3']),
+        kpi=dict(TongDat=qty, TongLoi=q['defects_day'], TyLeLoi=counts['pct'], DefectTarget=5,
+            DefectStatus=('pass' if counts['pct'] <= 5 else 'fail') if counts['pct'] is not None else None,
+            Loi2H=q['defects_2h'], KiemLaiDat2H=q['reinspect_2h'], TyLeKiemLai=q['reinspect_rate'],
+            LoiNgay=q['defects_day'], KiemLaiDatNgay=q['reinspect_day']),
+        qc_source='sheet')
+
+
+def _tv3_qlcl(out, d, q, qty, slot):
+    """TV-3 theo dữ liệu QLCL — tạm không dùng, giữ lại để bật khi module QLCL hoàn thiện."""
+    qc_slots = {s['slot']:s['defects'] for s in q.get('slots',[])}
+    slots = [dict(slot=i+1,label=s['label'],**inspection(s['actual'],qc_slots.get(i+1,0)))
+        for i,s in enumerate(d['slots'])] if q['status']=='ok' else []
+    departments, errors = Counter(), Counter()
+    combo = []
+    for row in q.get('details',[]):
+        departments[row['department']] += row['quantity']
+        errors[row['defect']] += row['quantity']
+        combo.append(dict(bp=row['department'],ct=row['detail'],ma_loi=row['defect'],n=row['quantity']))
+    counts = inspection(qty, q.get('defects') if q['status']=='ok' else None)
+    out.update(kpi=dict(TongDat=qty,TongKiem=counts['kiem'],TongLoi=counts['loi'],TyLeLoi=counts['pct'],
+        DefectTarget5=5,DefectStatus=('pass' if counts['pct']<=5 else 'fail') if counts['pct'] is not None else None,
+        CanhBaoCount=len(q['alerts']) if 'alerts' in q else None,CurrentSlot=slot,MES_KCS_Qty=qty,FinalClusterQty=qty),
+        slots=slots,bo_phan=[dict(name=k,count=v) for k,v in departments.items()],
+        top3=[dict(ma_loi=k,n=v) for k,v in errors.most_common(3)],combo=combo,canh_bao=q.get('alerts',[]),qc_source='qlcl')
+
+
 def dashboard(screen, mono, the_date):
     d = flat_sheet.dashboard_api(mono[len(PREFIX):], the_date.isoformat())
     p, q = d['plan'], d['qc']
@@ -84,21 +115,9 @@ def dashboard(screen, mono, the_date):
             target_cutoff_slot=slot,target_cutoff_label=d['cutoff'],
             y_max=max(50,math.ceil(max([v or 0 for v in d['daily']]+[target_slot or 0])/50)*50))
     elif screen == 3:
-        qc_slots = {s['slot']:s['defects'] for s in q.get('slots',[])}
-        slots = [dict(slot=i+1,label=s['label'],**inspection(s['actual'],qc_slots.get(i+1,0)))
-            for i,s in enumerate(d['slots'])] if q['status']=='ok' else []
-        departments, errors = Counter(), Counter()
-        combo = []
-        for row in q.get('details',[]):
-            departments[row['department']] += row['quantity']
-            errors[row['defect']] += row['quantity']
-            combo.append(dict(bp=row['department'],ct=row['detail'],ma_loi=row['defect'],n=row['quantity']))
-        counts = inspection(qty, q.get('defects') if q['status']=='ok' else None)
-        out.update(kpi=dict(TongDat=qty,TongKiem=counts['kiem'],TongLoi=counts['loi'],TyLeLoi=counts['pct'],
-            DefectTarget5=5,DefectStatus=('pass' if counts['pct']<=5 else 'fail') if counts['pct'] is not None else None,
-            CanhBaoCount=len(q['alerts']) if 'alerts' in q else None,CurrentSlot=slot,MES_KCS_Qty=qty,FinalClusterQty=qty),
-            slots=slots,bo_phan=[dict(name=k,count=v) for k,v in departments.items()],
-            top3=[dict(ma_loi=k,n=v) for k,v in errors.most_common(3)],combo=combo,canh_bao=q.get('alerts',[]),qc_source='qlcl')
+        # QLCL tạm tắt: TV-3 chuyền bệt hiển thị layout chất lượng cũ từ Sheet (templates/tv/tv3_sheet.html).
+        # Khi bật lại QLCL trong flat_sheet.dashboard_api, đổi dòng dưới thành: _tv3_qlcl(out, d, q, qty, slot)
+        _tv3_sheet(out, q, qty)
     elif screen == 4:
         from .tv import _workday_index, _ndsx_level
         from .admin import get_holidays

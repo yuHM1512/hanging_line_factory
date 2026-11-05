@@ -37,8 +37,9 @@ class QualityTotalsTests(unittest.TestCase):
             workers=40,wip=0,tpt=1,target=100,selected='2026-09-17',requested='2026-09-17',cutoff='09H30',
             synced_at='stamp',warnings=[],sync_error=None,daily=[174]*6,cumulative=[174]*6,
             slots=[dict(label='09H30',actual=174),dict(label='11H30',actual=None)])
-        with patch('app.flat_sheet.dashboard_api', return_value=payload):
-            result = flat_tv.dashboard(3,'flat:mother',date(2026,9,17))
+        # QLCL mapping is parked (TV-3 reads the Sheet for now) but must keep working for re-enable.
+        result = {}
+        flat_tv._tv3_qlcl(result, payload, payload['qc'], payload['daily'][5], 1)
         self.assertEqual(result['kpi']['TongDat'], 174)
         self.assertEqual(result['kpi']['TongKiem'], 180)
         self.assertEqual(result['kpi']['TyLeLoi'], 3.3)

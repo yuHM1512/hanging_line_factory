@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>TV-3 · Chất lượng cuối chuyền</title>
+<link rel="stylesheet" href="/static/css/tv/shared.css">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+/* TV-3 chuyền bệt — layout chất lượng cũ của Sheet "3. Tx" (bỏ khối Máy hỏng).
+   Nguồn: Data-U2 cột N, Q:AK qua /tv/api/tv3 (QLCL tạm tắt). */
+.si {
+  height: 1080px; display: flex; flex-direction: column;
+  padding: var(--s-10); gap: var(--s-5); background: var(--canvas);
+}
+
+/* ══ HEADER (đồng bộ TV-3 QLCL) ══ */
+.hdr {
+  background: linear-gradient(120deg, var(--brand-900) 0%, var(--brand-700) 62%, var(--brand-600) 100%);
+  border-radius: var(--r-lg); box-shadow: var(--sh-2); color: #fff;
+  display: grid; grid-template-columns: auto 1px 1fr auto; align-items: center;
+  gap: var(--s-6); padding: var(--s-4) var(--s-6); flex-shrink: 0; height: 100px;
+}
+.hdr-line { display: flex; flex-direction: column; gap: 2px; }
+.hdr-line .lk { font-size: 12px; letter-spacing: .12em; opacity: .75; text-transform: uppercase; font-weight: 600; }
+.hdr-line .lv { font-family: var(--font-mono); font-weight: 700; font-size: 40px; line-height: 1; }
+.hdr-line .style { margin-top: 2px; font-size: 15px; font-weight: 600; color: #BBF7D0; }
+.hdr-div { width: 1px; height: 64px; background: rgba(255,255,255,.18); }
+.hdr-fields { display: flex; justify-content: space-between; gap: var(--s-6); align-items: center; min-width: 0; }
+.fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fld .k { font-size: 15px; letter-spacing: .02em; text-transform: uppercase; color: rgba(255,255,255,.7); font-weight: 600; }
+.fld .v { font-size: 24px; font-weight: 700; line-height: 1; white-space: nowrap; }
+.fld .v.mono { font-family: var(--font-mono); }
+.fld .v.demand { font-size: 21px; color: #C7DBFA; }
+.hdr-clock { text-align: right; display: flex; flex-direction: column; gap: 4px; padding-left: var(--s-4); border-left: 1px solid rgba(255,255,255,.18); }
+.hdr-clock .date { font-size: 14px; color: rgba(255,255,255,.78); }
+.hdr-clock .time { font-family: var(--font-mono); font-weight: 700; font-size: 38px; line-height: 1; }
+
+/* ══ MAIN: bảng lỗi + Top 3 ══ */
+.main { flex: 1; min-height: 0; display: grid; grid-template-columns: 1.5fr 1fr; gap: var(--s-5); }
+.qcard { display: flex; flex-direction: column; min-height: 0; }
+.panel-title .win {
+  margin-left: var(--s-3); font-size: 15px; font-weight: 700; padding: 3px 12px;
+  border-radius: var(--r-pill); background: var(--brand-soft); color: var(--brand-ink);
+  text-transform: none; letter-spacing: 0;
+}
+.panel-title .more { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--warn-ink); text-transform: none; letter-spacing: 0; }
+
+.dtbl { width: 100%; height: 100%; border-collapse: collapse; table-layout: fixed; }
+.dtbl th {
+  background: var(--brand-700); color: #fff; padding: var(--s-2) var(--s-3);
+  font-size: 18px; font-weight: 700; text-align: center; line-height: 1.15;
+}
+.dtbl th .en { display: block; font-weight: 500; font-size: 13px; opacity: .8; margin-top: 2px; }
+.dtbl td {
+  border-bottom: 1px solid var(--divider); border-right: 1px solid var(--divider-2);
+  padding: var(--s-2) var(--s-3); vertical-align: middle; font-size: 18px; line-height: 1.3;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+.dtbl td:last-child { border-right: none; }
+.dtbl td.type { color: var(--fail-ink); font-weight: 700; font-size: 19px; }
+.dtbl td.pos  { color: var(--ink); white-space: pre-line; text-align: center; }
+.dtbl td.qty  { font-family: var(--font-mono); font-weight: 700; font-size: 34px; color: var(--fail-solid); text-align: center; }
+.dtbl td.cap  { color: var(--ink-2); font-size: 16px; }
+.dtbl tr.blank td { color: transparent; }
+.tbl-empty { font-size: 18px; color: var(--ink-3); text-align: center; font-style: italic; }
+
+/* Top 3 column chart */
+.chart { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: var(--s-5) var(--s-6) var(--s-4); gap: var(--s-3); background: var(--surface-2); }
+.plot { flex: 1; min-height: 0; display: flex; gap: var(--s-3); }
+.yax { width: 34px; display: flex; flex-direction: column-reverse; justify-content: space-between; font-family: var(--font-mono); font-size: 14px; color: var(--ink-3); text-align: right; }
+.area { flex: 1; position: relative; border-bottom: 2px solid var(--ink-2); }
+.grid { position: absolute; left: 0; right: 0; border-top: 1px solid var(--divider); }
+.cols { position: absolute; inset: 0; display: flex; align-items: flex-end; justify-content: space-around; gap: var(--s-5); padding: 0 var(--s-4); }
+.col { flex: 1; max-width: 170px; display: flex; justify-content: center; align-items: flex-start; padding-top: var(--s-2);
+       border-radius: 8px 8px 0 0; color: #fff; font-family: var(--font-mono); font-weight: 700; font-size: 32px; min-height: 40px; box-shadow: var(--sh-2); }
+.col.t0 { background: linear-gradient(180deg, #D84A4A, #B42323); }
+.col.t1 { background: linear-gradient(180deg, #F39B45, #E07514); }
+.col.t2 { background: linear-gradient(180deg, #F4C84E, #D8A929); color: #6B4300; }
+.xlabels { display: flex; justify-content: space-around; gap: var(--s-5); padding: 0 var(--s-4) 0 calc(34px + var(--s-3) + var(--s-4)); }
+.xlabels span { flex: 1; max-width: 170px; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+.no-data { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18px; color: var(--ink-3); font-style: italic; }
+
+/* ══ BOTTOM: kiểm lại & tổng lỗi ══ */
+.bottom { display: grid; grid-template-columns: 1fr 1.4fr 1.4fr; gap: var(--s-5); flex-shrink: 0; height: 200px; }
+.bk { display: flex; flex-direction: column; }
+.bk-head { padding: var(--s-3) var(--s-5); background: var(--brand-700); color: #fff; font-size: 19px; font-weight: 700; line-height: 1.15; }
+.bk-head .en { display: block; font-size: 13px; font-weight: 500; opacity: .8; margin-top: 2px; }
+.bk-body { flex: 1; display: flex; align-items: stretch; }
+.bk-cell { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: var(--s-2); }
+.bk-cell + .bk-cell { border-left: 1px solid var(--divider); }
+.bk-cell .l { font-size: 16px; font-weight: 600; color: var(--ink-2); text-align: center; }
+.bk-cell .v { font-family: var(--font-mono); font-weight: 700; font-size: 56px; line-height: 1; }
+.v.fail { color: var(--fail-solid); }
+.v.pass { color: var(--pass-ink); }
+.v.warn { color: var(--warn-ink); }
+.v.neu  { color: var(--ink-3); }
+.bk.ratio .bk-body.pass { background: var(--pass-soft); }
+.bk.ratio .bk-body.warn { background: var(--warn-soft); }
+.bk-note { font-size: 14px; color: var(--ink-3); text-align: center; padding-bottom: var(--s-2); }
+
+/* ══ FOOTER / OVERLAY ══ */
+.ftr { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-2); padding: 2px var(--s-2); flex-shrink: 0; }
+.ftr .l { display: flex; align-items: center; gap: var(--s-2); }
+.ftr .r { font-weight: 600; color: var(--brand-ink); }
+.rdot { display: inline-block; width: 9px; height: 9px; background: var(--pass-solid); border-radius: 50%; animation: pulse 2.4s ease-out infinite; }
+@keyframes pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(89,199,140,.45); }
+  70%  { box-shadow: 0 0 0 7px rgba(89,199,140,0); }
+  100% { box-shadow: 0 0 0 0 rgba(89,199,140,0); }
+}
+.dc-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(20,35,59,.88); z-index: 999;
+  flex-direction: column; align-items: center; justify-content: center; gap: var(--s-5); color: #fff;
+}
+.dc-overlay.show { display: flex; }
+.dc-icon { font-size: 56px; }
+.dc-msg  { font-size: 28px; font-weight: 700; }
+.dc-sub  { font-size: 18px; opacity: .7; }
+</style>
+</head>
+<body class="tv">
+<div class="dc-overlay" id="dc-overlay">
+  <div class="dc-icon">⚠</div>
+  <div class="dc-msg">Mất kết nối dữ liệu</div>
+  <div class="dc-sub" id="dc-sub">Đang thử lại...</div>
+</div>
+
+<div class="stage-wrap">
+<div class="stage" id="stage">
+<div class="si">
+
+  <!-- ── HEADER ── -->
+  <div class="hdr">
+    <div class="hdr-line">
+      <span class="lk">Tổ</span>
+      <span class="lv" id="h-line">—</span>
+      <span class="style">Style <span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
+    </div>
+    <div class="hdr-div"></div>
+    <div class="hdr-fields">
+      <div class="fld"><span class="k">Nhu cầu</span><span class="v demand mono" id="h-don">—</span></div>
+      <div class="fld"><span class="k">Khách hàng</span><span class="v" id="h-kh">—</span></div>
+      <div class="fld"><span class="k">Loại hàng</span><span class="v" id="h-loai">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền</span><span class="v mono" id="h-first">—</span></div>
+      <div class="fld"><span class="k">Lao động</span><span class="v mono" id="h-ld">—</span></div>
+    </div>
+    <div class="hdr-clock">
+      <span class="date" id="h-date">—</span>
+      <span class="time" id="clock">—</span>
+    </div>
+  </div>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+    <div class="card qcard">
+      <div class="panel-title">
+        Chất lượng cuối chuyền <span class="pt-en">Endline Quality</span>
+        <span class="win" id="q-window">—</span>
+        <span class="more" id="q-more"></span>
+      </div>
+      <table class="dtbl">
+        <colgroup><col style="width:33%"><col style="width:27%"><col style="width:14%"><col style="width:26%"></colgroup>
+        <thead>
+          <tr>
+            <th>Loại lỗi<span class="en">Type of defect</span></th>
+            <th>Vị trí<span class="en">Work station</span></th>
+            <th>Số lượng<span class="en">Number</span></th>
+            <th>HĐKP<span class="en">CAP</span></th>
+          </tr>
+        </thead>
+        <tbody id="q-body"></tbody>
+      </table>
+    </div>
+
+    <div class="card qcard">
+      <div class="panel-title">Top 3 dạng lỗi thường gặp <span class="pt-en">Lũy kế ngày · Accumulate</span></div>
+      <div class="chart">
+        <div class="plot">
+          <div class="yax" id="t3-y"></div>
+          <div class="area" id="t3-area"></div>
+        </div>
+        <div class="xlabels" id="t3-x"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── BOTTOM ── -->
+  <div class="bottom">
+    <div class="card bk ratio">
+      <div class="bk-head">Tỉ lệ kiểm lại ĐẠT/LỖI<span class="en">Re-inspect PASS / Defect · 2H</span></div>
+      <div class="bk-body" id="b-ratio-body">
+        <div class="bk-cell"><span class="v neu" id="b-ratio">—</span></div>
+      </div>
+    </div>
+    <div class="card bk">
+      <div class="bk-head">2 giờ gần nhất<span class="en" id="b-2h-en">Last 2H</span></div>
+      <div class="bk-body">
+        <div class="bk-cell"><span class="l">Tổng lỗi 2H · Total</span><span class="v fail" id="b-loi-2h">—</span></div>
+        <div class="bk-cell"><span class="l">Kiểm lại đạt 2H · Re-inspect PASS</span><span class="v pass" id="b-kl-2h">—</span></div>
+      </div>
+    </div>
+    <div class="card bk">
+      <div class="bk-head">Lũy kế ngày<span class="en">Accumulate · ngày báo cáo</span></div>
+      <div class="bk-body">
+        <div class="bk-cell"><span class="l">Tổng lỗi · Total</span><span class="v fail" id="b-loi-day">—</span></div>
+        <div class="bk-cell"><span class="l">Kiểm lại đạt · Re-inspect PASS</span><span class="v pass" id="b-kl-day">—</span></div>
+      </div>
+      <div class="bk-note" id="b-rate-note"></div>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ── -->
+  <div class="ftr">
+    <span class="l"><span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
+    <span class="r">TV-3 · Chất lượng cuối chuyền · Nguồn: Sheet báo cáo 2H</span>
+  </div>
+
+</div>
+</div>
+</div>
+
+<button id="btn-refresh" onclick="loadData()" title="Refresh ngay"
+  style="position:fixed;bottom:18px;right:18px;z-index:999;
+         background:rgba(15,30,60,.82);border:1px solid rgba(255,255,255,.3);
+         color:#fff;padding:8px 18px;border-radius:6px;cursor:pointer;
+         font-size:15px;font-family:inherit;letter-spacing:.03em;
+         backdrop-filter:blur(4px);">↺ Refresh</button>
+
+<script src="/static/js/tv-source.js"></script>
+<script>
+const INIT_MONO = {{ init_mono | tojson }};
+const INIT_DATE = {{ init_date | tojson }};
+const REFRESH_MS = 5 * 60 * 1000;
+const TABLE_ROWS = 5;
+const WINDOW_LABEL = {
+  '09H30': 'Mốc 09H30 · 07H30 – 09H30', '11H30': 'Mốc 11H30 · 09H30 – 11H30',
+  '14H30': 'Mốc 14H30 · 12H30 – 14H30', '16H30': 'Mốc 16H30 · 14H30 – 16H30',
+  'Sau 16H30': 'Mốc 16H30 + Sau 16H30 · 14H30 – hết ca',
+};
+
+const $ = id => document.getElementById(id);
+const esc = s => s == null ? '' : String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pad = n => String(n).padStart(2, '0');
+const fmt = n => n == null ? '—' : Number(n).toLocaleString('vi-VN');
+
+function parseDateInput(value) {
+  if (!value) return null;
+  const [y, m, d] = value.split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+function formatSelectedDate(value) {
+  const d = parseDateInput(value) || new Date();
+  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+  return days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+}
+
+function fit() {
+  $('stage').style.transform = 'scale(' + Math.min(innerWidth / 1920, innerHeight / 1080) + ')';
+}
+fit(); addEventListener('resize', fit);
+
+function tick() {
+  const now = new Date();
+  $('clock').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes());
+  $('h-date').textContent = formatSelectedDate(window.tvReportDate || INIT_DATE);
+}
+tick(); setInterval(tick, 1000);
+
+function _btnState(text, disabled, borderColor) {
+  const btn = $('btn-refresh');
+  btn.textContent = text; btn.disabled = disabled;
+  btn.style.borderColor = borderColor; btn.style.opacity = disabled ? '0.7' : '1';
+}
+
+async function loadData() {
+  if (!INIT_MONO || !INIT_DATE) return;
+  _btnState('⏳ Đang tải...', true, 'rgba(255,255,255,.3)');
+  try {
+    const resp = await fetch(`/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`);
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    $('dc-overlay').classList.remove('show');
+    window.tvReportDate = data.header.ReportDate || INIT_DATE;
+    render(data);
+    tick();
+    TVSource.apply(data);
+    const now = new Date();
+    $('ftr-time').textContent = pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+    _btnState('✓ Xong', false, 'rgba(89,199,140,.7)');
+    setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 1500);
+  } catch (e) {
+    _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
+    setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
+    $('dc-overlay').classList.add('show');
+    $('dc-sub').textContent = 'Lỗi: ' + e.message + ' · Thử lại sau 30 giây';
+    setTimeout(loadData, 30000);
+  }
+}
+
+function render(d) {
+  const h = d.header || {}, q = d.quality || {}, k = d.kpi || {};
+
+  $('h-line').textContent    = h.To || '—';
+  $('h-style').textContent   = h.StyleNo || '—';
+  $('h-workers').textContent = h.Workers ?? '—';
+  $('h-ld').textContent      = h.Workers ?? '—';
+  $('h-don').textContent     = h.MaDonKH || '—';
+  $('h-kh').textContent      = h.Customer || '—';
+  $('h-loai').textContent    = h.LoaiHang || '—';
+  if (h.FirstHangDate) {
+    const [y, m, dd] = h.FirstHangDate.split('-');
+    $('h-first').textContent = `${dd}/${m}/${y}`;
+  }
+
+  const win = q.window;
+  $('q-window').textContent = win ? (WINDOW_LABEL[win] || 'Mốc ' + win) : 'Chưa có mốc báo cáo';
+  $('b-2h-en').textContent  = win ? 'Last 2H · ' + (WINDOW_LABEL[win] || win) : 'Last 2H';
+  $('q-more').textContent   = q.more_rows ? `+${q.more_rows} dạng lỗi khác` : '';
+
+  renderTable(q.rows || [], win, k.Loi2H);
+  renderTop3(q.top3 || []);
+  renderBottom(k);
+}
+
+function renderTable(rows, win, reported) {
+  const body = $('q-body');
+  let html = '';
+  if (!rows.length) {
+    const msg = !win ? 'Chưa có dữ liệu chất lượng'
+      : reported ? `Đã báo ${fmt(reported)} lỗi nhưng chưa nhập dạng lỗi / vị trí cho mốc này`
+      : 'Không có lỗi ghi nhận ở mốc này';
+    html += `<tr><td colspan="4" class="tbl-empty">${esc(msg)}</td></tr>`;
+  }
+  for (const r of rows) {
+    html += `<tr>
+      <td class="type">${esc(r.type)}</td>
+      <td class="pos">${r.positions.length ? r.positions.map(esc).join('\n') : '—'}</td>
+      <td class="qty">${fmt(r.qty)}</td>
+      <td class="cap">${esc(r.cap)}</td>
+    </tr>`;
+  }
+  for (let i = Math.max(rows.length, 1); i < TABLE_ROWS; i++) {
+    html += '<tr class="blank"><td>&nbsp;</td><td></td><td></td><td></td></tr>';
+  }
+  body.innerHTML = html;
+}
+
+function renderTop3(top3) {
+  const area = $('t3-area'), yax = $('t3-y'), xl = $('t3-x');
+  const max = top3.length ? top3[0].qty : 0;
+  const step = Math.max(1, Math.ceil(max / 4));
+  const yMax = step * 4;
+  yax.innerHTML = [0, 1, 2, 3, 4].map(i => `<span>${i * step}</span>`).join('');
+  let html = [1, 2, 3].map(i => `<div class="grid" style="bottom:${i * 25}%"></div>`).join('');
+  if (!top3.length) {
+    html += '<div class="no-data">Chưa có dạng lỗi trong ngày</div>';
+    xl.innerHTML = '';
+  } else {
+    html += '<div class="cols">' + top3.map((t, i) =>
+      `<div class="col t${i}" style="height:${Math.max(t.qty / yMax * 100, 6)}%">${fmt(t.qty)}</div>`).join('') + '</div>';
+    xl.innerHTML = top3.map(t => `<span>${esc(t.type)}</span>`).join('');
+  }
+  area.innerHTML = html;
+}
+
+function setValue(id, value, cls) {
+  const el = $(id);
+  el.textContent = fmt(value);
+  el.className = 'v ' + (value == null ? 'neu' : cls);
+}
+
+function renderBottom(k) {
+  const ratio = k.TyLeKiemLai;
+  const ratioEl = $('b-ratio'), ratioBody = $('b-ratio-body');
+  if (ratio == null) {
+    ratioEl.textContent = '—';
+    ratioEl.className = 'v neu';
+    ratioBody.className = 'bk-body';
+  } else {
+    const ok = ratio >= 100;
+    ratioEl.textContent = ratio.toLocaleString('vi-VN') + '%';
+    ratioEl.className = 'v ' + (ok ? 'pass' : 'warn');
+    ratioBody.className = 'bk-body ' + (ok ? 'pass' : 'warn');
+  }
+  setValue('b-loi-2h', k.Loi2H, 'fail');
+  setValue('b-kl-2h', k.KiemLaiDat2H, 'pass');
+  setValue('b-loi-day', k.LoiNgay, 'fail');
+  setValue('b-kl-day', k.KiemLaiDatNgay, 'pass');
+  $('b-rate-note').textContent = k.TyLeLoi != null
+    ? `Tỷ lệ lỗi ngày: ${k.TyLeLoi}% (lỗi / (đạt + lỗi)) · mục tiêu ≤ ${k.DefectTarget}%`
+    : '';
+}
+
+const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
+const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
+$('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+loadData();
+setInterval(loadData, ACTIVE_REFRESH_MS);
+</script>
+</body>
+</html>

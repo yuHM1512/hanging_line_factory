@@ -2,7 +2,7 @@ import unittest
 from datetime import date
 from unittest.mock import patch
 
-from app import flat_tv, tv
+from app import flat_quality, flat_tv, tv
 
 
 class SharedTVTests(unittest.TestCase):
@@ -26,18 +26,20 @@ class SharedTVTests(unittest.TestCase):
 
     def test_qc_unknown_stays_unknown_and_report_date_is_preserved(self):
         payload=dict(plan=dict(team='U2-L6',demand='mother',style='s',customer='c',first='2026-09-01',category='Lặp lại'),
-            qc=dict(status='empty',rate=None),workers=44,wip=50,tpt=12,target=100,
+            qc=flat_quality.summarize([], 0),workers=44,wip=50,tpt=12,target=100,
             selected='2026-09-12',requested='2026-09-15',cutoff='09H30',synced_at='stamp',warnings=[],sync_error=None,
             daily=[10]*6,cumulative=[50]*6,slots=[dict(label='09H30',actual=10)])
         with patch('app.flat_sheet.dashboard_api',return_value=payload):
             result=flat_tv.dashboard(3,'flat:mother',date(2026,9,15))
         self.assertEqual(result['header']['ReportDate'],'2026-09-12')
+        self.assertEqual(result['qc_source'],'sheet')
         self.assertEqual(result['kpi']['TongDat'],10)
-        self.assertIsNone(result['kpi']['TongKiem'])
         self.assertIsNone(result['kpi']['TongLoi'])
+        self.assertIsNone(result['kpi']['TyLeLoi'])
         self.assertIsNone(result['kpi']['DefectStatus'])
-        self.assertIsNone(result['kpi']['CanhBaoCount'])
-        self.assertEqual(result['slots'],[])
+        self.assertIsNone(result['kpi']['TyLeKiemLai'])
+        self.assertEqual(result['quality']['rows'],[])
+        self.assertEqual(result['quality']['top3'],[])
 
 
 if __name__ == '__main__':

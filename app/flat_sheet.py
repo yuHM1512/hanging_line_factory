@@ -14,7 +14,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from . import db
+from . import db, flat_quality
 from .settings import APP_UNIT
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -163,7 +163,7 @@ def parse_sources(planning, factory, data):
             warnings.append(f"Data dòng {i}: báo cáo trùng nhu cầu con/ngày/tổ/mốc; dùng dòng mới nhất")
         report_map[identity] = dict(day=day, team=str(row[2]), child=str(row[3]).strip(), slot=slot,
             direct=number(row[4]), indirect=number(row[5]), quantities=[number(v) for v in row[7:13]],
-            action=str(row[15]).strip(), source_row=i)
+            action=str(row[15]).strip(), source_row=i, quality=flat_quality.parse_row(row))
     for (parent, *_), report in report_map.items():
         plans[parent]["reports"].append(report)
     return dict(plans=list(plans.values()), warnings=warnings)
@@ -289,7 +289,10 @@ def headcount(reports, fallback):
 
 
 def quality(demand, day):
-    """Read QC through the same authenticated QLCL service as hanging TVs."""
+    """Read QC through the same authenticated QLCL service as hanging TVs.
+
+    Tạm không dùng — dashboard_api đang lấy chất lượng từ Sheet (flat_quality). Giữ lại để bật QLCL sau.
+    """
     import httpx
     try:
         response = httpx.get(
@@ -378,7 +381,10 @@ def dashboard_api(demand: str, day: str = ""):
             if end_target and dt.isoformat() >= selected:
                 break
         dt += timedelta(days=1)
-    qc = quality(demand, selected)
+    # QLCL tạm tắt (module QLCL chưa hoàn thiện, chưa có dữ liệu): TV đọc chất lượng từ Sheet
+    # (cột N, Q:AK của Data-U2). Khi QLCL sẵn sàng, bật lại dòng dưới và bỏ dòng flat_quality.
+    # qc = quality(demand, selected)
+    qc = flat_quality.summarize(reports, cutoff)
     # QC can arrive after a production milestone: compare to the displayed KCS output with a clear source timestamp.
     from .quality import inspection
     qc['rate'] = inspection(actual[5], qc.get('defects') if qc['status']=='ok' else None)['pct']
