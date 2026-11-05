@@ -1,4 +1,4 @@
-"""Publish the exact BP daily/milestone totals used by the four TVs."""
+"""Publish the exact KCS daily/milestone totals used by the four TVs."""
 import json
 import urllib.request
 

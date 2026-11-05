@@ -88,8 +88,8 @@ def parse_sources(planning, factory, data):
     required = ["nhucaubatdau", "mahang", "loaichuyen", "to", "sanluongkh", "dmkt", "phanloaidh", "ldbienche", "ngayraichuyen", "khachhang"]
     if any(k not in header for k in required):
         raise ValueError("Tiêu đề Rải chuyền không đúng cấu hình")
-    if len(data[0]) < 74 or key(data[0][67]) != "quydoisanluong" or key(data[0][73]) != "nhucaume":
-        raise ValueError("Data phải có BP=Quy đổi sản lượng và BV=Nhu cầu mẹ")
+    if len(data[0]) < 74 or key(data[0][12]) != "kcskiemdat6" or key(data[0][73]) != "nhucaume":
+        raise ValueError("Data phải có M=KCS KIỂM ĐẠT (6) và BV=Nhu cầu mẹ")
     plans = {}
     warnings = []
     expected_unit = re.search(r"\d+", unit()).group()
@@ -162,7 +162,7 @@ def parse_sources(planning, factory, data):
         if identity in report_map:
             warnings.append(f"Data dòng {i}: báo cáo trùng nhu cầu con/ngày/tổ/mốc; dùng dòng mới nhất")
         report_map[identity] = dict(day=day, team=str(row[2]), child=str(row[3]).strip(), slot=slot,
-            direct=number(row[4]), indirect=number(row[5]), quantities=[number(v) for v in row[7:12]]+[number(row[67])],
+            direct=number(row[4]), indirect=number(row[5]), quantities=[number(v) for v in row[7:13]],
             action=str(row[15]).strip(), source_row=i)
     for (parent, *_), report in report_map.items():
         plans[parent]["reports"].append(report)
@@ -379,7 +379,7 @@ def dashboard_api(demand: str, day: str = ""):
                 break
         dt += timedelta(days=1)
     qc = quality(demand, selected)
-    # QC can arrive after a production milestone: compare to the displayed BP with a clear source timestamp.
+    # QC can arrive after a production milestone: compare to the displayed KCS output with a clear source timestamp.
     from .quality import inspection
     qc['rate'] = inspection(actual[5], qc.get('defects') if qc['status']=='ok' else None)['pct']
     warnings = list(state['warnings'])
@@ -388,11 +388,11 @@ def dashboard_api(demand: str, day: str = ""):
     if not sam:
         warnings.append("Chưa có SAM cho mã hàng trong cấu hình app")
     if any(s['actual'] is not None and s['actual'] < 0 for s in slots):
-        warnings.append("BP có điều chỉnh giảm; đang giữ đúng chênh lệch báo cáo")
+        warnings.append("KCS có điều chỉnh giảm; đang giữ đúng chênh lệch báo cáo")
     if cutoff >= 0 and any(not any(r['slot'] == i for r in reports) for i in range(cutoff + 1)):
         warnings.append("Thiếu mốc báo cáo: chênh lệch tại mốc kế tiếp bao gồm khoảng bị thiếu")
     if reports and any(r['quantities'][5] is None for r in reports):
-        warnings.append("Có báo cáo thiếu BP; sản lượng chỉ tổng hợp các giá trị đã có")
+        warnings.append("Có báo cáo thiếu KCS kiểm đạt; sản lượng chỉ tổng hợp các giá trị đã có")
     if dates and dates[0] < p['first']:
         warnings.append("Có sản lượng trước ngày rải chuyền; vẫn tính vào lũy kế mẹ")
     return dict(plan={k:v for k,v in p.items() if k!='reports'}, unit=unit(), selected=selected, requested=requested.isoformat(),

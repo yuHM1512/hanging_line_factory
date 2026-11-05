@@ -76,7 +76,7 @@ Các range chỉ giữ nguyên khi cấu trúc file mới giống mẫu:
 
 - `Rải chuyền`: tiêu đề tại hàng 2, phạm vi `A2:M`.
 - Tab xí nghiệp: bảng PO/EHD và tên sáu cụm nằm trong `A1:AE`.
-- `Data-Ux`: tiêu đề hàng 1, `BP = Quy đổi sản lượng`, `BV = Nhu cầu mẹ`, phạm vi `A1:BV`.
+- `Data-Ux`: tiêu đề hàng 1, `M = KCS KIỂM ĐẠT (6)`, `BV = Nhu cầu mẹ`, phạm vi `A1:BV`.
 
 Nếu một trong ba cấu trúc trên thay đổi, cần chỉnh range hoặc logic ánh xạ trước
 khi bật đồng bộ.
@@ -104,7 +104,7 @@ lại danh sách kế hoạch sau khi hoàn tất.
 ## Trao đổi sản lượng và lỗi với QLCL
 
 Mỗi lượt sync thành công từ Sheet sẽ gửi toàn bộ sản lượng theo nhu cầu mẹ/ngày
-và 5 mốc BP sang `QLCL_API_URL`, dùng `QLCL_API_KEY` như luồng chuyền treo.
+và 5 mốc KCS sang `QLCL_API_URL`, dùng `QLCL_API_KEY` như luồng chuyền treo.
 Số sửa giảm, số 0, mốc chưa nhập và ngày đã xóa trên nguồn được cập nhật lại;
 gửi nhiều lần không cộng dồn sản lượng. Trạng thái gửi QLCL xuất hiện cạnh nút Sync.
 
@@ -150,8 +150,8 @@ Kế hoạch mẹ phải được sync ở QLCL bằng chức năng Chuyền b�
 `source_system=flat_line_sheet` và `source_record_id=<XN>:<Nhu cầu mẹ>`.
 Trạng thái gửi sẽ báo số nhu cầu chưa khai báo nếu chưa tìm được kế hoạch.
 
-Trang nhập QC tự lấy BP của đúng ngày, ẩn nút cộng sản lượng đạt thủ công.
-Sản lượng quy đổi BP là số đạt. Tổng kiểm = BP + số sản phẩm lỗi QLCL;
+Trang nhập QC tự lấy KCS kiểm đạt của đúng ngày, ẩn nút cộng sản lượng đạt thủ công.
+Sản lượng KCS kiểm đạt là số đạt. Tổng kiểm = KCS đạt + số sản phẩm lỗi QLCL;
 tỷ lệ lỗi = số sản phẩm lỗi / tổng kiểm × 100, áp dụng cả ngày và từng mốc.
 Thiếu dữ liệu đạt/lỗi, tổng kiểm bằng 0 hoặc mốc điều chỉnh âm thì không đánh giá
 tỷ lệ. Đạt bằng 0 nhưng có lỗi thì tỷ lệ là 100%.
@@ -169,7 +169,7 @@ Trạm QC dùng cho ra chuyền bệt là **QC kiểm thành phẩm** (`station`
 để đổi tên cả lịch sử; cần cập nhật và khởi động lại QLCL để áp dụng.
 Tổng lỗi,
 lỗi theo mốc, phân tích bộ phận/mã lỗi và cảnh báo trên TV3 chỉ lấy trạm này.
-QLCL dùng cùng bộ lọc khi tính tỷ lệ lỗi theo BP; lỗi các trạm khác không cộng
+QLCL dùng cùng bộ lọc khi tính tỷ lệ lỗi theo KCS kiểm đạt; lỗi các trạm khác không cộng
 vào chỉ số ra chuyền.
 
 Nếu không gửi được QLCL, dữ liệu Sheet đã lưu vẫn phục vụ TV; lượt sync tiếp
