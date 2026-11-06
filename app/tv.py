@@ -158,8 +158,9 @@ def page_tv3(
     date: Optional[date] = None,
 ):
     from .flat_tv import PREFIX
-    # Chuyền bệt: layout chất lượng cũ đọc từ Sheet (QLCL tạm tắt). Chuyền treo giữ tv3.html (QLCL).
-    template = "tv/tv3_sheet.html" if (mono or "").startswith(PREFIX) else "tv/tv3.html"
+    # QLCL tạm tắt: cả chuyền bệt và chuyền treo dùng layout chất lượng cũ đọc từ Sheet.
+    # Khi bật lại QLCL cho chuyền treo: template = "tv/tv3_sheet.html" if (mono or "").startswith(PREFIX) else "tv/tv3.html"
+    template = "tv/tv3_sheet.html"
     return templates.TemplateResponse(
         template,
         {"request": request, "init_mono": mono or "", "init_date": str(date) if date else ""},
@@ -1053,8 +1054,14 @@ def api_tv1_qc(
         # Chuyền bệt: tỉ lệ lỗi đã tính từ Sheet trong /api/tv1; trả rỗng để TV-1 giữ nguyên giá trị đó.
         return {}
     kcs_today = _output_kcs(mono, the_date, the_date)
-    qc = _fetch_qlcl_tv3(mono, the_date)
-    total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
+    # QLCL tạm tắt: số lỗi lấy từ Sheet theo Nhu cầu mẹ gán tay (giống TV-3). Bật lại khi QLCL sẵn sàng:
+    # qc = _fetch_qlcl_tv3(mono, the_date)
+    # total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
+    from .hanging_sheet import tv3_quality
+    q, _ = tv3_quality(mono, the_date, parse_mono(mono)["LineNo"])
+    total_loi = q["defects_day"]
+    if total_loi is None:
+        return {}  # chưa gán / chưa có báo cáo: giữ ô tỉ lệ lỗi trống thay vì báo 0%
     defect_rate = round(total_loi / kcs_today["Qty"] * 100, 1) if kcs_today["Qty"] else 0
     return {"DefectRate": {"Pct": defect_rate, "Threshold": 5}}
 
@@ -1151,16 +1158,50 @@ def api_tv2(
 
 
 # ============================================================
-# TV-3 endpoint — QC chất lượng cuối chuyền (nguồn: QLCL PostgreSQL)
+# TV-3 endpoint — QC chất lượng cuối chuyền
 # ============================================================
 @router.get("/api/tv3")
 def api_tv3(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
-    from .flat_tv import PREFIX, dashboard
+    from .flat_tv import PREFIX, dashboard, _tv3_sheet
     if mono.startswith(PREFIX):
         return dashboard(3, mono, the_date)
+    # QLCL tạm tắt (module QLCL chưa có dữ liệu): chuyền treo đọc chất lượng từ Sheet báo cáo 2H
+    # theo Nhu cầu mẹ gán tay ở /admin/sheet-demand-map. Khi QLCL sẵn sàng, bật lại dòng dưới
+    # (và đổi template trong page_tv3 về tv/tv3.html), bỏ phần Sheet phía sau.
+    # return _api_tv3_qlcl(mono, the_date)
+    from .hanging_sheet import tv3_quality
+    plan = _resolve_plan_full(mono)
+    first_hang = plan["FirstHangDate"]
+    if hasattr(first_hang, "date"):
+        first_hang = first_hang.date()
+    # Số đạt vẫn lấy real-time từ MSD (cụm cuối cấu hình), chỉ phần lỗi lấy từ Sheet.
+    final_cluster_qty = _daily_output_for_configured_last_cluster(plan, mono, the_date)
+    q, meta = tv3_quality(mono, the_date, plan["LineNoOut"])
+    out = {
+        "header": {
+            "To":            plan["LineNoOut"] or "—",
+            "MaDonKH":       meta["sheet_demand"] or (plan["SoDonHang"] or "").lstrip("#"),
+            "MONo":          mono,
+            "StyleNo":       plan["StyleNo"] or "",
+            "Customer":      plan["Customer"] or "",
+            "LoaiHang":      plan.get("PhanLoaiDH") or "",
+            "FirstHangDate": first_hang.isoformat() if first_hang else None,
+            "Workers":       _workers_count(mono, the_date, ld_bien_che=plan["LDBienChe"] or 0),
+            "ReportDate":    the_date.isoformat(),
+        },
+        "source": "hanging_sheet",
+        "qc_status": q["status"],
+        **meta,
+    }
+    _tv3_sheet(out, q, final_cluster_qty)
+    return out
+
+
+def _api_tv3_qlcl(mono: str, the_date: date):
+    """TV-3 chuyền treo theo QLCL — tạm không dùng, giữ lại để bật khi module QLCL hoàn thiện."""
     plan = _resolve_plan_full(mono)
     # FirstHangDate có thể là datetime.date, datetime.datetime, hoặc None
     first_hang_raw = plan["FirstHangDate"]

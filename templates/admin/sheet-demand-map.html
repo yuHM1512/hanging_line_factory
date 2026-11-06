@@ -1,0 +1,171 @@
+{% extends "admin/base.html" %}
+{% set active = 'sheet-demand-map' %}
+{% block header_breadcrumb %}Gán nhu cầu Sheet{% endblock %}
+{% block heading %}Gán nhu cầu Sheet{% endblock %}
+{% block subheading %}Gán MONo chuyền treo (MSD) với Nhu cầu mẹ trên Sheet báo cáo 2H. TV-3 hiển thị lỗi, trạm, HĐKP và kiểm lại từ Sheet theo nhu cầu đã gán (QLCL tạm tắt). Số đạt vẫn lấy real-time từ MSD.{% endblock %}
+
+{% block body %}
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">filter_alt</span>
+    Lọc
+  </h3>
+  <div class="row-form">
+    <label class="field">
+      <span class="field-label">Tổ</span>
+      <select id="sel-line"><option value="">Tất cả</option></select>
+    </label>
+    <label class="field">
+      <span class="field-label">Trạng thái</span>
+      <select id="sel-state">
+        <option value="">Tất cả</option>
+        <option value="unmapped">Chưa gán</option>
+        <option value="mapped">Đã gán</option>
+      </select>
+    </label>
+    <label class="field flex-grow">
+      <span class="field-label">Tìm MONo / mã hàng</span>
+      <input type="text" id="txt-search" placeholder="vd. 351265" />
+    </label>
+  </div>
+  <div id="sync-info" class="muted" style="margin-top:.5rem"></div>
+</div>
+
+<div class="panel">
+  <h3 class="panel-title">
+    <span class="material-symbols-outlined">link</span>
+    MONo ↔ Nhu cầu mẹ (Sheet)
+  </h3>
+  <table class="data-table" id="tbl-map">
+    <thead>
+      <tr>
+        <th>Tổ</th>
+        <th>MONo</th>
+        <th>Mã hàng</th>
+        <th>Rải chuyền</th>
+        <th style="min-width:26rem">Nhu cầu mẹ trên Sheet</th>
+        <th>Cập nhật</th>
+        <th class="col-action">Thao tác</th>
+      </tr>
+    </thead>
+    <tbody><tr><td colspan="7" class="muted">Đang tải...</td></tr></tbody>
+  </table>
+</div>
+{% endblock %}
+
+{% block page_scripts %}
+<style>
+  .sdm-select { width: 100%; }
+  .sdm-hint { font-size: .8rem; margin-top: .25rem; }
+  .sdm-hint.warn { color: #b45309; }
+  .sdm-hint.ok { color: #047857; }
+  .sdm-actions { display: flex; gap: .4rem; justify-content: flex-end; }
+</style>
+<script>
+const esc = s => Admin.escape(s == null ? '' : String(s));
+const fmtDay = d => d ? d.split('-').reverse().join('/') : '—';
+const lineOf = team => { const m = /L\s*(\d+)/i.exec(team || ''); return m ? Number(m[1]) : null; };
+let state = { plans: [], demands: [] };
+
+function demandLabel(d) {
+  return `${d.demand} · ${d.teams.join(', ')} · ${fmtDay(d.first_day)} → ${fmtDay(d.last_day)} · ${d.quality_rows} dòng có lỗi`;
+}
+
+function options(plan) {
+  // Nhu cầu cùng tổ lên trước, rồi các tổ khác; giữ cả giá trị đã gán dù không còn trong Sheet.
+  const same = state.demands.filter(d => d.teams.some(t => lineOf(t) === plan.LineNo));
+  const other = state.demands.filter(d => !same.includes(d));
+  const current = plan.SheetDemand || plan.Suggested || '';
+  const opt = d => `<option value="${esc(d.demand)}" ${d.demand === current ? 'selected' : ''}>${esc(demandLabel(d))}</option>`;
+  let html = `<option value="">— Chọn nhu cầu —</option>`;
+  if (plan.SheetDemand && !plan.SheetDemandFound)
+    html += `<option value="${esc(plan.SheetDemand)}" selected>${esc(plan.SheetDemand)} (không thấy trên Sheet)</option>`;
+  if (same.length) html += `<optgroup label="Cùng tổ ${plan.LineNo ?? ''}">${same.map(opt).join('')}</optgroup>`;
+  if (other.length) html += `<optgroup label="Tổ khác">${other.map(opt).join('')}</optgroup>`;
+  return html;
+}
+
+function hint(plan) {
+  if (plan.SheetDemand && !plan.SheetDemandFound)
+    return `<div class="sdm-hint warn">Nhu cầu đã gán không còn trong dữ liệu Sheet (~2 tháng gần nhất).</div>`;
+  if (plan.SheetDemand) return `<div class="sdm-hint ok">Đã gán · TV-3 đang đọc Sheet theo nhu cầu này.</div>`;
+  if (plan.Suggested) return `<div class="sdm-hint warn">Gợi ý theo tổ + mã hàng — kiểm tra rồi bấm Lưu.</div>`;
+  return `<div class="sdm-hint muted">Chưa gán · TV-3 sẽ báo chưa có dữ liệu.</div>`;
+}
+
+function render() {
+  const line = document.getElementById('sel-line').value;
+  const st = document.getElementById('sel-state').value;
+  const q = document.getElementById('txt-search').value.trim().toLowerCase();
+  const rows = state.plans.filter(p =>
+    (!line || String(p.LineNo) === line) &&
+    (!st || (st === 'mapped') === !!p.SheetDemand) &&
+    (!q || `${p.MONo} ${p.StyleNo || ''} ${p.SheetDemand || ''}`.toLowerCase().includes(q)));
+  const tbody = document.querySelector('#tbl-map tbody');
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="muted">Không có MONo phù hợp.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(p => `<tr data-mono="${esc(p.MONo)}">
+      <td><strong>${p.LineNo ?? '—'}</strong></td>
+      <td class="mono">${esc(p.MONo)}</td>
+      <td>${esc(p.StyleNo)}</td>
+      <td>${fmtDay(p.FirstHangDate)}</td>
+      <td><select class="sdm-select">${options(p)}</select>${hint(p)}</td>
+      <td class="muted">${p.UpdatedAt ? esc(p.UpdatedAt) + '<br>' + esc(p.UpdatedBy) : ''}</td>
+      <td class="col-action"><div class="sdm-actions">
+        <button class="btn btn-primary" data-save type="button">Lưu</button>
+        ${p.SheetDemand ? `<button class="btn-icon btn-icon-danger" data-del title="Bỏ gán"><span class="material-symbols-outlined">link_off</span></button>` : ''}
+      </div></td>
+    </tr>`).join('');
+}
+
+async function load() {
+  try {
+    state = await Admin.fetchJSON('/admin/api/sheet-demand-map');
+  } catch (err) {
+    Admin.toast(err.message, 'error');
+    return;
+  }
+  const lines = [...new Set(state.plans.map(p => p.LineNo).filter(v => v != null))].sort((a, b) => a - b);
+  const sel = document.getElementById('sel-line');
+  const keep = sel.value;
+  sel.innerHTML = '<option value="">Tất cả</option>' + lines.map(l => `<option value="${l}">Tổ ${l}</option>`).join('');
+  sel.value = keep;
+  const synced = state.synced_at ? new Date(state.synced_at).toLocaleString('vi-VN') : 'chưa có';
+  document.getElementById('sync-info').textContent =
+    `${state.demands.length} nhu cầu chuyền treo trên Sheet · đồng bộ lúc ${synced}` +
+    (state.sync_error ? ` · Lỗi đồng bộ gần nhất: ${state.sync_error}` : '');
+  render();
+}
+
+for (const id of ['sel-line', 'sel-state']) document.getElementById(id).addEventListener('change', render);
+document.getElementById('txt-search').addEventListener('input', render);
+
+document.getElementById('tbl-map').addEventListener('click', async (e) => {
+  const tr = e.target.closest('tr[data-mono]');
+  if (!tr) return;
+  const mono = tr.dataset.mono;
+  if (e.target.closest('[data-save]')) {
+    const demand = tr.querySelector('select').value;
+    if (!demand) { Admin.toast('Chọn nhu cầu trước khi lưu.', 'error'); return; }
+    try {
+      await Admin.fetchJSON('/admin/api/sheet-demand-map', {
+        method: 'PUT', body: JSON.stringify({ MONo: mono, NhuCauMe: demand }),
+      });
+      Admin.toast(`Đã gán ${mono} → ${demand}`, 'ok');
+      load();
+    } catch (err) { Admin.toast(err.message, 'error'); }
+  } else if (e.target.closest('[data-del]')) {
+    if (!await Admin.confirmDelete(`Bỏ gán nhu cầu Sheet của ${mono}?`)) return;
+    try {
+      await Admin.fetchJSON(`/admin/api/sheet-demand-map?mono=${encodeURIComponent(mono)}`, { method: 'DELETE' });
+      Admin.toast('Đã bỏ gán.', 'ok');
+      load();
+    } catch (err) { Admin.toast(err.message, 'error'); }
+  }
+});
+
+load();
+</script>
+{% endblock %}

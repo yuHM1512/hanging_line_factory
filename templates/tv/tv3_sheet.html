@@ -111,7 +111,7 @@
 /* ══ FOOTER / OVERLAY ══ */
 .ftr { display: flex; justify-content: space-between; align-items: center; font-size: 13px; color: var(--ink-2); padding: 2px var(--s-2); flex-shrink: 0; }
 .ftr .l { display: flex; align-items: center; gap: var(--s-2); }
-.ftr .r { font-weight: 600; color: var(--brand-ink); }
+.ftr .r { font-weight: 600; color: var(--brand-ink); margin-right: 130px; } /* chừa chỗ nút Refresh */
 .rdot { display: inline-block; width: 9px; height: 9px; background: var(--pass-solid); border-radius: 50%; animation: pulse 2.4s ease-out infinite; }
 @keyframes pulse {
   0%   { box-shadow: 0 0 0 0 rgba(89,199,140,.45); }
@@ -223,7 +223,7 @@
   <!-- ── FOOTER ── -->
   <div class="ftr">
     <span class="l"><span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
-    <span class="r">TV-3 · Chất lượng cuối chuyền · Nguồn: Sheet báo cáo 2H</span>
+    <span class="r">TV-3 · Chất lượng cuối chuyền · Nguồn: Sheet báo cáo 2H<span id="ftr-demand"></span></span>
   </div>
 
 </div>
@@ -329,6 +329,8 @@ function render(d) {
     $('h-first').textContent = `${dd}/${m}/${y}`;
   }
 
+  // Chuyền treo: ghi rõ nhu cầu Sheet đã gán cho MONo này.
+  $('ftr-demand').textContent = d.source === 'hanging_sheet' && d.sheet_demand ? ' · ' + d.sheet_demand : '';
   renderTop3(q.top3 || []);
   renderWindow(d);
 }
@@ -367,15 +369,15 @@ function renderWindow(d) {
   $('b-2h-en').textContent  = win ? (past ? 'Selected · ' : 'Last 2H · ') + (WINDOW_LABEL[win] || win) : 'Last 2H';
   $('q-more').textContent   = w.more_rows ? `+${w.more_rows} dạng lỗi khác` : '';
 
-  renderTable(w.rows || [], win, w.defects_2h);
+  renderTable(w.rows || [], win, w.defects_2h, d.qc_message);
   renderBottom(Object.assign({}, k, { Loi2H: w.defects_2h, KiemLaiDat2H: w.reinspect_2h, TyLeKiemLai: w.reinspect_rate }));
 }
 
-function renderTable(rows, win, reported) {
+function renderTable(rows, win, reported, message) {
   const body = $('q-body');
   let html = '';
   if (!rows.length) {
-    const msg = !win ? 'Chưa có dữ liệu chất lượng'
+    const msg = !win ? (message || 'Chưa có dữ liệu chất lượng')
       : reported ? `Đã báo ${fmt(reported)} lỗi nhưng chưa nhập dạng lỗi / vị trí cho mốc này`
       : 'Không có lỗi ghi nhận ở mốc này';
     html += `<tr><td colspan="4" class="tbl-empty">${esc(msg)}</td></tr>`;

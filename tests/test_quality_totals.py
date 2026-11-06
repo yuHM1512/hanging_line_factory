@@ -24,7 +24,8 @@ class QualityTotalsTests(unittest.TestCase):
                                 ('_fetch_qlcl_tv3', dict(found=True, total_kiem=9999, total_loi=6, slots=[dict(slot=1,loi=6)]))]:
                 stack.enter_context(patch.object(tv, name, return_value=value))
             stack.enter_context(patch.object(tv.db, 'query', return_value=[]))
-            result = tv.api_tv3('order', date(2026,9,17))
+            # QLCL path is parked (TV-3 reads the Sheet for now) but must keep working for re-enable.
+            result = tv._api_tv3_qlcl('order', date(2026,9,17))
         self.assertEqual(result['kpi']['TongDat'], 174)
         self.assertEqual(result['kpi']['TongKiem'], 180)
         self.assertEqual(result['kpi']['TyLeLoi'], 3.3)

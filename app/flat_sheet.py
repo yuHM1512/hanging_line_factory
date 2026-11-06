@@ -149,10 +149,13 @@ def parse_sources(planning, factory, data):
         plan["names"] = [n or f"Trạm {i+1}" for i, n in enumerate(plan["names"])]
         plan["pos"].sort(key=lambda p: (p["date"], p["po"]))
     report_map = {}
+    hanging_rows = []
     for i, raw in enumerate(data[1:], 2):
         row = raw + [""] * 74
         parent = str(row[73]).strip()
         if parent not in plans:
+            if parent:
+                hanging_rows.append(row)
             continue
         if key(row[6]) not in [key(s) for s in SLOTS]:
             raise ValueError(f"Data dòng {i}: mốc chưa hỗ trợ {row[6]}")
@@ -166,7 +169,44 @@ def parse_sources(planning, factory, data):
             action=str(row[15]).strip(), source_row=i, quality=flat_quality.parse_row(row))
     for (parent, *_), report in report_map.items():
         plans[parent]["reports"].append(report)
-    return dict(plans=list(plans.values()), warnings=warnings)
+    return dict(plans=list(plans.values()), warnings=warnings, hanging=hanging_quality(hanging_rows))
+
+
+HANGING_DAYS = 62  # giữ ~2 tháng gần nhất để snapshot không phình
+
+
+def hanging_quality(rows):
+    """Chất lượng 2H của các nhu cầu KHÔNG phải chuyền bệt (chuyền treo MSD), gom theo nhu cầu mẹ (BV).
+    Dòng lỗi định dạng bị bỏ qua: dữ liệu này chỉ phục vụ TV-3 và không được làm hỏng sync chuyền bệt."""
+    slot_keys = [key(s) for s in SLOTS]
+    parsed = []
+    for row in rows:
+        try:
+            day = sheet_date(row[1])
+        except ValueError:
+            continue
+        if key(row[6]) not in slot_keys:
+            continue
+        parsed.append((str(row[73]).strip(), day, str(row[2]).strip(), str(row[3]).strip(), slot_keys.index(key(row[6])), row))
+    if not parsed:
+        return []
+    from datetime import date as _date, timedelta
+    since = (_date.fromisoformat(max(p[1] for p in parsed)) - timedelta(days=HANGING_DAYS)).isoformat()
+    demands, latest = {}, {}
+    for demand, day, team, child, slot, row in parsed:
+        if day < since:
+            continue
+        # Cùng nhu cầu/ngày/tổ/con/mốc nhập 2 lần: dòng dưới (mới hơn) thắng, như chuyền bệt.
+        latest[(demand, day, key(team), child, slot)] = dict(day=day, team=team, child=child, slot=slot,
+                                                            quality=flat_quality.parse_row(row))
+    for (demand, *_), report in latest.items():
+        item = demands.setdefault(demand, dict(demand=demand, teams=[], first_day=report["day"], last_day=report["day"], reports=[]))
+        if report["team"] not in item["teams"]:
+            item["teams"].append(report["team"])
+        item["first_day"] = min(item["first_day"], report["day"])
+        item["last_day"] = max(item["last_day"], report["day"])
+        item["reports"].append(report)
+    return sorted(demands.values(), key=lambda d: d["last_day"], reverse=True)
 
 
 class SyncBusy(Exception):
