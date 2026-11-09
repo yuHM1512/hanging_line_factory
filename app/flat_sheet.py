@@ -44,9 +44,12 @@ def number(value):
 
 
 def sheet_date(value):
+    s = str(value).strip()
+    if not s:
+        return None
     for fmt in ("%d/%m/%Y", "%d/%m/%y", "%Y-%m-%d", "%d-%b-%y", "%d-%b-%Y"):
         try:
-            return datetime.strptime(str(value).strip(), fmt).date().isoformat()
+            return datetime.strptime(s, fmt).date().isoformat()
         except ValueError:
             pass
     raise ValueError(f"Ngày không hợp lệ: {value}")
@@ -161,6 +164,9 @@ def parse_sources(planning, factory, data):
             raise ValueError(f"Data dòng {i}: mốc chưa hỗ trợ {row[6]}")
         slot = [key(s) for s in SLOTS].index(key(row[6]))
         day = sheet_date(row[1])
+        if day is None:
+            warnings.append(f"Data dòng {i}: thiếu ngày; bỏ qua")
+            continue
         identity = (parent, day, key(row[2]), str(row[3]).strip(), slot)
         if identity in report_map:
             warnings.append(f"Data dòng {i}: báo cáo trùng nhu cầu con/ngày/tổ/mốc; dùng dòng mới nhất")
