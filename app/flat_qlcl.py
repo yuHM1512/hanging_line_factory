@@ -14,10 +14,11 @@ def build_outputs(payload, unit):
             previous=0
             slots=[]
             for i in range(5):
-                current = daily_totals([r for r in reports if r['slot']<=i])[5] if any(r['slot']==i for r in reports) else None
-                slots.append(dict(slot=i+1,qty=current-previous if current is not None else None,cumulative=current))
-                if current is not None:
-                    previous=current
+                current = daily_totals([r for r in reports if r['slot']<=i])[5]
+                if current is None:
+                    current = previous
+                slots.append(dict(slot=i+1, qty=current - previous, cumulative=current))
+                previous = current
             outputs.append(dict(source_record_id=unit+':'+plan['demand'],date=day,qty=daily_totals(reports)[5],slots=slots))
     return dict(don_vi=unit,outputs=outputs)
 

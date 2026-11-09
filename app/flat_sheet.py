@@ -12,7 +12,7 @@ from pathlib import Path
 from urllib.parse import quote
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
 from . import db, flat_quality
 from .settings import APP_UNIT
@@ -278,11 +278,15 @@ def sync_status():
     common = dict(unit=unit(), enabled=os.getenv("FLAT_LINE_SYNC_ENABLED", "false").lower() == "true",
                   interval_seconds=max(60, int(os.getenv("FLAT_LINE_SYNC_INTERVAL_SECONDS", "120"))))
     if not rows:
-        return dict(**common, synced_at=None, last_attempt_at=None, sync_error=None)
+        return dict(**common, synced_at=None, last_attempt_at=None, sync_error=None, syncing=LOCK.locked())
     row = rows[0]
     iso = lambda value: value.replace(tzinfo=timezone.utc).isoformat() if value else None
+    try:
+        qlcl = json.loads(row['Payload']).get('qlcl_sync') if row['Payload'] else None
+    except (json.JSONDecodeError, TypeError):
+        qlcl = None
     return dict(**common, synced_at=iso(row["SyncedAt"]), last_attempt_at=iso(row["LastAttemptAt"]),
-                sync_error=row["LastError"], qlcl_sync=json.loads(row['Payload']).get('qlcl_sync'))
+                sync_error=row["LastError"], qlcl_sync=qlcl, syncing=LOCK.locked())
 
 
 @router.get("/api/status")
@@ -292,14 +296,19 @@ def status_api():
 
 @router.post("/api/sync")
 def sync_api():
+    if LOCK.locked():
+        return JSONResponse(status_code=409, content={"detail": "Một lượt đồng bộ Sheet đang chạy"})
+    threading.Thread(target=_manual_sync, daemon=True, name="flat-manual-sync").start()
+    return {"ok": True, "started": True}
+
+
+def _manual_sync():
     try:
-        payload = sync(wait=False)
+        sync(wait=False)
     except SyncBusy:
-        raise HTTPException(409, "Một lượt đồng bộ Sheet đang chạy")
+        pass
     except Exception:
-        status = sync_status()
-        raise HTTPException(502, status.get("sync_error") or "Không đồng bộ được Google Sheets")
-    return dict(ok=True, plans=len(payload.get("plans", [])), **sync_status())
+        log.exception("Manual flat sheet sync failed")
 
 
 def daily_totals(reports):
