@@ -467,6 +467,51 @@ def dashboard_api(demand: str, day: str = ""):
         synced_at=state['synced_at'], sync_error=state['sync_error'])
 
 
+@router.get("/api/debug")
+def debug_api(request: Request):
+    demand = request.query_params.get('demand', '')
+    day = request.query_params.get('day')
+    if not demand:
+        return JSONResponse({"error": "Thêm ?demand=PL-26-... vào URL"})
+    state = snapshot()
+    p = next((p for p in state['plans'] if p['demand'] == demand), None)
+    if not p:
+        return JSONResponse({"error": f"Không tìm thấy nhu cầu: {demand}", "available": [x['demand'] for x in state['plans']]})
+    requested = date.fromisoformat(day) if day else datetime.now(timezone(timedelta(hours=7))).date()
+    dates = sorted({r['day'] for r in p['reports'] if r['day'] <= requested.isoformat()})
+    selected = dates[-1] if dates else requested.isoformat()
+    reports = [r for r in p['reports'] if r['day'] == selected]
+    children = sorted({(r['child'], r['team']) for r in reports})
+    slots_debug = []
+    previous = 0
+    for i, label in enumerate(SLOTS):
+        filtered = [r for r in reports if r['slot'] <= i]
+        groups = {}
+        for r in filtered:
+            groups.setdefault((r["child"], key(r["team"])), []).append(r)
+        group_details = []
+        for gk, grp in sorted(groups.items()):
+            grp.sort(key=lambda r: r["slot"])
+            avail = [r["quantities"][5] for r in grp if r["quantities"][5] is not None]
+            group_details.append({"child": gk[0], "team_key": gk[1], "slots_in_filter": [r["slot"] for r in grp],
+                "kcs_values": avail, "last": avail[-1] if avail else None})
+        value = daily_totals(filtered)[5]
+        if value is None:
+            value = previous
+        delta = value - previous
+        slots_debug.append({"slot": i, "label": label, "cumulative": value, "delta": delta, "previous": previous, "groups": group_details})
+        previous = value
+    return JSONResponse({
+        "demand": demand, "selected_date": selected, "total_reports": len(reports),
+        "children": [{"child": c, "team": t} for c, t in children],
+        "reports": [{"slot": r["slot"], "slot_label": SLOTS[r["slot"]], "child": r["child"],
+            "team": r["team"], "kcs": r["quantities"][5], "all_qty": r["quantities"]} for r in sorted(reports, key=lambda r: r["slot"])],
+        "slot_calculations": slots_debug,
+        "daily_total_kcs": daily_totals(reports)[5],
+        "synced_at": state.get("synced_at")
+    })
+
+
 @router.get("")
 @router.get("/{screen}")
 def page(request: Request, screen: int = 1):
