@@ -43,7 +43,7 @@ App chỉ chạy port **8016**. Đừng chạy bản sao trên port khác.
 | `GET /api/output/by-line?from&to` | Phân bố theo tổ |
 | `GET /api/output/by-plan?from&to[&line]` | Plan × Tổ × Màu × Cỡ (khớp Excel) |
 | `GET /api/workers?from&to[&line]` | Năng suất công nhân × Số trạm |
-| `GET /api/stations/final?from&to` | Trạm chốt sản lượng (StRole=13, IsLastSeq=1) |
+| `GET /api/stations/final?from&to` | Trạm chốt sản lượng (StRole=13) |
 
 ## Dashboard chuyền bệt
 
@@ -66,7 +66,7 @@ nhân rộng cấu hình sang xí nghiệp khác.
 Tất cả endpoint sản lượng dùng công thức vàng:
 
 ```sql
-WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+WHERE st.StRole = 13
 ```
 
 Năng suất công nhân tính `OutputQty = MAX(QtyPerSeq)` để khỏi nhân theo số SeqNo gộp tại 1 trạm.

@@ -476,7 +476,7 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
 def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     """KCS scan theo slot 1-5 cho ngày the_date.
 
-    Filter giống công thức vàng: StRole=13 AND IsLastSeq=1.
+    Filter giống công thức vàng: StRole=13.
     Với ngày hôm nay: loại bỏ scan có BeginTime trong tương lai (đồng hồ lệch
     hoặc dữ liệu không hợp lệ), tránh hiển thị sản lượng ở slot chưa đến giờ.
     """
@@ -485,7 +485,7 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         SELECT rw.BeginTime, rw.Qty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
@@ -599,7 +599,7 @@ def _slot_from_time(t) -> Optional[int]:
 def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
     """Số SP lỗi KCS bucket theo slot 1-5 (từ chuyền treo, không phải nhập tay).
 
-    Filter golden: StRole=13 AND IsLastSeq=1; aggregate SUM(DefectiveQty)
+    Filter golden: StRole=13; aggregate SUM(DefectiveQty)
     theo khung giờ BeginTime.
     """
     rows = db.query(
@@ -607,7 +607,7 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
         SELECT rw.BeginTime, rw.DefectiveQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           AND rw.DefectiveQty > 0
@@ -670,8 +670,8 @@ def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
 
 
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
-    """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13 AND IsLastSeq=1)."""
-    where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1 AND CAST(rw.BeginTime AS DATE) = rw.ShtDate"
+    """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13)."""
+    where = "rw.MONo = ? AND st.StRole = 13 AND CAST(rw.BeginTime AS DATE) = rw.ShtDate"
     params: list[Any] = [mono]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
@@ -704,7 +704,7 @@ def _kcs_bulk(mono: str, the_date: date) -> dict:
                SUM(rw.Qty) AS Qty, SUM(rw.DefectiveQty) AS DefQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate <= ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
@@ -1224,7 +1224,7 @@ def _api_tv3_qlcl(mono: str, the_date: date):
         SELECT MAX(rw.BeginTime) AS BT
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
@@ -1332,7 +1332,7 @@ def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
         SELECT ISNULL(SUM(rw.Qty), 0) AS Q
         FROM {{MES_DB}}.dbo.tRecentWork rw
         INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo IN ({placeholders})
           AND rw.ShtDate BETWEEN ? AND ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
@@ -1429,7 +1429,7 @@ def api_tv4(
             f"""SELECT MAX(rw.ShtDate) AS D
                 FROM {{MES_DB}}.dbo.tRecentWork rw
                 INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-                WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+                WHERE st.StRole = 13
                   AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
                   AND rw.MONo IN ({ph})""",
             mono_list,

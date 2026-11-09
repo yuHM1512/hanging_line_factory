@@ -1,7 +1,7 @@
 """SQL query templates for the hanging-line dashboard.
 
 All queries follow the golden rule in CLAUDE.md:
-    "Hàng ra chuyền" = StRole = 13 AND IsLastSeq = 1.
+    "Hàng ra chuyền" = StRole = 13.
 
 "Tổ" on the dashboard is the logical line parsed from MONo:
     LINE 1 ... -> Tổ 1
@@ -60,7 +60,6 @@ NORMALIZED_WORK_CTE = """
 def _base_where(alias: str, params: list[Any], line_no: int | None = None, plan_key: str | None = None) -> str:
     where = f"""
         WHERE {alias}.station_role = 13
-          AND {alias}.IsLastSeq = 1
           AND {alias}.logical_line_no IS NOT NULL
     """
     if line_no is not None:
@@ -107,7 +106,6 @@ def date_bounds() -> dict:
         SELECT MIN(nw.ShtDate) AS min_date, MAX(nw.ShtDate) AS max_date
         FROM NormalizedWork nw
         WHERE nw.station_role = 13
-          AND nw.IsLastSeq = 1
           AND nw.logical_line_no IS NOT NULL;
     """
     rows = query(sql)

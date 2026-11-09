@@ -45,13 +45,12 @@ scripts/         — apply_migrations.py, create_app_db.py, seed_curve.py
 **Mọi query tính sản lượng đều phải có điều kiện:**
 
 ```sql
-WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+WHERE st.StRole = 13
 ```
 
-- `StRole = 13` → trạm chốt sản lượng (trạm cuối dây chuyền)
-- `IsLastSeq = 1` → lần scan cuối cùng của sequence đó
+- `StRole = 13` → trạm QC kiểm đạt (không nhất thiết là trạm cuối routing — có thể có trạm phụ sau QC như "Đính nhãn lưng")
 
-**Không được bỏ hai điều kiện này** khi tính Qty, DefectiveQty, hay bất kỳ KPI nào. Đây là nguồn sự thật duy nhất cho "sản lượng ra chuyền."
+**Không được bỏ điều kiện `StRole = 13`** khi tính Qty, DefectiveQty, hay bất kỳ KPI nào. Đây là nguồn sự thật duy nhất cho "sản lượng ra chuyền."
 
 ---
 
