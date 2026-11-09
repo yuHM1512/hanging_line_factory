@@ -478,7 +478,7 @@ def dashboard_api(demand: str, day: str = ""):
         warnings.append("Chưa có đường cong năng suất phù hợp")
     if not sam:
         warnings.append("Chưa có SAM cho mã hàng trong cấu hình app")
-    if any(s['actual'] < 0 for s in slots):
+    if any((s['actual'] or 0) < 0 for s in slots):
         warnings.append("KCS có điều chỉnh giảm; đang giữ đúng chênh lệch báo cáo")
     reported_slots = {r['slot'] for r in reports}
     if cutoff >= 0 and any(i not in reported_slots for i in range(cutoff + 1)):
