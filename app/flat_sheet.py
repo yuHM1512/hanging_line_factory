@@ -390,11 +390,11 @@ def dashboard_api(demand: str, day: str = ""):
     slots = []
     previous = 0
     for i, label in enumerate(SLOTS):
-        has = any(r['slot'] == i for r in reports)
-        value = daily_totals([r for r in reports if r['slot'] <= i])[5] if has else None
-        delta = value - previous if value is not None else None
-        if value is not None:
-            previous = value
+        value = daily_totals([r for r in reports if r['slot'] <= i])[5]
+        if value is None:
+            value = previous
+        delta = value - previous
+        previous = value
         slots.append(dict(label=label, actual=delta, cumulative=value, target=round(aim*sum(MINUTES[:i+1])/492)-round(aim*sum(MINUTES[:i])/492) if aim is not None else None))
     sam_rows = db.query("SELECT SAM,OWE_Target FROM app.tSAM WHERE StyleNo=?", (p['style'],))
     sam = float(sam_rows[0]['SAM']) if sam_rows and sam_rows[0]['SAM'] else None
@@ -433,10 +433,11 @@ def dashboard_api(demand: str, day: str = ""):
         warnings.append("Chưa có đường cong năng suất phù hợp")
     if not sam:
         warnings.append("Chưa có SAM cho mã hàng trong cấu hình app")
-    if any(s['actual'] is not None and s['actual'] < 0 for s in slots):
+    if any(s['actual'] < 0 for s in slots):
         warnings.append("KCS có điều chỉnh giảm; đang giữ đúng chênh lệch báo cáo")
-    if cutoff >= 0 and any(not any(r['slot'] == i for r in reports) for i in range(cutoff + 1)):
-        warnings.append("Thiếu mốc báo cáo: chênh lệch tại mốc kế tiếp bao gồm khoảng bị thiếu")
+    reported_slots = {r['slot'] for r in reports}
+    if cutoff >= 0 and any(i not in reported_slots for i in range(cutoff + 1)):
+        warnings.append("Thiếu mốc báo cáo: sản lượng mốc thiếu gộp vào mốc kế tiếp có dữ liệu")
     if reports and any(r['quantities'][5] is None for r in reports):
         warnings.append("Có báo cáo thiếu KCS kiểm đạt; sản lượng chỉ tổng hợp các giá trị đã có")
     if dates and dates[0] < p['first']:
