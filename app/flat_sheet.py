@@ -433,12 +433,14 @@ def dashboard_api(demand: str, day: str = ""):
     slots = []
     previous = 0
     for i, label in enumerate(SLOTS):
+        has_data = i <= cutoff
         value = daily_totals([r for r in reports if r['slot'] <= i])[5]
         if value is None:
             value = previous
         delta = value - previous
         previous = value
-        slots.append(dict(label=label, actual=delta, cumulative=value, target=round(aim*sum(MINUTES[:i+1])/492)-round(aim*sum(MINUTES[:i])/492) if aim is not None else None))
+        slot_target = round(aim*sum(MINUTES[:i+1])/492)-round(aim*sum(MINUTES[:i])/492) if aim is not None else None
+        slots.append(dict(label=label, actual=delta if has_data else None, cumulative=value, target=slot_target))
     sam_rows = db.query("SELECT SAM,OWE_Target FROM app.tSAM WHERE StyleNo=?", (p['style'],))
     sam = float(sam_rows[0]['SAM']) if sam_rows and sam_rows[0]['SAM'] else None
     owe_target = float(sam_rows[0]['OWE_Target'])*100 if sam_rows and sam_rows[0]['OWE_Target'] else None
