@@ -372,11 +372,20 @@ document.getElementById('btn-flat-sync').addEventListener('click', async functio
   el.className = 'flat-sync-status';
   el.textContent = 'Đang đọc Google Sheets và cập nhật database...';
   try {
-    const result = await Admin.fetchJSON('/tv/flat/api/sync', { method: 'POST' });
+    const before = await Admin.fetchJSON('/tv/flat/api/status').catch(() => ({}));
+    await Admin.fetchJSON('/tv/flat/api/sync', { method: 'POST' });
+    let status;
+    for (let i = 0; i < 90; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try { status = await Admin.fetchJSON('/tv/flat/api/status'); } catch (_) { continue; }
+      if (status.last_attempt_at !== (before.last_attempt_at || null) || !status.syncing) break;
+    }
+    if (!status) throw new Error('Không đọc được trạng thái sync');
+    if (status.sync_error) throw new Error(status.sync_error);
     el.className = 'flat-sync-status ok';
-    el.textContent = `Sync thành công ${result.plans} nhu cầu mẹ · ${formatSyncTime(result.synced_at)}`;
-    el.textContent += qlclSyncMessage(result.qlcl_sync);
-    if (!result.qlcl_sync?.ok || result.qlcl_sync.missing_plans?.length) el.className = 'flat-sync-status error';
+    el.textContent = `Đã sync: ${formatSyncTime(status.synced_at)}`;
+    el.textContent += qlclSyncMessage(status.qlcl_sync);
+    if (status.qlcl_sync && (!status.qlcl_sync.ok || status.qlcl_sync.missing_plans?.length)) el.className = 'flat-sync-status error';
     await loadLines();
     Admin.toast('Đã đồng bộ Chuyền bệt từ Google Sheets.', 'ok');
   } catch (e) {
