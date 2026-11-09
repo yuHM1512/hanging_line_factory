@@ -151,7 +151,9 @@ def api_tv_plans():
         WHERE pm.NhuCauMe IS NOT NULL
         ORDER BY pm.[LineNo], pm.SoDonHang
     """
-    return db.query(sql)
+    rows = db.query(sql)
+    from .flat_tv import plans
+    return rows + plans()
 
 
 def _resolve_plan_full(mono: str) -> dict:
@@ -644,6 +646,9 @@ def api_tv1(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(1, mono, the_date)
     plan = _resolve_plan_full(mono)
     holidays = get_holidays()
     first_hang = plan["FirstHangDate"]
@@ -765,6 +770,9 @@ def api_tv2(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(2, mono, the_date)
     plan = _resolve_plan_full(mono)
     holidays = get_holidays()
     first_hang = plan["FirstHangDate"]
@@ -834,6 +842,9 @@ def api_tv3(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(3, mono, the_date)
     plan = _resolve_plan_full(mono)
     # FirstHangDate có thể là datetime.date, datetime.datetime, hoặc None
     first_hang_raw = plan["FirstHangDate"]
@@ -1018,6 +1029,9 @@ def api_tv4(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
 ):
+    from .flat_tv import PREFIX, dashboard
+    if mono.startswith(PREFIX):
+        return dashboard(4, mono, the_date)
     plan = _resolve_plan_full(mono)
     nhu_cau_me_id = plan["NhuCauMe"]
     holidays = get_holidays()
