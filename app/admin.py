@@ -409,7 +409,7 @@ def api_plan_candidates(request: Request):
     """List MONo từ MES `tMOM` chưa có trong app.tPlanMaster, kèm 2 điều kiện lọc.
 
     1. MIN(ShtDate) trong tRecentWork >= PLAN_CANDIDATE_START_DATE
-    2. Có sản lượng ra chuyền > 0 (SUM(Qty) WHERE StRole=13 AND IsLastSeq=1)
+    2. Có sản lượng ra chuyền > 0 (SUM(Qty) WHERE StRole=13)
     """
     force_refresh = request.query_params.get("refresh") == "1"
     now = time.monotonic()
@@ -424,7 +424,6 @@ def api_plan_candidates(request: Request):
             INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
             WHERE rw.ShtDate >= ?
               AND st.StRole = 13
-              AND rw.IsLastSeq = 1
               AND rw.MONo IS NOT NULL
               AND rw.MONo <> ''
             GROUP BY rw.MONo
@@ -465,7 +464,7 @@ def api_plan_candidates(request: Request):
 
 @router.get("/api/plan/candidates/{mono}/daily-output")
 def api_plan_candidate_daily_output(mono: str):
-    """Sản lượng KCS (StRole=13, IsLastSeq=1) theo từng ngày cho 1 MONo — đọc MES."""
+    """Sản lượng KCS (StRole=13) theo từng ngày cho 1 MONo — đọc MES."""
     rows = db.query(
         """
         SELECT
@@ -475,7 +474,6 @@ def api_plan_candidate_daily_output(mono: str):
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo = ?
           AND st.StRole = 13
-          AND rw.IsLastSeq = 1
         GROUP BY rw.ShtDate
         ORDER BY rw.ShtDate
         """,

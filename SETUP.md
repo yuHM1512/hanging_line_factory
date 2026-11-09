@@ -99,7 +99,7 @@ Tổ trưởng login `/entry` để nhập headcount, lỗi, máy hỏng, root c
 Endpoint candidates lọc 2 điều kiện cứng:
 
 - MONo bắt đầu chạy từ **18/04/2026** trở đi (constant `PLAN_CANDIDATE_START_DATE` trong `app/admin.py`)
-- Đã có sản lượng ra chuyền > 0 (theo golden rule `StRole=13 AND IsLastSeq=1`)
+- Đã có sản lượng ra chuyền > 0 (theo golden rule `StRole=13`)
 
 Đổi cutoff: sửa `PLAN_CANDIDATE_START_DATE` trong `app/admin.py`.
 

@@ -373,14 +373,14 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
 def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     """KCS scan theo slot 1-5 cho ngày the_date.
 
-    Filter giống công thức vàng: StRole=13 AND IsLastSeq=1.
+    Filter giống công thức vàng: StRole=13.
     """
     rows = db.query(
         """
         SELECT rw.BeginTime, rw.Qty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
         """,
         (mono, the_date),
@@ -437,7 +437,7 @@ def _slot_from_time(t) -> Optional[int]:
 def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
     """Số SP lỗi KCS bucket theo slot 1-5 (từ chuyền treo, không phải nhập tay).
 
-    Filter golden: StRole=13 AND IsLastSeq=1; aggregate SUM(DefectiveQty)
+    Filter golden: StRole=13; aggregate SUM(DefectiveQty)
     theo khung giờ BeginTime.
     """
     rows = db.query(
@@ -445,7 +445,7 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
         SELECT rw.BeginTime, rw.DefectiveQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND rw.DefectiveQty > 0
         """,
@@ -487,8 +487,8 @@ def _hourly_target(daily_aim: int) -> list[int]:
 
 
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
-    """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13 AND IsLastSeq=1)."""
-    where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1"
+    """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13)."""
+    where = "rw.MONo = ? AND st.StRole = 13"
     params: list[Any] = [mono]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
@@ -677,7 +677,7 @@ def api_tv1(
     last_day_output = today["Qty"] if today["Qty"] > 0 else yesterday_out
 
     # WIP = qty(first cluster cumulative) − qty(KCS cumulative golden formula)
-    # Last cluster bắt buộc dùng StRole=13 + IsLastSeq=1 (vì SP có thể chốt nhiều SeqNo)
+    # Last cluster dùng StRole=13 (QC TP có thể không phải IsLastSeq nếu có trạm phụ sau)
     wip = 0
     first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
     if first_cluster:
@@ -867,7 +867,7 @@ def api_tv3(
         SELECT MAX(rw.BeginTime) AS BT
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo = ? AND rw.ShtDate = ?
         """,
         (mono, the_date),
@@ -976,7 +976,7 @@ def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
         SELECT ISNULL(SUM(rw.Qty), 0) AS Q
         FROM {{MES_DB}}.dbo.tRecentWork rw
         INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
           AND rw.MONo IN ({placeholders})
           AND rw.ShtDate BETWEEN ? AND ?
         """,
@@ -1066,7 +1066,7 @@ def api_tv4(
             f"""SELECT MAX(rw.ShtDate) AS D
                 FROM {{MES_DB}}.dbo.tRecentWork rw
                 INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-                WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+                WHERE st.StRole = 13
                   AND rw.MONo IN ({ph})""",
             mono_list,
         )
