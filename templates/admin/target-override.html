@@ -5,6 +5,11 @@
 {% block subheading %}Override mục tiêu ngày cho từng đơn hàng. Từ ngày N trở đi, mục tiêu sẽ là con số bạn nhập thay vì tính tự động từ đường cong.{% endblock %}
 
 {% block body %}
+<div class="tab-bar" id="tab-bar">
+  <button class="tab-btn active" data-mode="hanging">Chuyền treo</button>
+  <button class="tab-btn" data-mode="flat">Chuyền bệt</button>
+</div>
+
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">filter_alt</span>
@@ -18,7 +23,7 @@
       </select>
     </label>
     <label class="field flex-grow">
-      <span class="field-label">Đơn hàng (MONo)</span>
+      <span class="field-label" id="lbl-plan">Đơn hàng (MONo)</span>
       <select id="sel-plan" disabled>
         <option value="">— Chọn tổ trước —</option>
       </select>
@@ -77,29 +82,85 @@
 <script>
 const selLine = document.getElementById('sel-line');
 const selPlan = document.getElementById('sel-plan');
+const lblPlan = document.getElementById('lbl-plan');
 const planInfo = document.getElementById('plan-info');
 const panelOverride = document.getElementById('panel-override');
 const panelList = document.getElementById('panel-list');
 
-let currentGuid = '';
+let mode = 'hanging';
+let currentKey = '';
 let currentFirstHang = '';
 
+const API = {
+  hanging: {
+    lines: '/admin/api/target-override/lines',
+    plans: (line) => `/admin/api/target-override/plans?line_no=${line}`,
+    list: (k) => `/admin/api/target-override?plan_guid=${k}`,
+    save: '/admin/api/target-override',
+    del: (guid) => `/admin/api/target-override/${guid}`,
+    bodyKey: 'PlanMasterGuid',
+    planLabel: 'Đơn hàng (MONo)',
+    valueKey: 'PlanMaster_guid',
+    optionText: (p) => `${Admin.escape(p.MONo)} — ${Admin.escape(p.StyleNo || '')} (${p.SLKH || 0} pcs)`,
+    optionData: (p) => `data-first="${p.FirstHangDate || ''}" data-style="${Admin.escape(p.StyleNo || '')}" data-customer="${Admin.escape(p.Customer || '')}" data-slkh="${p.SLKH || 0}"`,
+    infoText: (opt) => `<strong>${Admin.escape(opt.dataset.style)}</strong> · ${Admin.escape(opt.dataset.customer)} · SLKH: ${opt.dataset.slkh} · Rải chuyền: ${opt.dataset.first || '—'}`,
+  },
+  flat: {
+    lines: '/admin/api/flat-target-override/lines',
+    plans: (line) => `/admin/api/flat-target-override/demands?line_no=${line}`,
+    list: (k) => `/admin/api/flat-target-override?nhu_cau_me=${encodeURIComponent(k)}`,
+    save: '/admin/api/flat-target-override',
+    del: (guid) => `/admin/api/flat-target-override/${guid}`,
+    bodyKey: 'NhuCauMe',
+    planLabel: 'Nhu cầu mẹ',
+    valueKey: 'NhuCauMe',
+    optionText: (p) => `${Admin.escape(p.NhuCauMe)} — ${Admin.escape(p.StyleNo || '')} (${p.SLKH || 0} pcs)`,
+    optionData: (p) => `data-style="${Admin.escape(p.StyleNo || '')}" data-slkh="${p.SLKH || 0}" data-workers="${p.LDBienChe || 0}"`,
+    infoText: (opt) => `<strong>${Admin.escape(opt.dataset.style)}</strong> · SLKH: ${opt.dataset.slkh} · LĐ: ${opt.dataset.workers}`,
+  },
+};
+
+function resetSelections() {
+  currentKey = '';
+  currentFirstHang = '';
+  selPlan.innerHTML = '<option value="">— Chọn tổ trước —</option>';
+  selPlan.disabled = true;
+  planInfo.hidden = true;
+  panelOverride.hidden = true;
+  panelList.hidden = true;
+}
+
 async function loadLines() {
+  const api = API[mode];
+  lblPlan.textContent = api.planLabel;
+  resetSelections();
   try {
-    const lines = await Admin.fetchJSON('/admin/api/target-override/lines');
+    const lines = await Admin.fetchJSON(api.lines);
     selLine.innerHTML = '<option value="">— Chọn tổ —</option>' +
       lines.map(l => `<option value="${l.line_no}">Tổ ${l.line_no}</option>`).join('');
   } catch (err) {
     selLine.innerHTML = '<option value="">Lỗi tải danh sách tổ</option>';
   }
 }
+
+document.getElementById('tab-bar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn || btn.dataset.mode === mode) return;
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  mode = btn.dataset.mode;
+  selLine.value = '';
+  loadLines();
+});
+
 loadLines();
 
 selLine.addEventListener('change', async () => {
+  const api = API[mode];
   const line = selLine.value;
   selPlan.innerHTML = '<option value="">— Đang tải... —</option>';
   selPlan.disabled = true;
-  currentGuid = '';
+  currentKey = '';
   planInfo.hidden = true;
   panelOverride.hidden = true;
   panelList.hidden = true;
@@ -108,13 +169,13 @@ selLine.addEventListener('change', async () => {
     return;
   }
   try {
-    const plans = await Admin.fetchJSON(`/admin/api/target-override/plans?line_no=${line}`);
+    const plans = await Admin.fetchJSON(api.plans(line));
     if (!plans.length) {
       selPlan.innerHTML = '<option value="">Không có đơn hàng nào</option>';
       return;
     }
     selPlan.innerHTML = '<option value="">— Chọn đơn hàng —</option>' +
-      plans.map(p => `<option value="${p.PlanMaster_guid}" data-first="${p.FirstHangDate || ''}" data-style="${Admin.escape(p.StyleNo || '')}" data-customer="${Admin.escape(p.Customer || '')}" data-slkh="${p.SLKH || 0}">${Admin.escape(p.MONo)} — ${Admin.escape(p.StyleNo || '')} (${p.SLKH || 0} pcs)</option>`).join('');
+      plans.map(p => `<option value="${p[api.valueKey]}" ${api.optionData(p)}>${api.optionText(p)}</option>`).join('');
     selPlan.disabled = false;
   } catch (err) {
     Admin.toast(err.message, 'error');
@@ -123,16 +184,17 @@ selLine.addEventListener('change', async () => {
 });
 
 selPlan.addEventListener('change', () => {
+  const api = API[mode];
   const opt = selPlan.selectedOptions[0];
-  currentGuid = selPlan.value;
-  if (!currentGuid) {
+  currentKey = selPlan.value;
+  if (!currentKey) {
     planInfo.hidden = true;
     panelOverride.hidden = true;
     panelList.hidden = true;
     return;
   }
   currentFirstHang = opt.dataset.first || '';
-  planInfo.innerHTML = `<strong>${Admin.escape(opt.dataset.style)}</strong> · ${Admin.escape(opt.dataset.customer)} · SLKH: ${opt.dataset.slkh} · Rải chuyền: ${currentFirstHang || '—'}`;
+  planInfo.innerHTML = api.infoText(opt);
   planInfo.hidden = false;
   panelOverride.hidden = false;
   panelList.hidden = false;
@@ -140,10 +202,11 @@ selPlan.addEventListener('change', () => {
 });
 
 async function loadOverrides() {
+  const api = API[mode];
   const tbody = document.querySelector('#tbl-override tbody');
   tbody.innerHTML = '<tr><td colspan="7" class="muted">Đang tải...</td></tr>';
   try {
-    const rows = await Admin.fetchJSON(`/admin/api/target-override?plan_guid=${currentGuid}`);
+    const rows = await Admin.fetchJSON(api.list(currentKey));
     if (!rows.length) {
       tbody.innerHTML = '<tr><td colspan="7" class="muted">Chưa có mốc hiệu chỉnh nào — mục tiêu đang tính tự động từ đường cong sản xuất.</td></tr>';
       return;
@@ -172,16 +235,17 @@ async function loadOverrides() {
 
 document.getElementById('form-add').addEventListener('submit', async (e) => {
   e.preventDefault();
-  if (!currentGuid) return;
+  const api = API[mode];
+  if (!currentKey) return;
   const fd = new FormData(e.target);
   const body = {
-    PlanMasterGuid: currentGuid,
+    [api.bodyKey]: currentKey,
     DayN: parseInt(fd.get('DayN'), 10),
     TargetQty: parseInt(fd.get('TargetQty'), 10),
     Notes: fd.get('Notes') || null,
   };
   try {
-    const res = await Admin.fetchJSON('/admin/api/target-override', {
+    const res = await Admin.fetchJSON(api.save, {
       method: 'POST', body: JSON.stringify(body),
     });
     Admin.toast(res.action === 'updated' ? 'Đã cập nhật mốc.' : 'Đã thêm mốc.', 'ok');
@@ -193,13 +257,14 @@ document.getElementById('form-add').addEventListener('submit', async (e) => {
 });
 
 document.getElementById('tbl-override').addEventListener('click', async (e) => {
+  const api = API[mode];
   const btn = e.target.closest('[data-del]');
   if (!btn) return;
   const guid = btn.dataset.del;
   const day = btn.dataset.day;
   if (!await Admin.confirmDelete(`Xoá mốc ngày thứ ${day}?`)) return;
   try {
-    await Admin.fetchJSON(`/admin/api/target-override/${guid}`, { method: 'DELETE' });
+    await Admin.fetchJSON(api.del(guid), { method: 'DELETE' });
     Admin.toast('Đã xoá.', 'ok');
     loadOverrides();
   } catch (err) {

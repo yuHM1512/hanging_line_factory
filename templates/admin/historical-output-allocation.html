@@ -64,6 +64,11 @@
 }
 .panel-entry .field-label { color: #001848; }
 </style>
+<div class="tab-bar" id="tab-bar">
+  <button class="tab-btn active" data-source="hanging">Chuyền treo</button>
+  <button class="tab-btn" data-source="flat_sheet">Chuyền bệt</button>
+</div>
+
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">filter_alt</span>
@@ -179,10 +184,25 @@ const SENTINEL = '1900-01-01';
 let currentDemand = '';
 let currentDate = '';
 let currentDateTo = '';
+let source = 'hanging';
+
+document.getElementById('tab-bar').addEventListener('click', (e) => {
+  const btn = e.target.closest('.tab-btn');
+  if (!btn || btn.dataset.source === source) return;
+  document.querySelectorAll('#tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  source = btn.dataset.source;
+  selLine.value = '';
+  currentDemand = '';
+  selDemand.disabled = true;
+  selDemand.innerHTML = '<option value="">— Chọn tổ trước —</option>';
+  resetAfterDemand();
+  loadLines();
+});
 
 async function loadLines() {
   try {
-    const lines = await Admin.fetchJSON(`${API}/lines`);
+    const lines = await Admin.fetchJSON(`${API}/lines?source=${source}`);
     selLine.innerHTML = '<option value="">— Chọn tổ —</option>' +
       lines.map(l => `<option value="${l.line_no}">Tổ ${l.line_no}</option>`).join('');
   } catch (err) {
@@ -214,7 +234,7 @@ selLine.addEventListener('change', async () => {
   }
   selDemand.innerHTML = '<option value="">— Đang tải... —</option>';
   try {
-    const demands = await Admin.fetchJSON(`${API}/demands?line_no=${line}`);
+    const demands = await Admin.fetchJSON(`${API}/demands?line_no=${line}&source=${source}`);
     if (!demands.length) {
       selDemand.innerHTML = '<option value="">Không có Nhu cầu mẹ</option>';
       return;

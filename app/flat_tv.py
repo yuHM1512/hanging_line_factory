@@ -1,15 +1,29 @@
 """Adapt sheet snapshots to the shared four-TV presentation contracts."""
+from __future__ import annotations
+
 import math
 import re
 from collections import Counter
 from datetime import date, timedelta
+from typing import Optional
 
 from fastapi import HTTPException
 
-from . import flat_sheet
+from . import db, flat_sheet
 from .quality import inspection
 
 PREFIX = "flat:"
+
+
+def _flat_target_override(nhu_cau_me: str, day_n: int) -> Optional[int]:
+    if not nhu_cau_me or day_n < 1:
+        return None
+    rows = db.query(
+        "SELECT TOP 1 TargetQty FROM app.tFlatTargetOverride "
+        "WHERE NhuCauMe = ? AND DayN <= ? ORDER BY DayN DESC",
+        (nhu_cau_me, day_n),
+    )
+    return int(rows[0]["TargetQty"]) if rows else None
 
 
 def plans(line_no=None):
@@ -90,9 +104,27 @@ def dashboard(screen, mono, the_date):
     qty, cumulative, target = d['daily'][5], d['cumulative'][5], d['target']
     slot = next((i+1 for i,s in enumerate(d['slots']) if s['label']==d['cutoff']), 0)
     if screen == 1:
-        from .tv import _forecast_end_date
+        from .tv import _forecast_end_date, _historical_overtime_percent, _allocate_historical_output, _workday_index
         from .admin import get_holidays
-        end_actual = _forecast_end_date(date.fromisoformat(p['first']),p['quantity'],qty or 0,cumulative,date.fromisoformat(d['selected']),get_holidays())
+        sel_date = date.fromisoformat(d['selected'])
+        first = date.fromisoformat(p['first'])
+        holidays = get_holidays()
+        day_n = _workday_index(first, sel_date, holidays) if sel_date >= first else 0
+        override_val = _flat_target_override(p['demand'], day_n)
+        if override_val is not None:
+            target = override_val
+            header['DailyAim'] = target
+        if sel_date < date.today():
+            ot_pct = _historical_overtime_percent(p['demand'], sel_date)
+            if ot_pct is not None:
+                allocated = _allocate_historical_output(qty or 0, ot_pct)
+                d['slots'] = [
+                    dict(label=s['label'], actual=allocated.get(i+1, 0),
+                         cumulative=sum(allocated.get(j+1, 0) for j in range(i+1)),
+                         target=s['target'])
+                    for i, s in enumerate(d['slots'])
+                ]
+        end_actual = _forecast_end_date(date.fromisoformat(p['first']),p['quantity'],qty or 0,cumulative,sel_date,get_holidays())
         end_target = date.fromisoformat(d['end_target']) if d['end_target'] else None
         out.update(hero=dict(SLKH=p['quantity'], TH=cumulative,
             Remain=max(0,p['quantity']-cumulative), Pct=pct(cumulative,p['quantity'])),
@@ -127,13 +159,19 @@ def dashboard(screen, mono, the_date):
         first = date.fromisoformat(p['first'])
         seconds = 29520/(p['workers']*p['dmkt'])
         days=[]
+        cum_target_adj = 0
         for row in d['schedule']:
             dt=date.fromisoformat(row['day'])
             n=_workday_index(first,dt,holidays) if dt>=first else 0
-            days.append(dict(DayN=n,DayLabel=dt.strftime('%d/%m') if dt<first else str(n),Date=row['day'],Workers=row['workers'],TargetNS=row['target'],
-                Actual=row['actual'],CumTarget=row['cum_target'],CumActual=row['cum_actual'],
-                Ratio=row['target']/(p['dmkt']*row['workers']) if row['target'] is not None and row['workers'] else None,
-                Pct=pct(row['actual'],row['target']),IsPast=row['day']<=d['selected'],IsCurrent=row['day']==d['selected']))
+            base_target = row['target']
+            override_val = _flat_target_override(p['demand'], n)
+            used_target = override_val if override_val is not None else base_target
+            cum_target_adj += used_target or 0
+            days.append(dict(DayN=n,DayLabel=dt.strftime('%d/%m') if dt<first else str(n),Date=row['day'],Workers=row['workers'],TargetNS=used_target,
+                Actual=row['actual'],CumTarget=cum_target_adj,CumActual=row['cum_actual'],
+                Ratio=used_target/(p['dmkt']*row['workers']) if used_target is not None and row['workers'] else None,
+                Pct=pct(row['actual'],used_target),IsPast=row['day']<=d['selected'],IsCurrent=row['day']==d['selected'],
+                Overridden=override_val is not None))
         header.update(SLKH=p['quantity'],DMKT=p['dmkt'],NDSXSec=seconds,NDSXLevel=_ndsx_level(p['category'],seconds),
             LDBienChe=p['workers'],SoCaKH=next((r['DayN'] for r in days if r['Date']==d['end_target']),None),
             DayRatio1=next((r['DayN'] for r in days if r['Ratio'] is not None and r['Ratio']>=1),None))

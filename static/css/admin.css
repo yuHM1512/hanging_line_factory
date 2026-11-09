@@ -995,3 +995,32 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* --- Tab bar (admin feature tabs) --- */
+.tab-bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+  padding: 0.25rem;
+  background: #eceef4;
+  border-radius: 0.5rem;
+  width: fit-content;
+}
+.tab-btn {
+  padding: 0.45rem 1.25rem;
+  font-family: "Inter", sans-serif;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #424654;
+  background: transparent;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.tab-btn:hover { background: rgba(0, 86, 210, 0.06); }
+.tab-btn.active {
+  background: #ffffff;
+  color: #001848;
+  box-shadow: 0 1px 3px rgba(0, 24, 72, 0.1);
+}

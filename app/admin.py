@@ -2021,24 +2021,35 @@ def page_historical_output_allocation(request: Request):
 
 
 @router.get("/api/historical-output-allocation/lines")
-def api_historical_output_allocation_lines():
+def api_historical_output_allocation_lines(source: str = ""):
+    where = "WHERE [LineNo] IS NOT NULL"
+    params: tuple = ()
+    if source == "flat_sheet":
+        where += " AND Source = 'flat_sheet'"
+    elif source == "hanging":
+        where += " AND (Source IS NULL OR Source <> 'flat_sheet')"
     rows = db.query(
-        "SELECT DISTINCT [LineNo] FROM app.tDemandRoot "
-        "WHERE [LineNo] IS NOT NULL ORDER BY [LineNo]"
+        f"SELECT DISTINCT [LineNo] FROM app.tDemandRoot {where} ORDER BY [LineNo]",
+        params,
     )
     return [{"line_no": r["LineNo"]} for r in rows]
 
 
 @router.get("/api/historical-output-allocation/demands")
-def api_historical_output_allocation_demands(line_no: int):
+def api_historical_output_allocation_demands(line_no: int, source: str = ""):
+    where = "WHERE dr.[LineNo] = ?"
+    params: list = [line_no]
+    if source == "flat_sheet":
+        where += " AND dr.Source = 'flat_sheet'"
+    elif source == "hanging":
+        where += " AND (dr.Source IS NULL OR dr.Source <> 'flat_sheet')"
     return db.query(
         "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
         "ISNULL(v.SLKH, 0) AS SLKH "
         "FROM app.tDemandRoot dr "
         "LEFT JOIN app.vDemandRoot v ON v.NhuCauMe = dr.NhuCauMe "
-        "WHERE dr.[LineNo] = ? "
-        "ORDER BY dr.NhuCauMe",
-        (line_no,),
+        f"{where} ORDER BY dr.NhuCauMe",
+        tuple(params),
     )
 
 
@@ -2150,4 +2161,92 @@ def api_historical_output_allocation_delete(
         )
         if cur.rowcount == 0:
             raise HTTPException(404, "Nhu cầu mẹ chưa có cấu hình phân bổ")
+    return {"ok": True}
+
+
+# ============================================================
+# M10 — Hiệu chỉnh lộ trình — Chuyền bệt (Flat Target Override)
+# ============================================================
+@router.get("/api/flat-target-override/lines")
+def api_flat_target_override_lines():
+    rows = db.query(
+        "SELECT DISTINCT [LineNo] FROM app.tDemandRoot "
+        "WHERE Source = 'flat_sheet' AND [LineNo] IS NOT NULL "
+        "ORDER BY [LineNo]"
+    )
+    return [{"line_no": r["LineNo"]} for r in rows]
+
+
+@router.get("/api/flat-target-override/demands")
+def api_flat_target_override_demands(line_no: int):
+    return db.query(
+        "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
+        "dr.SLKH, dr.LDBienChe "
+        "FROM app.tDemandRoot dr "
+        "WHERE dr.Source = 'flat_sheet' AND dr.[LineNo] = ? "
+        "ORDER BY dr.NhuCauMe",
+        (line_no,),
+    )
+
+
+@router.get("/api/flat-target-override")
+def api_flat_target_override_list(nhu_cau_me: str):
+    return db.query(
+        "SELECT o.Override_guid, o.DayN, o.TargetQty, o.Notes, "
+        "o.CreatedBy, CONVERT(varchar(19), o.CreatedAt, 120) AS CreatedAt "
+        "FROM app.tFlatTargetOverride o "
+        "WHERE o.NhuCauMe = ? ORDER BY o.DayN",
+        (nhu_cau_me,),
+    )
+
+
+class FlatTargetOverrideIn(BaseModel):
+    model_config = ConfigDict(populate_by_name=True)
+    nhu_cau_me: str = Field(..., alias="NhuCauMe")
+    day_n: int = Field(..., alias="DayN", ge=1)
+    target_qty: int = Field(..., alias="TargetQty", gt=0)
+    notes: Optional[str] = Field(None, alias="Notes")
+
+
+@router.post("/api/flat-target-override")
+def api_flat_target_override_create(
+    body: FlatTargetOverrideIn, user: dict = Depends(auth.require_admin),
+):
+    actor = _actor_id(user)
+    existing = db.query(
+        "SELECT 1 FROM app.tFlatTargetOverride "
+        "WHERE NhuCauMe = ? AND DayN = ?",
+        (body.nhu_cau_me, body.day_n),
+    )
+    if existing:
+        with db.get_conn() as conn:
+            conn.cursor().execute(
+                "UPDATE app.tFlatTargetOverride SET TargetQty = ?, Notes = ?, "
+                "CreatedBy = ?, CreatedAt = SYSDATETIME() "
+                "WHERE NhuCauMe = ? AND DayN = ?",
+                (body.target_qty, body.notes, actor, body.nhu_cau_me, body.day_n),
+            )
+        return {"ok": True, "action": "updated"}
+    with db.get_conn() as conn:
+        conn.cursor().execute(
+            "INSERT INTO app.tFlatTargetOverride "
+            "(NhuCauMe, DayN, TargetQty, Notes, CreatedBy) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (body.nhu_cau_me, body.day_n, body.target_qty, body.notes, actor),
+        )
+    return {"ok": True, "action": "created"}
+
+
+@router.delete("/api/flat-target-override/{override_guid}")
+def api_flat_target_override_delete(
+    override_guid: str, user: dict = Depends(auth.require_admin),
+):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "DELETE FROM app.tFlatTargetOverride WHERE Override_guid = ?",
+            (override_guid,),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Override không tồn tại")
     return {"ok": True}

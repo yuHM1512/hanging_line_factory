@@ -215,6 +215,39 @@ def hanging_quality(rows):
     return sorted(demands.values(), key=lambda d: d["last_day"], reverse=True)
 
 
+def _upsert_demand_roots(plans: list[dict]) -> None:
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        for p in plans:
+            match = re.search(r'L\s*(\d+)', p['team'], re.I)
+            if not match:
+                continue
+            line_no = int(match[1])
+            demand = p['demand']
+            cur.execute(
+                "UPDATE app.tDemandRoot SET StyleNo=?, SLKH=?, DMKT=?, "
+                "PhanLoaiDH=?, [LineNo]=?, LDBienChe=?, UpdatedAt=SYSDATETIME() "
+                "WHERE NhuCauMe=? AND Source='flat_sheet'",
+                (p['style'], int(p['quantity']), p['dmkt'], p['category'],
+                 line_no, int(p['workers']), demand),
+            )
+            if cur.rowcount:
+                continue
+            cur.execute("SELECT 1 FROM app.tDemandRoot WHERE NhuCauMe=?", (demand,))
+            if cur.fetchone():
+                continue
+            try:
+                cur.execute(
+                    "INSERT INTO app.tDemandRoot "
+                    "(NhuCauMe, StyleNo, SLKH, DMKT, PhanLoaiDH, [LineNo], LDBienChe, Source) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'flat_sheet')",
+                    (demand, p['style'], int(p['quantity']), p['dmkt'], p['category'],
+                     line_no, int(p['workers'])),
+                )
+            except Exception:
+                log.warning("Cannot upsert flat demand %s into tDemandRoot", demand, exc_info=False)
+
+
 class SyncBusy(Exception):
     """A Sheets refresh is already in progress."""
 
@@ -233,6 +266,7 @@ def sync(wait: bool = True):
                 if not cur.rowcount:
                     cur.execute("INSERT INTO app.tFlatSheetSnapshot VALUES (?,?,SYSUTCDATETIME(),SYSUTCDATETIME(),NULL)", (unit(), text))
                 conn.commit()
+            _upsert_demand_roots(payload['plans'])
             from .flat_qlcl import push
             try:
                 result = push(payload)
