@@ -229,14 +229,14 @@ def _upsert_demand_roots(plans: list[dict]) -> None:
                     "MERGE app.tDemandRoot WITH (HOLDLOCK) AS t "
                     "USING (SELECT ? AS NhuCauMe) AS s ON t.NhuCauMe = s.NhuCauMe "
                     "WHEN MATCHED AND t.Source = 'flat_sheet' THEN UPDATE SET "
-                    "  StyleNo=?, SLKH=?, DMKT=?, PhanLoaiDH=?, [LineNo]=?, "
+                    "  StyleNo=?, DMKT=?, PhanLoaiDH=?, [LineNo]=?, "
                     "  LDBienChe=?, UpdatedAt=SYSDATETIME() "
                     "WHEN NOT MATCHED THEN INSERT "
-                    "  (NhuCauMe, StyleNo, SLKH, DMKT, PhanLoaiDH, [LineNo], LDBienChe, Source) "
-                    "  VALUES (?, ?, ?, ?, ?, ?, ?, 'flat_sheet');",
+                    "  (NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], LDBienChe, Source) "
+                    "  VALUES (?, ?, ?, ?, ?, ?, 'flat_sheet');",
                     (demand,
-                     p['style'], int(p['quantity']), p['dmkt'], p['category'], line_no, int(p['workers']),
-                     demand, p['style'], int(p['quantity']), p['dmkt'], p['category'], line_no, int(p['workers'])),
+                     p['style'], p['dmkt'], p['category'], line_no, int(p['workers']),
+                     demand, p['style'], p['dmkt'], p['category'], line_no, int(p['workers'])),
                 )
         except Exception:
             log.warning("Cannot upsert flat demand %s: %s", demand, __import__('traceback').format_exc().splitlines()[-1])

@@ -2181,8 +2181,9 @@ def api_flat_target_override_lines():
 def api_flat_target_override_demands(line_no: int):
     return db.query(
         "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
-        "dr.SLKH, dr.LDBienChe "
+        "ISNULL(v.SLKH, 0) AS SLKH, dr.LDBienChe "
         "FROM app.tDemandRoot dr "
+        "LEFT JOIN app.vDemandRoot v ON v.NhuCauMe = dr.NhuCauMe "
         "WHERE dr.Source = 'flat_sheet' AND dr.[LineNo] = ? "
         "ORDER BY dr.NhuCauMe",
         (line_no,),
