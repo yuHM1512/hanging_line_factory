@@ -45,12 +45,15 @@ scripts/         — apply_migrations.py, create_app_db.py, seed_curve.py
 **Mọi query tính sản lượng đều phải có điều kiện:**
 
 ```sql
-WHERE st.StRole = 13
+WHERE st.StRole = 13 AND rw.IsLastSeq = 1
 ```
 
-- `StRole = 13` → trạm QC kiểm đạt (không nhất thiết là trạm cuối routing — có thể có trạm phụ sau QC như "Đính nhãn lưng")
+- `StRole = 13` → trạm QC kiểm đạt
+- `IsLastSeq = 1` → chống đếm trùng khi route có nhiều trạm StRole=13
 
-**Không được bỏ điều kiện `StRole = 13`** khi tính Qty, DefectiveQty, hay bất kỳ KPI nào. Đây là nguồn sự thật duy nhất cho "sản lượng ra chuyền."
+**Ngoại lệ TV-2 cluster loop**: khi cụm KCS có `RouteStepOdr` rõ ràng, dùng `_scan_count_for_cluster` (đếm theo Odr cụ thể) thay vì `_output_kcs` — xử lý case routing có trạm phụ sau QC (ví dụ "Đính nhãn lưng") khiến KCS không phải IsLastSeq.
+
+**Không được bỏ điều kiện này** khi tính Qty, DefectiveQty, hay bất kỳ KPI nào. Đây là nguồn sự thật duy nhất cho "sản lượng ra chuyền."
 
 ---
 

@@ -525,6 +525,7 @@ def api_plan_candidate_daily_output(mono: str):
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo = ?
           AND st.StRole = 13
+          AND rw.IsLastSeq = 1
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate
         ORDER BY rw.ShtDate
@@ -931,6 +932,7 @@ def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> lis
         INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo IN ({placeholders})
           AND st.StRole = 13
+          AND rw.IsLastSeq = 1
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           {date_filter}
         GROUP BY rw.MONo, CONVERT(VARCHAR(10), rw.ShtDate, 120)
