@@ -2043,7 +2043,7 @@ def api_historical_output_allocation_demands(line_no: int, source: str = ""):
         where += " AND dr.Source = 'flat_sheet'"
     elif source == "hanging":
         where += " AND (dr.Source IS NULL OR dr.Source <> 'flat_sheet')"
-    return db.query(
+    rows = db.query(
         "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
         "ISNULL(v.SLKH, 0) AS SLKH "
         "FROM app.tDemandRoot dr "
@@ -2051,6 +2051,11 @@ def api_historical_output_allocation_demands(line_no: int, source: str = ""):
         f"{where} ORDER BY dr.NhuCauMe",
         tuple(params),
     )
+    if source == "flat_sheet":
+        qty_map = _flat_snapshot_qty()
+        for r in rows:
+            r["SLKH"] = qty_map.get(r["NhuCauMe"], r["SLKH"])
+    return rows
 
 
 @router.get("/api/historical-output-allocation")
@@ -2164,6 +2169,16 @@ def api_historical_output_allocation_delete(
     return {"ok": True}
 
 
+def _flat_snapshot_qty() -> dict[str, int]:
+    """Build {NhuCauMe: quantity} from the latest flat sheet snapshot."""
+    try:
+        from .flat_sheet import snapshot
+        plans = snapshot().get("plans", [])
+        return {p["demand"]: int(p.get("quantity") or 0) for p in plans}
+    except Exception:
+        return {}
+
+
 # ============================================================
 # M10 — Hiệu chỉnh lộ trình — Chuyền bệt (Flat Target Override)
 # ============================================================
@@ -2179,15 +2194,18 @@ def api_flat_target_override_lines():
 
 @router.get("/api/flat-target-override/demands")
 def api_flat_target_override_demands(line_no: int):
-    return db.query(
+    rows = db.query(
         "SELECT dr.NhuCauMe, dr.StyleNo, dr.[LineNo] AS LineNoOut, "
-        "ISNULL(v.SLKH, 0) AS SLKH, dr.LDBienChe "
+        "dr.LDBienChe "
         "FROM app.tDemandRoot dr "
-        "LEFT JOIN app.vDemandRoot v ON v.NhuCauMe = dr.NhuCauMe "
         "WHERE dr.Source = 'flat_sheet' AND dr.[LineNo] = ? "
         "ORDER BY dr.NhuCauMe",
         (line_no,),
     )
+    qty_map = _flat_snapshot_qty()
+    for r in rows:
+        r["SLKH"] = qty_map.get(r["NhuCauMe"], 0)
+    return rows
 
 
 @router.get("/api/flat-target-override")
