@@ -216,36 +216,30 @@ def hanging_quality(rows):
 
 
 def _upsert_demand_roots(plans: list[dict]) -> None:
-    with db.get_conn() as conn:
-        cur = conn.cursor()
-        for p in plans:
-            match = re.search(r'L\s*(\d+)', p['team'], re.I)
-            if not match:
-                continue
-            line_no = int(match[1])
-            demand = p['demand']
-            cur.execute(
-                "UPDATE app.tDemandRoot SET StyleNo=?, SLKH=?, DMKT=?, "
-                "PhanLoaiDH=?, [LineNo]=?, LDBienChe=?, UpdatedAt=SYSDATETIME() "
-                "WHERE NhuCauMe=? AND Source='flat_sheet'",
-                (p['style'], int(p['quantity']), p['dmkt'], p['category'],
-                 line_no, int(p['workers']), demand),
-            )
-            if cur.rowcount:
-                continue
-            cur.execute("SELECT 1 FROM app.tDemandRoot WHERE NhuCauMe=?", (demand,))
-            if cur.fetchone():
-                continue
-            try:
+    for p in plans:
+        match = re.search(r'L\s*(\d+)', p['team'], re.I)
+        if not match:
+            continue
+        line_no = int(match[1])
+        demand = p['demand']
+        try:
+            with db.get_conn() as conn:
+                cur = conn.cursor()
                 cur.execute(
-                    "INSERT INTO app.tDemandRoot "
-                    "(NhuCauMe, StyleNo, SLKH, DMKT, PhanLoaiDH, [LineNo], LDBienChe, Source) "
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, 'flat_sheet')",
-                    (demand, p['style'], int(p['quantity']), p['dmkt'], p['category'],
-                     line_no, int(p['workers'])),
+                    "MERGE app.tDemandRoot WITH (HOLDLOCK) AS t "
+                    "USING (SELECT ? AS NhuCauMe) AS s ON t.NhuCauMe = s.NhuCauMe "
+                    "WHEN MATCHED AND t.Source = 'flat_sheet' THEN UPDATE SET "
+                    "  StyleNo=?, SLKH=?, DMKT=?, PhanLoaiDH=?, [LineNo]=?, "
+                    "  LDBienChe=?, UpdatedAt=SYSDATETIME() "
+                    "WHEN NOT MATCHED THEN INSERT "
+                    "  (NhuCauMe, StyleNo, SLKH, DMKT, PhanLoaiDH, [LineNo], LDBienChe, Source) "
+                    "  VALUES (?, ?, ?, ?, ?, ?, ?, 'flat_sheet');",
+                    (demand,
+                     p['style'], int(p['quantity']), p['dmkt'], p['category'], line_no, int(p['workers']),
+                     demand, p['style'], int(p['quantity']), p['dmkt'], p['category'], line_no, int(p['workers'])),
                 )
-            except Exception:
-                log.warning("Cannot upsert flat demand %s into tDemandRoot", demand, exc_info=False)
+        except Exception:
+            log.warning("Cannot upsert flat demand %s: %s", demand, __import__('traceback').format_exc().splitlines()[-1])
 
 
 class SyncBusy(Exception):
