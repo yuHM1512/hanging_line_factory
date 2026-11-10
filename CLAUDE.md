@@ -42,16 +42,24 @@ scripts/         — apply_migrations.py, create_app_db.py, seed_curve.py
 
 ## Quy tắc vàng — "Hàng ra chuyền"
 
-**Mọi query tính sản lượng đều phải có điều kiện:**
+**Mọi query tính sản lượng đều phải lọc theo trạm QC cuối cùng:**
 
 ```sql
-WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+WHERE st.StRole = 13
+  AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+      JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+  AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+      JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+      ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
 ```
 
 - `StRole = 13` → trạm QC kiểm đạt
-- `IsLastSeq = 1` → chống đếm trùng khi route có nhiều trạm StRole=13
+- `MAX(SeqNo)` → lấy bước QC cuối cùng trong route (không dùng IsLastSeq vì route có thể có trạm phụ sau QC như "Đính nhãn")
+- `TOP 1 StNo ORDER BY SeqNo DESC, StNo DESC` → nếu cùng SeqNo có nhiều StNo thì chọn MAX(StNo)
 
-**Ngoại lệ TV-2 cluster loop**: khi cụm KCS có `RouteStepOdr` rõ ràng, dùng `_scan_count_for_cluster` (đếm theo Odr cụ thể) thay vì `_output_kcs` — xử lý case routing có trạm phụ sau QC (ví dụ "Đính nhãn lưng") khiến KCS không phải IsLastSeq.
+**Ngoại lệ TV-2 cluster loop**: khi cụm KCS có `RouteStepOdr` rõ ràng, dùng `_scan_count_for_cluster` (đếm theo Odr cụ thể) thay vì `_output_kcs`.
 
 **Không được bỏ điều kiện này** khi tính Qty, DefectiveQty, hay bất kỳ KPI nào. Đây là nguồn sự thật duy nhất cho "sản lượng ra chuyền."
 

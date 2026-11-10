@@ -485,7 +485,14 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         SELECT rw.BeginTime, rw.Qty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
@@ -607,7 +614,14 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
         SELECT rw.BeginTime, rw.DefectiveQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           AND rw.DefectiveQty > 0
@@ -670,8 +684,16 @@ def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
 
 
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
-    """SUM(Qty), SUM(DefectiveQty) qua KCS (StRole=13, IsLastSeq=1)."""
-    where = "rw.MONo = ? AND st.StRole = 13 AND rw.IsLastSeq = 1 AND CAST(rw.BeginTime AS DATE) = rw.ShtDate"
+    """SUM(Qty), SUM(DefectiveQty) qua KCS — MAX(SeqNo) of StRole=13, then MAX(StNo)."""
+    where = ("rw.MONo = ? AND st.StRole = 13"
+             " AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2"
+             " JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid"
+             " WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)"
+             " AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2"
+             " JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid"
+             " WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo"
+             " ORDER BY rw2.SeqNo DESC, st2.StNo DESC)"
+             " AND CAST(rw.BeginTime AS DATE) = rw.ShtDate")
     params: list[Any] = [mono]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
@@ -704,7 +726,14 @@ def _kcs_bulk(mono: str, the_date: date) -> dict:
                SUM(rw.Qty) AS Qty, SUM(rw.DefectiveQty) AS DefQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND rw.MONo = ? AND rw.ShtDate <= ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
@@ -1223,7 +1252,14 @@ def _api_tv3_qlcl(mono: str, the_date: date):
         SELECT MAX(rw.BeginTime) AS BT
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
@@ -1331,7 +1367,14 @@ def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
         SELECT ISNULL(SUM(rw.Qty), 0) AS Q
         FROM {{MES_DB}}.dbo.tRecentWork rw
         INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
+              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
+              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND rw.MONo IN ({placeholders})
           AND rw.ShtDate BETWEEN ? AND ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
@@ -1428,7 +1471,14 @@ def api_tv4(
             f"""SELECT MAX(rw.ShtDate) AS D
                 FROM {{MES_DB}}.dbo.tRecentWork rw
                 INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-                WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+                WHERE st.StRole = 13
+                  AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
+                      JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+                      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+                  AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
+                      JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+                      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+                      ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
                   AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
                   AND rw.MONo IN ({ph})""",
             mono_list,

@@ -45,7 +45,14 @@ def _defect_total_kcs(plan_guid: str, sht_date: date) -> int:
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         INNER JOIN app.tPlanMaster pm ON pm.PlanMaster_guid = ?
-        WHERE st.StRole = 13 AND rw.IsLastSeq = 1
+        WHERE st.StRole = 13
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           AND rw.MONo = pm.MONo AND rw.ShtDate = ?
         """,

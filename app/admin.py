@@ -525,7 +525,13 @@ def api_plan_candidate_daily_output(mono: str):
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo = ?
           AND st.StRole = 13
-          AND rw.IsLastSeq = 1
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
+              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate
         ORDER BY rw.ShtDate
@@ -932,7 +938,13 @@ def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> lis
         INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.MONo IN ({placeholders})
           AND st.StRole = 13
-          AND rw.IsLastSeq = 1
+          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
+              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
+          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
+              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
+              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
+              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           {date_filter}
         GROUP BY rw.MONo, CONVERT(VARCHAR(10), rw.ShtDate, 120)
