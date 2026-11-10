@@ -18,7 +18,7 @@ from .db import query
 
 
 NORMALIZED_WORK_CTE = """
-    ;WITH NormalizedWork AS (
+    ;WITH _RawWork AS (
         SELECT
             rw.*,
             st.StRole AS station_role,
@@ -53,6 +53,23 @@ NORMALIZED_WORK_CTE = """
             END AS digit_tail
         ) mo3
         WHERE CAST(rw.BeginTime AS DATE) = rw.ShtDate
+    ),
+    _QCSeq AS (
+        SELECT MONo, MAX(SeqNo) AS max_qc_seq
+        FROM _RawWork WHERE station_role = 13
+        GROUP BY MONo
+    ),
+    _QCStation AS (
+        SELECT rw.MONo, rw.SeqNo AS max_qc_seq, MAX(rw.station_no_src) AS max_qc_stno
+        FROM _RawWork rw
+        JOIN _QCSeq qs ON rw.MONo = qs.MONo AND rw.SeqNo = qs.max_qc_seq
+        WHERE rw.station_role = 13
+        GROUP BY rw.MONo, rw.SeqNo
+    ),
+    NormalizedWork AS (
+        SELECT rw.*, qst.max_qc_seq, qst.max_qc_stno
+        FROM _RawWork rw
+        LEFT JOIN _QCStation qst ON rw.MONo = qst.MONo
     )
 """
 
@@ -60,13 +77,8 @@ NORMALIZED_WORK_CTE = """
 def _base_where(alias: str, params: list[Any], line_no: int | None = None, plan_key: str | None = None) -> str:
     where = f"""
         WHERE {alias}.station_role = 13
-          AND {alias}.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = {alias}.MONo)
-          AND {alias}.station_no_src = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = {alias}.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+          AND {alias}.SeqNo = {alias}.max_qc_seq
+          AND {alias}.station_no_src = {alias}.max_qc_stno
           AND {alias}.logical_line_no IS NOT NULL
     """
     if line_no is not None:
@@ -113,13 +125,8 @@ def date_bounds() -> dict:
         SELECT MIN(nw.ShtDate) AS min_date, MAX(nw.ShtDate) AS max_date
         FROM NormalizedWork nw
         WHERE nw.station_role = 13
-          AND nw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = nw.MONo)
-          AND nw.station_no_src = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = nw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+          AND nw.SeqNo = nw.max_qc_seq
+          AND nw.station_no_src = nw.max_qc_stno
           AND nw.logical_line_no IS NOT NULL;
     """
     rows = query(sql)

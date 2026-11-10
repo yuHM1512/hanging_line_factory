@@ -516,6 +516,17 @@ def api_plan_candidates(request: Request):
 @router.get("/api/plan/candidates/{mono}/daily-output")
 def api_plan_candidate_daily_output(mono: str):
     """Sản lượng KCS (StRole=13) theo từng ngày cho 1 MONo — đọc MES."""
+    qc_filter = db.query(
+        """SELECT TOP 1 rw.SeqNo, st.StNo
+           FROM {MES_DB}.dbo.tRecentWork rw
+           JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+           WHERE st.StRole = 13 AND rw.MONo = ?
+           ORDER BY rw.SeqNo DESC, st.StNo DESC""",
+        (mono,),
+    )
+    if not qc_filter:
+        return {"mono": mono, "rows": [], "total": 0}
+    qc_seq, qc_stno = qc_filter[0]["SeqNo"], qc_filter[0]["StNo"]
     rows = db.query(
         """
         SELECT
@@ -523,20 +534,12 @@ def api_plan_candidate_daily_output(mono: str):
             SUM(rw.Qty) AS Qty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE rw.MONo = ?
-          AND st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate
         ORDER BY rw.ShtDate
         """,
-        (mono,),
+        (mono, qc_seq, qc_stno),
     )
     total = sum(r["Qty"] for r in rows)
     return {"mono": mono, "rows": rows, "total": total}
@@ -923,29 +926,30 @@ def _upsert_output_sync_log(entries: list[tuple[str, str, int]]) -> None:
 
 def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> list[dict]:
     """Query MES output grouped by MONo + date. Optional date filter for incremental."""
-    placeholders = ",".join(["?"] * len(monos))
+    mono_csv = ",".join(monos)
     date_filter = ""
-    params: tuple[Any, ...] = (*monos,)
+    params: tuple[Any, ...] = (mono_csv,)
     if since_date:
         date_filter = "AND rw.ShtDate >= ?"
-        params = (*monos, since_date)
+        params = (mono_csv, since_date)
     return db.query(
         f"""
         SELECT rw.MONo,
                CONVERT(VARCHAR(10), rw.ShtDate, 120) AS work_date,
                COALESCE(SUM(rw.Qty), 0) AS Qty
-        FROM {{MES_DB}}.dbo.tRecentWork rw
-        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE rw.MONo IN ({placeholders})
-          AND st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
-          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
+        FROM (SELECT DISTINCT value AS MONo FROM STRING_SPLIT(?, ',')) m
+        CROSS APPLY (
+            SELECT TOP 1 rw0.SeqNo, st0.StNo
+            FROM {{MES_DB}}.dbo.tRecentWork rw0
+            JOIN {{MES_DB}}.dbo.tStation st0 ON rw0.Station_guid = st0.guid
+            WHERE st0.StRole = 13 AND rw0.MONo = m.MONo
+            ORDER BY rw0.SeqNo DESC, st0.StNo DESC
+        ) lq
+        JOIN {{MES_DB}}.dbo.tRecentWork rw
+          ON rw.MONo = m.MONo AND rw.SeqNo = lq.SeqNo
+        JOIN {{MES_DB}}.dbo.tStation st
+          ON rw.Station_guid = st.guid AND st.StNo = lq.StNo
+        WHERE CAST(rw.BeginTime AS DATE) = rw.ShtDate
           {date_filter}
         GROUP BY rw.MONo, CONVERT(VARCHAR(10), rw.ShtDate, 120)
         """,

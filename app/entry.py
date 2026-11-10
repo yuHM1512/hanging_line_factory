@@ -39,24 +39,34 @@ def _resolve_plan(mono: str) -> dict:
 
 def _defect_total_kcs(plan_guid: str, sht_date: date) -> int:
     """Return total KCS defects for one plan/date."""
+    mono_rows = db.query(
+        "SELECT MONo FROM app.tPlanMaster WHERE PlanMaster_guid = ?",
+        (plan_guid,),
+    )
+    if not mono_rows:
+        return 0
+    mono = mono_rows[0]["MONo"]
+    qc_filter = db.query(
+        """SELECT TOP 1 rw.SeqNo, st.StNo
+           FROM {MES_DB}.dbo.tRecentWork rw
+           JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+           WHERE st.StRole = 13 AND rw.MONo = ?
+           ORDER BY rw.SeqNo DESC, st.StNo DESC""",
+        (mono,),
+    )
+    if not qc_filter:
+        return 0
+    qc_seq, qc_stno = qc_filter[0]["SeqNo"], qc_filter[0]["StNo"]
     rows = db.query(
         """
         SELECT ISNULL(SUM(rw.DefectiveQty), 0) AS Q
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        INNER JOIN app.tPlanMaster pm ON pm.PlanMaster_guid = ?
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.SeqNo = ? AND st.StNo = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
-          AND rw.MONo = pm.MONo AND rw.ShtDate = ?
+          AND rw.MONo = ? AND rw.ShtDate = ?
         """,
-        (plan_guid, sht_date),
+        (qc_seq, qc_stno, mono, sht_date),
     )
     return int(rows[0]["Q"]) if rows else 0
 

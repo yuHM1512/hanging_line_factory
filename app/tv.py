@@ -15,6 +15,7 @@ import os
 import threading
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
+from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional
 
@@ -473,6 +474,26 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
     return counts
 
 
+@lru_cache(maxsize=128)
+def _last_qc_filter(mono: str) -> tuple:
+    """(SeqNo, StNo) of the last QC station for this MONo. Cached across requests.
+
+    Returns raw DB types (SeqNo=nvarchar, StNo=int) so pyodbc binds correctly.
+    Returns (None, None) when no QC station exists.
+    """
+    rows = db.query(
+        """SELECT TOP 1 rw.SeqNo, st.StNo
+           FROM {MES_DB}.dbo.tRecentWork rw
+           JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+           WHERE st.StRole = 13 AND rw.MONo = ?
+           ORDER BY rw.SeqNo DESC, st.StNo DESC""",
+        (mono,),
+    )
+    if not rows:
+        return (None, None)
+    return (rows[0]["SeqNo"], rows[0]["StNo"])
+
+
 def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     """KCS scan theo slot 1-5 cho ngày the_date.
 
@@ -480,23 +501,19 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     Với ngày hôm nay: loại bỏ scan có BeginTime trong tương lai (đồng hồ lệch
     hoặc dữ liệu không hợp lệ), tránh hiển thị sản lượng ở slot chưa đến giờ.
     """
+    qc_seq, qc_stno = _last_qc_filter(mono)
+    if qc_seq is None:
+        return {i: 0 for i in range(1, 6)}
     rows = db.query(
         """
         SELECT rw.BeginTime, rw.Qty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
-        (mono, the_date),
+        (qc_seq, qc_stno, mono, the_date),
     )
     # Slot ranges:
     #   1: 07:30 → 09:30
@@ -609,24 +626,20 @@ def _kcs_defective_hourly(mono: str, the_date: date) -> dict[int, int]:
     Filter golden: StRole=13; aggregate SUM(DefectiveQty)
     theo khung giờ BeginTime.
     """
+    qc_seq, qc_stno = _last_qc_filter(mono)
+    if qc_seq is None:
+        return {i: 0 for i in range(1, 6)}
     rows = db.query(
         """
         SELECT rw.BeginTime, rw.DefectiveQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
           AND rw.DefectiveQty > 0
         """,
-        (mono, the_date),
+        (qc_seq, qc_stno, mono, the_date),
     )
     counts = {i: 0 for i in range(1, 6)}
     for r in rows:
@@ -685,16 +698,12 @@ def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
 
 def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
     """SUM(Qty), SUM(DefectiveQty) qua KCS — MAX(SeqNo) of StRole=13, then MAX(StNo)."""
-    where = ("rw.MONo = ? AND st.StRole = 13"
-             " AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2"
-             " JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid"
-             " WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)"
-             " AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2"
-             " JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid"
-             " WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo"
-             " ORDER BY rw2.SeqNo DESC, st2.StNo DESC)"
+    qc_seq, qc_stno = _last_qc_filter(mono)
+    if qc_seq is None:
+        return {"Qty": 0, "Def": 0}
+    where = ("rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?"
              " AND CAST(rw.BeginTime AS DATE) = rw.ShtDate")
-    params: list[Any] = [mono]
+    params: list[Any] = [mono, qc_seq, qc_stno]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
         params.extend([from_date, to_date])
@@ -720,25 +729,22 @@ def _kcs_bulk(mono: str, the_date: date) -> dict:
     Replaces 4 separate queries: _output_kcs(cum), _output_kcs(today),
     last_day inline query, and _hourly_actual.
     """
+    qc_seq, qc_stno = _last_qc_filter(mono)
+    if qc_seq is None:
+        return {"cum": {"Qty": 0, "Def": 0}, "today": {"Qty": 0, "Def": 0},
+                "last_day_output": 0, "hourly": {i: 0 for i in range(1, 6)}}
     rows = db.query(
         """
         SELECT rw.ShtDate, rw.BeginTime,
                SUM(rw.Qty) AS Qty, SUM(rw.DefectiveQty) AS DefQty
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate <= ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
         """,
-        (mono, the_date),
+        (qc_seq, qc_stno, mono, the_date),
     )
     cum_qty = 0
     cum_def = 0
@@ -1247,23 +1253,17 @@ def _api_tv3_qlcl(mono: str, the_date: date):
     final_cluster_slots = _hourly_output_for_configured_last_cluster(plan, mono, the_date)
 
     # Xác định slot hiện tại từ scan KCS gần nhất
+    qc_seq_tv3, qc_stno_tv3 = _last_qc_filter(mono)
     recent_scan_row = db.query(
         """
         SELECT MAX(rw.BeginTime) AS BT
         FROM {MES_DB}.dbo.tRecentWork rw
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {MES_DB}.dbo.tRecentWork rw2
-              JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+        WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate = ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
-        (mono, the_date),
+        (qc_seq_tv3, qc_stno_tv3, mono, the_date),
     )
     last_scan_bt = recent_scan_row[0]["BT"] if recent_scan_row else None
     current_slot = _slot_from_time(last_scan_bt)
@@ -1354,32 +1354,26 @@ def _api_tv3_qlcl(mono: str, the_date: date):
 # ============================================================
 def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
     """Tổng KCS qty của TẤT CẢ con thuộc 1 NhuCauMe trong khoảng date."""
-    monos = db.query(
-        "SELECT MONo FROM app.tPlanMaster WHERE NhuCauMe = ?",
-        (nhu_cau_me_id,),
-    )
-    if not monos:
-        return 0
-    mono_list = [r["MONo"] for r in monos]
-    placeholders = ",".join(["?"] * len(mono_list))
     rows = db.query(
-        f"""
+        """
         SELECT ISNULL(SUM(rw.Qty), 0) AS Q
-        FROM {{MES_DB}}.dbo.tRecentWork rw
-        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE st.StRole = 13
-          AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-          AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
-              JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-              WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-              ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
-          AND rw.MONo IN ({placeholders})
+        FROM app.tPlanMaster pm
+        CROSS APPLY (
+            SELECT TOP 1 rw0.SeqNo, st0.StNo
+            FROM {MES_DB}.dbo.tRecentWork rw0
+            JOIN {MES_DB}.dbo.tStation st0 ON rw0.Station_guid = st0.guid
+            WHERE st0.StRole = 13 AND rw0.MONo = pm.MONo
+            ORDER BY rw0.SeqNo DESC, st0.StNo DESC
+        ) lq
+        JOIN {MES_DB}.dbo.tRecentWork rw
+          ON rw.MONo = pm.MONo AND rw.SeqNo = lq.SeqNo
+        JOIN {MES_DB}.dbo.tStation st
+          ON rw.Station_guid = st.guid AND st.StNo = lq.StNo
+        WHERE pm.NhuCauMe = ?
           AND rw.ShtDate BETWEEN ? AND ?
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
-        mono_list + [from_date, to_date],
+        (nhu_cau_me_id, from_date, to_date),
     )
     return int(rows[0]["Q"]) if rows else 0
 
@@ -1469,18 +1463,19 @@ def api_tv4(
         ph = ",".join(["?"] * len(mono_list))
         r = db.query(
             f"""SELECT MAX(rw.ShtDate) AS D
-                FROM {{MES_DB}}.dbo.tRecentWork rw
-                INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
-                WHERE st.StRole = 13
-                  AND rw.SeqNo = (SELECT MAX(rw2.SeqNo) FROM {{MES_DB}}.dbo.tRecentWork rw2
-                      JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-                      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo)
-                  AND st.StNo = (SELECT TOP 1 st2.StNo FROM {{MES_DB}}.dbo.tRecentWork rw2
-                      JOIN {{MES_DB}}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
-                      WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
-                      ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
-                  AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
-                  AND rw.MONo IN ({ph})""",
+                FROM (SELECT DISTINCT MONo FROM app.tPlanMaster WHERE MONo IN ({ph})) m
+                CROSS APPLY (
+                    SELECT TOP 1 rw0.SeqNo, st0.StNo
+                    FROM {{MES_DB}}.dbo.tRecentWork rw0
+                    JOIN {{MES_DB}}.dbo.tStation st0 ON rw0.Station_guid = st0.guid
+                    WHERE st0.StRole = 13 AND rw0.MONo = m.MONo
+                    ORDER BY rw0.SeqNo DESC, st0.StNo DESC
+                ) lq
+                JOIN {{MES_DB}}.dbo.tRecentWork rw
+                  ON rw.MONo = m.MONo AND rw.SeqNo = lq.SeqNo
+                JOIN {{MES_DB}}.dbo.tStation st
+                  ON rw.Station_guid = st.guid AND st.StNo = lq.StNo
+                WHERE CAST(rw.BeginTime AS DATE) = rw.ShtDate""",
             mono_list,
         )
         if r and r[0]["D"]:
