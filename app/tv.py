@@ -13,6 +13,7 @@ from __future__ import annotations
 import math
 import os
 import threading
+import time as _time_mod
 from datetime import date, datetime, time, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from functools import lru_cache
@@ -494,6 +495,70 @@ def _last_qc_filter(mono: str) -> tuple:
     return (rows[0]["SeqNo"], rows[0]["StNo"])
 
 
+_CLUSTER6_QC_CACHE: dict[tuple, tuple] = {}
+_CLUSTER6_QC_TTL_SEC = 300
+
+
+def _cluster6_qc_filter(mono: str, route_step_odr: int) -> tuple:
+    """(SeqNo, StNo) của trạm lấy sản lượng cho cụm 6 (QC) theo cấu hình.
+
+    - SeqNo: bước cuối cùng (Odr lớn nhất theo route) trong nhóm RouteStepOdr
+      của cụm 6 mà MONo đã có scan.
+    - StNo: trong các trạm đã scan SeqNo đó, lấy MAX(StNo).
+    Không xét StRole / IsLastSeq. Cache 5 phút (cấu hình có thể đổi).
+    """
+    key = (mono, route_step_odr)
+    hit = _CLUSTER6_QC_CACHE.get(key)
+    now = _time_mod.monotonic()
+    if hit and now - hit[0] < _CLUSTER6_QC_TTL_SEC:
+        return hit[1]
+    rows = db.query(
+        """
+        ;WITH Steps AS (
+          SELECT ds.Odr, ds.SeqNo,
+                 MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
+                   OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
+          FROM {MES_DB}.dbo.tRouteDS ds
+          JOIN {MES_DB}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
+          JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
+          WHERE mm.MONo = ?
+        ),
+        ClusterSeqs AS (
+          SELECT SeqNo, MAX(Odr) AS Odr FROM Steps
+          WHERE HeadOdr = ? GROUP BY SeqNo
+        )
+        SELECT TOP 1 rw.SeqNo, st.StNo
+        FROM ClusterSeqs cs
+        JOIN {MES_DB}.dbo.tRecentWork rw ON rw.SeqNo = cs.SeqNo AND rw.MONo = ?
+        JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+        GROUP BY rw.SeqNo, cs.Odr, st.StNo
+        ORDER BY cs.Odr DESC, st.StNo DESC
+        """,
+        (mono, route_step_odr, mono),
+    )
+    result = (rows[0]["SeqNo"], rows[0]["StNo"]) if rows else (None, None)
+    _CLUSTER6_QC_CACHE[key] = (now, result)
+    return result
+
+
+def _tv1_qc_filter(mono: str, plan: Optional[dict] = None) -> tuple:
+    """Trạm lấy sản lượng TV-1 = trạm của cụm 6 trong cấu hình.
+
+    Fallback về _last_qc_filter (StRole=13) khi plan chưa cấu hình cụm 6
+    hoặc cụm 6 không trỏ tới bước route MES (RouteStepOdr <= 0).
+    """
+    if plan is None:
+        try:
+            plan = _resolve_plan_full(mono)
+        except HTTPException:
+            plan = {}
+    c6 = _configured_last_cluster(plan)
+    odr = int(c6["RouteStepOdr"] or 0) if c6 else 0
+    if odr > 0:
+        return _cluster6_qc_filter(mono, odr)
+    return _last_qc_filter(mono)
+
+
 def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
     """KCS scan theo slot 1-5 cho ngày the_date.
 
@@ -696,9 +761,13 @@ def _target_until_cutoff(daily_aim: int, cutoff_slot: int) -> int:
     return sum(slots[:cutoff_slot])
 
 
-def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
-    """SUM(Qty), SUM(DefectiveQty) qua KCS — MAX(SeqNo) of StRole=13, then MAX(StNo)."""
-    qc_seq, qc_stno = _last_qc_filter(mono)
+def _output_kcs(mono: str, from_date: Optional[date], to_date: date,
+                qc_filter: Optional[tuple] = None) -> dict:
+    """SUM(Qty), SUM(DefectiveQty) qua KCS — MAX(SeqNo) of StRole=13, then MAX(StNo).
+
+    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền trạm cụm 6).
+    """
+    qc_seq, qc_stno = qc_filter or _last_qc_filter(mono)
     if qc_seq is None:
         return {"Qty": 0, "Def": 0}
     where = ("rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?"
@@ -723,13 +792,14 @@ def _output_kcs(mono: str, from_date: Optional[date], to_date: date) -> dict:
     return {"Qty": int(rows[0]["Qty"]), "Def": int(rows[0]["DefQty"])}
 
 
-def _kcs_bulk(mono: str, the_date: date) -> dict:
+def _kcs_bulk(mono: str, the_date: date, qc_filter: Optional[tuple] = None) -> dict:
     """Fetch all KCS data in ONE query, return cumulative/today/last_day/hourly.
 
     Replaces 4 separate queries: _output_kcs(cum), _output_kcs(today),
     last_day inline query, and _hourly_actual.
+    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền trạm cụm 6).
     """
-    qc_seq, qc_stno = _last_qc_filter(mono)
+    qc_seq, qc_stno = qc_filter or _last_qc_filter(mono)
     if qc_seq is None:
         return {"cum": {"Qty": 0, "Def": 0}, "today": {"Qty": 0, "Def": 0},
                 "last_day_output": 0, "hourly": {i: 0 for i in range(1, 6)}}
@@ -954,8 +1024,10 @@ def api_tv1(
     sam = plan["SAM"] or 0
     owe_target_pct = (plan["OWE_Target"] * 100) if plan["OWE_Target"] else 85.0
 
-    # Bulk KCS: 1 query thay vì 4
-    kcs = _kcs_bulk(mono, the_date)
+    # Sản lượng TV-1 = trạm cụm 6 trong cấu hình (bước cuối của cụm, MAX(StNo)),
+    # không phụ thuộc StRole=13 / IsLastSeq. Bulk: 1 query thay vì 4.
+    qc_filter = _tv1_qc_filter(mono, plan)
+    kcs = _kcs_bulk(mono, the_date, qc_filter)
     cum_qty = kcs["cum"]["Qty"]
     today_qty = kcs["today"]["Qty"]
     last_day_output = kcs["last_day_output"]
@@ -967,17 +1039,13 @@ def api_tv1(
                              plan_guid=plan["PlanMaster_guid"])
     daily_aim = tgt["target"]
 
-    kcs_carryover = 0
-    for c in plan["Cluster"]:
-        if c["Role"] == "last":
-            kcs_carryover = int(c.get("CarryoverQty") or 0)
-            break
+    last_cluster = _configured_last_cluster(plan)
+    kcs_carryover = int((last_cluster or {}).get("CarryoverQty") or 0)
     cumulative_display = cum_qty + kcs_carryover
 
-    # WIP = luỹ kế cụm đầu − luỹ kế cụm cuối
+    # WIP = luỹ kế cụm đầu − luỹ kế cụm 6 (= cum_qty của TV-1)
     wip = 0
     first_cluster = next((c for c in plan["Cluster"] if c["Role"] == "first"), None)
-    last_cluster = _configured_last_cluster(plan)
     if first_cluster:
         # Cụm đầu vào phải cùng đơn vị đếm với C6/KCS: chỉ lấy SeqNo đầu
         # (IsCombine=0). Nếu lấy cả các bước combine, min() có thể thấp giả
@@ -989,13 +1057,7 @@ def api_tv1(
             the_date,
             head_only=True,
         )
-        if last_cluster and last_cluster["Role"] == "last":
-            out_qty = cum_qty
-        elif last_cluster:
-            out_qty = _scan_count_for_cluster(mono, last_cluster["RouteStepOdr"], first_hang, the_date)
-        else:
-            out_qty = cum_qty
-        wip = max(in_qty - out_qty, 0)
+        wip = max(in_qty - cum_qty, 0)
 
     # Takt
     takt_kh = round(WORK_SECONDS_PER_DAY / daily_aim) if daily_aim else 0
@@ -1088,7 +1150,7 @@ def api_tv1_qc(
     if mono.startswith(PREFIX):
         # Chuyền bệt: tỉ lệ lỗi đã tính từ Sheet trong /api/tv1; trả rỗng để TV-1 giữ nguyên giá trị đó.
         return {}
-    kcs_today = _output_kcs(mono, the_date, the_date)
+    kcs_today = _output_kcs(mono, the_date, the_date, _tv1_qc_filter(mono))
     # QLCL tạm tắt: số lỗi lấy từ Sheet theo Nhu cầu mẹ gán tay (giống TV-3). Bật lại khi QLCL sẵn sàng:
     # qc = _fetch_qlcl_tv3(mono, the_date)
     # total_loi = qc.get("total_loi", 0) if qc.get("found") else 0
