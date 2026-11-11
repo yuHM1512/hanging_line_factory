@@ -254,10 +254,16 @@ def api_stations(
           WHERE mm.MONo = ?
         ),
         Groups AS (
-          SELECT HeadOdr,
-                 STRING_AGG(SeqName, ' + ') WITHIN GROUP (ORDER BY Odr) AS GroupLabel
-          FROM Steps
-          GROUP BY HeadOdr
+          -- FOR XML PATH thay STRING_AGG (STRING_AGG cần SQL 2017+)
+          SELECT h.HeadOdr,
+                 STUFF((
+                   SELECT N' + ' + s2.SeqName
+                   FROM Steps s2
+                   WHERE s2.HeadOdr = h.HeadOdr
+                   ORDER BY s2.Odr
+                   FOR XML PATH(''), TYPE
+                 ).value('.', 'nvarchar(max)'), 1, 3, N'') AS GroupLabel
+          FROM (SELECT DISTINCT HeadOdr FROM Steps) h
         )
         SELECT
             CONCAT('odr:', CAST(g.HeadOdr AS varchar(20))) AS StationKey,

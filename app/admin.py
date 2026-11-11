@@ -926,7 +926,12 @@ def _upsert_output_sync_log(entries: list[tuple[str, str, int]]) -> None:
 
 def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> list[dict]:
     """Query MES output grouped by MONo + date. Optional date filter for incremental."""
-    mono_csv = ",".join(monos)
+    # Tách list MONo bằng XML thay vì STRING_SPLIT — STRING_SPLIT cần SQL 2016+
+    # và compatibility level >= 130 (máy XN1 không đáp ứng → lỗi 208).
+    mono_csv = ",".join(
+        m.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        for m in monos
+    )
     date_filter = ""
     params: tuple[Any, ...] = (mono_csv,)
     if since_date:
@@ -937,7 +942,11 @@ def _query_mes_output(monos: list[str], *, since_date: str | None = None) -> lis
         SELECT rw.MONo,
                CONVERT(VARCHAR(10), rw.ShtDate, 120) AS work_date,
                COALESCE(SUM(rw.Qty), 0) AS Qty
-        FROM (SELECT DISTINCT value AS MONo FROM STRING_SPLIT(?, ',')) m
+        FROM (
+            SELECT DISTINCT x.n.value('.', 'nvarchar(200)') AS MONo
+            FROM (SELECT CAST(N'<m>' + REPLACE(CAST(? AS nvarchar(max)), N',', N'</m><m>') + N'</m>' AS XML) AS doc) d
+            CROSS APPLY d.doc.nodes('/m') x(n)
+        ) m
         CROSS APPLY (
             SELECT TOP 1 rw0.SeqNo, st0.StNo
             FROM {{MES_DB}}.dbo.tRecentWork rw0
