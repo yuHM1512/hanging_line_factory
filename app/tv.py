@@ -1414,30 +1414,48 @@ def _api_tv3_qlcl(mono: str, the_date: date):
 # ============================================================
 # TV-4 endpoint — Lộ trình ra chuyền theo Nhu cầu mẹ
 # ============================================================
-def _kcs_qty_for_me(nhu_cau_me_id: str, from_date: date, to_date: date) -> int:
-    """Tổng KCS qty của TẤT CẢ con thuộc 1 NhuCauMe trong khoảng date."""
-    rows = db.query(
-        """
-        SELECT ISNULL(SUM(rw.Qty), 0) AS Q
-        FROM app.tPlanMaster pm
-        CROSS APPLY (
-            SELECT TOP 1 rw0.SeqNo, st0.StNo
-            FROM {MES_DB}.dbo.tRecentWork rw0
-            JOIN {MES_DB}.dbo.tStation st0 ON rw0.Station_guid = st0.guid
-            WHERE st0.StRole = 13 AND rw0.MONo = pm.MONo
-            ORDER BY rw0.SeqNo DESC, st0.StNo DESC
-        ) lq
-        JOIN {MES_DB}.dbo.tRecentWork rw
-          ON rw.MONo = pm.MONo AND rw.SeqNo = lq.SeqNo
-        JOIN {MES_DB}.dbo.tStation st
-          ON rw.Station_guid = st.guid AND st.StNo = lq.StNo
-        WHERE pm.NhuCauMe = ?
-          AND rw.ShtDate BETWEEN ? AND ?
-          AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
-        """,
-        (nhu_cau_me_id, from_date, to_date),
-    )
-    return int(rows[0]["Q"]) if rows else 0
+def _as_date(v) -> Optional[date]:
+    if v is None:
+        return None
+    if isinstance(v, datetime):
+        return v.date()
+    if isinstance(v, date):
+        return v
+    return date.fromisoformat(str(v)[:10])
+
+
+def _kcs_daily_for_me(nhu_cau_me_id: str, mono_list: list[str],
+                      route_step_odr: int, from_date: date) -> dict[date, int]:
+    """Sản lượng theo ngày (>= from_date) của TẤT CẢ con thuộc 1 NhuCauMe.
+
+    Mỗi MONo lấy theo trạm cụm 6 giống TV-1 (_cluster6_qc_filter: bước cuối
+    của cụm, MAX(StNo)); fallback StRole=13 nếu cụm 6 không trỏ route MES.
+    1 query / MONo cho cả khoảng ngày thay vì 1 query nặng / ngày.
+    """
+    daily: dict[date, int] = {}
+    for mono in mono_list:
+        if route_step_odr > 0:
+            qc_seq, qc_stno = _cluster6_qc_filter(mono, route_step_odr)
+        else:
+            qc_seq, qc_stno = _last_qc_filter(mono)
+        if qc_seq is None:
+            continue
+        rows = db.query(
+            """
+            SELECT rw.ShtDate, ISNULL(SUM(rw.Qty), 0) AS Q
+            FROM {MES_DB}.dbo.tRecentWork rw
+            INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
+            WHERE rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?
+              AND rw.ShtDate >= ?
+              AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
+            GROUP BY rw.ShtDate
+            """,
+            (mono, qc_seq, qc_stno, from_date),
+        )
+        for r in rows:
+            d = _as_date(r["ShtDate"])
+            daily[d] = daily.get(d, 0) + int(r["Q"] or 0)
+    return daily
 
 
 def _workers_for_me_day(
@@ -1514,34 +1532,66 @@ def api_tv4(
     ndsx_sec = round(WORK_SECONDS_PER_DAY / (ld_default * dmkt), 1) if (ld_default and dmkt) else 0
     ndsx_level = _ndsx_level(phan_loai, ndsx_sec)
 
-    # Last actual scan date (KCS) across all children
+    first_hang_me = _as_date(first_hang_me)
+
+    # Sản lượng theo ngày của mọi con — trạm cụm 6 (giống TV-1), 1 query / MONo
     monos = db.query(
         "SELECT MONo FROM app.tPlanMaster WHERE NhuCauMe = ?",
         (nhu_cau_me_id,),
     )
     mono_list = [r["MONo"] for r in monos]
-    last_actual_date = first_hang_me
-    if mono_list:
-        ph = ",".join(["?"] * len(mono_list))
-        r = db.query(
-            f"""SELECT MAX(rw.ShtDate) AS D
-                FROM (SELECT DISTINCT MONo FROM app.tPlanMaster WHERE MONo IN ({ph})) m
-                CROSS APPLY (
-                    SELECT TOP 1 rw0.SeqNo, st0.StNo
-                    FROM {{MES_DB}}.dbo.tRecentWork rw0
-                    JOIN {{MES_DB}}.dbo.tStation st0 ON rw0.Station_guid = st0.guid
-                    WHERE st0.StRole = 13 AND rw0.MONo = m.MONo
-                    ORDER BY rw0.SeqNo DESC, st0.StNo DESC
-                ) lq
-                JOIN {{MES_DB}}.dbo.tRecentWork rw
-                  ON rw.MONo = m.MONo AND rw.SeqNo = lq.SeqNo
-                JOIN {{MES_DB}}.dbo.tStation st
-                  ON rw.Station_guid = st.guid AND st.StNo = lq.StNo
-                WHERE CAST(rw.BeginTime AS DATE) = rw.ShtDate""",
-            mono_list,
-        )
-        if r and r[0]["D"]:
-            last_actual_date = r[0]["D"]
+    c6 = _configured_last_cluster(plan)
+    c6_odr = int(c6["RouteStepOdr"] or 0) if c6 else 0
+    daily_actual = _kcs_daily_for_me(nhu_cau_me_id, mono_list, c6_odr, first_hang_me)
+    last_actual_date = max(daily_actual) if daily_actual else first_hang_me
+    last_actual_date = max(last_actual_date, first_hang_me)
+
+    # Preload lookups dùng trong vòng lặp ngày (tránh N query / ngày)
+    curve = db.query(
+        "SELECT DayN, Ratio FROM app.tProductionCurve "
+        "WHERE Category = ? AND NDSXLevel = ? ORDER BY DayN",
+        (phan_loai, ndsx_level),
+    )
+    overrides = db.query(
+        "SELECT DayN, TargetQty FROM app.tTargetOverride "
+        "WHERE PlanMaster_guid = ? ORDER BY DayN",
+        (plan["PlanMaster_guid"],),
+    )
+    headcount: dict[date, int] = {}
+    line_rows = db.query(
+        "SELECT TOP 1 [LineNo] AS L FROM app.tPlanMaster WHERE NhuCauMe = ?",
+        (nhu_cau_me_id,),
+    )
+    if line_rows:
+        for r in db.query(
+            "SELECT ShtDate, Headcount FROM app.tDailyHeadcount "
+            "WHERE [LineNo] = ? AND ShtDate BETWEEN ? AND ?",
+            (line_rows[0]["L"], first_hang_me, the_date),
+        ):
+            headcount[_as_date(r["ShtDate"])] = int(r["Headcount"])
+
+    def _step_lookup(rows: list[dict], key: str, day_n: int):
+        """Giá trị của dòng có DayN lớn nhất <= day_n (giống TOP 1 ... ORDER BY DayN DESC)."""
+        val = None
+        for r in rows:
+            if r["DayN"] <= day_n:
+                val = r[key]
+            else:
+                break
+        return val
+
+    def _ratio_for(day_n: int) -> float:
+        if day_n < 1:
+            return 0.0
+        v = _step_lookup(curve, "Ratio", day_n)
+        return float(v) if v is not None else 1.0
+
+    def _workers_for(d: date) -> int:
+        if d in headcount:
+            return headcount[d]
+        if ld_default:
+            return int(ld_default)
+        return _workers_for_me_day(nhu_cau_me_id, d, ld_default)
 
     # Show until: max(SoCaKH, last_actual_date, the_date) + tiny buffer
     stop_date = max(last_actual_date, the_date)
@@ -1560,13 +1610,13 @@ def api_tv4(
             cur_date += timedelta(days=1)
 
         is_past = cur_date <= the_date
-        workers = _workers_for_me_day(nhu_cau_me_id, cur_date, ld_default) if is_past else ld_default
-        ratio = _curve_ratio(phan_loai, ndsx_level, day_n)
+        workers = _workers_for(cur_date) if is_past else ld_default
+        ratio = _ratio_for(day_n)
         target = round(dmkt * workers * ratio) if workers else 0
-        override_val = _target_override(plan["PlanMaster_guid"], day_n)
+        override_val = _step_lookup(overrides, "TargetQty", day_n)
         if override_val is not None:
-            target = override_val
-        actual = _kcs_qty_for_me(nhu_cau_me_id, cur_date, cur_date) if is_past else None
+            target = int(override_val)
+        actual = daily_actual.get(cur_date, 0) if is_past else None
 
         cum_target += target
         if actual is not None:
