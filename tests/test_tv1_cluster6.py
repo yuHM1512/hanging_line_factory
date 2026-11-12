@@ -43,7 +43,16 @@ class TV1Cluster6FilterTests(unittest.TestCase):
             tv._kcs_bulk("MO-1", __import__("datetime").date(2026, 11, 12), ("114", None))
         sql, params = q.call_args.args
         self.assertNotIn("st.StNo = ?", sql)
+        self.assertIn("rw.QcOdr = 0", sql)          # không đếm lần QC tái kiểm
         self.assertEqual(params[:2], ("114", "MO-1"))
+
+    def test_output_kcs_all_stations_keeps_qcodr_filter(self):
+        with patch.object(tv.db, "query", return_value=[{"Qty": 0, "DefQty": 0}]) as q:
+            d = __import__("datetime").date(2026, 11, 12)
+            tv._output_kcs("MO-1", d, d, ("114", None))
+        sql, params = q.call_args.args
+        self.assertIn("rw.QcOdr = 0", sql)
+        self.assertNotIn("st.StNo = ?", sql)
 
     def test_bulk_keeps_station_filter_for_legacy(self):
         with patch.object(tv.db, "query", return_value=[]) as q:

@@ -31,6 +31,7 @@ class TV4BulkTests(unittest.TestCase):
             if "GROUP BY rw.ShtDate" in sql:
                 self.assertEqual(params[:3], ("MO-1", "45", date(2026, 11, 2)))
                 self.assertNotIn("st.StNo = ?", sql)
+                self.assertIn("rw.QcOdr = 0", sql)
                 return [{"ShtDate": date(2026, 11, 2), "Q": 100},
                         {"ShtDate": date(2026, 11, 3), "Q": 150}]
             if "tProductionCurve" in sql:
