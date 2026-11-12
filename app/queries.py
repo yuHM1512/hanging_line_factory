@@ -1,7 +1,8 @@
 """SQL query templates for the hanging-line dashboard.
 
 All queries follow the golden rule in CLAUDE.md:
-    "Hàng ra chuyền" = StRole = 13, MAX(SeqNo) then MAX(StNo).
+    "Hàng ra chuyền" = StRole = 13, MAX(SeqNo) then MAX(StNo), QcOdr = 0.
+    (QcOdr > 0 = bản ghi QC loại → không đếm, tránh double-count khi sửa rồi quét lại.)
 
 "Tổ" on the dashboard is the logical line parsed from MONo:
     LINE 1 ... -> Tổ 1
@@ -79,6 +80,7 @@ def _base_where(alias: str, params: list[Any], line_no: int | None = None, plan_
         WHERE {alias}.station_role = 13
           AND {alias}.SeqNo = {alias}.max_qc_seq
           AND {alias}.station_no_src = {alias}.max_qc_stno
+          AND {alias}.QcOdr = 0
           AND {alias}.logical_line_no IS NOT NULL
     """
     if line_no is not None:

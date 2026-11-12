@@ -53,9 +53,11 @@ WHERE st.StRole = 13
       JOIN {MES_DB}.dbo.tStation st2 ON rw2.Station_guid = st2.guid
       WHERE st2.StRole = 13 AND rw2.MONo = rw.MONo
       ORDER BY rw2.SeqNo DESC, st2.StNo DESC)
+  AND rw.QcOdr = 0
 ```
 
 - `StRole = 13` → trạm QC kiểm đạt
+- `QcOdr = 0` → chỉ đếm lần quét ĐẠT. `QcOdr > 0` là bản ghi QC loại (lần loại thứ N, khớp 1-1 với `tRecentFail.FailOdr` cùng `ProInfo_guid`); sản phẩm bị loại → đi sửa → quay lại QC sẽ sinh thêm dòng ở trạm chốt, **không được đếm** vào sản lượng (nếu đếm sẽ double-count). Mỗi `ProInfo_guid` chỉ có tối đa 1 dòng `QcOdr = 0` tại trạm chốt. Không dùng `IsOutput = 1` thay thế (bị trống ở một số MO cụm-6 như `#352847-14/15`).
 - `MAX(SeqNo)` → lấy bước QC cuối cùng trong route (không dùng IsLastSeq vì route có thể có trạm phụ sau QC như "Đính nhãn")
 - `TOP 1 StNo ORDER BY SeqNo DESC, StNo DESC` → nếu cùng SeqNo có nhiều StNo thì chọn MAX(StNo)
 

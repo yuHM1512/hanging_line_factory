@@ -390,7 +390,7 @@ def _scan_count_for_cluster(
         SELECT cs.SeqNo, COUNT(*) AS Qty
         FROM ClusterSeqs cs
         JOIN {{MES_DB}}.dbo.tRecentWork rw ON rw.SeqNo = cs.SeqNo
-        WHERE rw.MONo = ? {where_date}
+        WHERE rw.MONo = ? AND rw.QcOdr = 0 {where_date}
         GROUP BY cs.SeqNo
         """,
         params,
@@ -459,6 +459,7 @@ def _hourly_output_for_configured_last_cluster(plan: dict, mono: str, the_date: 
         FROM {MES_DB}.dbo.tRecentWork rw
         WHERE rw.MONo = ? AND rw.SeqNo = ?
           AND rw.ShtDate = ?
+          AND rw.QcOdr = 0
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.BeginTime
         """,
@@ -576,6 +577,7 @@ def _hourly_actual(mono: str, the_date: date) -> dict[int, int]:
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate = ?
+          AND rw.QcOdr = 0
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         """,
         (qc_seq, qc_stno, mono, the_date),
@@ -771,6 +773,7 @@ def _output_kcs(mono: str, from_date: Optional[date], to_date: date,
     if qc_seq is None:
         return {"Qty": 0, "Def": 0}
     where = ("rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?"
+             " AND rw.QcOdr = 0"
              " AND CAST(rw.BeginTime AS DATE) = rw.ShtDate")
     params: list[Any] = [mono, qc_seq, qc_stno]
     if from_date:
@@ -811,6 +814,7 @@ def _kcs_bulk(mono: str, the_date: date, qc_filter: Optional[tuple] = None) -> d
         INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
         WHERE rw.SeqNo = ? AND st.StNo = ?
           AND rw.MONo = ? AND rw.ShtDate <= ?
+          AND rw.QcOdr = 0
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
         """,
@@ -1447,6 +1451,7 @@ def _kcs_daily_for_me(nhu_cau_me_id: str, mono_list: list[str],
             INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
             WHERE rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?
               AND rw.ShtDate >= ?
+              AND rw.QcOdr = 0
               AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
             GROUP BY rw.ShtDate
             """,
