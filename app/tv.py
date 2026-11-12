@@ -501,11 +501,13 @@ _CLUSTER6_QC_TTL_SEC = 300
 
 
 def _cluster6_qc_filter(mono: str, route_step_odr: int) -> tuple:
-    """(SeqNo, StNo) của trạm lấy sản lượng cho cụm 6 (QC) theo cấu hình.
+    """(SeqNo, None) — bước lấy sản lượng cho cụm 6 (QC) theo cấu hình.
 
     - SeqNo: bước cuối cùng (Odr lớn nhất theo route) trong nhóm RouteStepOdr
       của cụm 6 mà MONo đã có scan.
-    - StNo: trong các trạm đã scan SeqNo đó, lấy MAX(StNo).
+    - StNo = None: cộng MỌI trạm đã scan SeqNo đó. Cụm QC có thể có nhiều bàn
+      kiểm song song cùng SeqNo (vd Tổ 6: StNo 31 + 32), mỗi SP chỉ qua 1 bàn
+      → lấy 1 trạm sẽ thiếu ~1/2 sản lượng.
     Không xét StRole / IsLastSeq. Cache 5 phút (cấu hình có thể đổi).
     """
     key = (mono, route_step_odr)
@@ -528,22 +530,28 @@ def _cluster6_qc_filter(mono: str, route_step_odr: int) -> tuple:
           SELECT SeqNo, MAX(Odr) AS Odr FROM Steps
           WHERE HeadOdr = ? GROUP BY SeqNo
         )
-        SELECT TOP 1 rw.SeqNo, st.StNo
+        SELECT TOP 1 rw.SeqNo
         FROM ClusterSeqs cs
         JOIN {MES_DB}.dbo.tRecentWork rw ON rw.SeqNo = cs.SeqNo AND rw.MONo = ?
-        JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        GROUP BY rw.SeqNo, cs.Odr, st.StNo
-        ORDER BY cs.Odr DESC, st.StNo DESC
+        GROUP BY rw.SeqNo, cs.Odr
+        ORDER BY cs.Odr DESC
         """,
         (mono, route_step_odr, mono),
     )
-    result = (rows[0]["SeqNo"], rows[0]["StNo"]) if rows else (None, None)
+    result = (rows[0]["SeqNo"], None) if rows else (None, None)
     _CLUSTER6_QC_CACHE[key] = (now, result)
     return result
 
 
+def _station_clause(qc_stno) -> tuple[str, list]:
+    """SQL + params lọc trạm. qc_stno=None → không lọc (cộng mọi trạm của SeqNo)."""
+    if qc_stno is None:
+        return "", []
+    return " AND st.StNo = ?", [qc_stno]
+
+
 def _tv1_qc_filter(mono: str, plan: Optional[dict] = None) -> tuple:
-    """Trạm lấy sản lượng TV-1 = trạm của cụm 6 trong cấu hình.
+    """Bước lấy sản lượng TV-1 = bước cuối cụm 6 trong cấu hình (mọi trạm).
 
     Fallback về _last_qc_filter (StRole=13) khi plan chưa cấu hình cụm 6
     hoặc cụm 6 không trỏ tới bước route MES (RouteStepOdr <= 0).
@@ -767,15 +775,17 @@ def _output_kcs(mono: str, from_date: Optional[date], to_date: date,
                 qc_filter: Optional[tuple] = None) -> dict:
     """SUM(Qty), SUM(DefectiveQty) qua KCS — MAX(SeqNo) of StRole=13, then MAX(StNo).
 
-    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền trạm cụm 6).
+    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền bước cụm 6;
+    StNo=None → cộng mọi trạm).
     """
     qc_seq, qc_stno = qc_filter or _last_qc_filter(mono)
     if qc_seq is None:
         return {"Qty": 0, "Def": 0}
-    where = ("rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?"
+    st_sql, st_params = _station_clause(qc_stno)
+    where = ("rw.MONo = ? AND rw.SeqNo = ?" + st_sql +
              " AND rw.QcOdr = 0"
              " AND CAST(rw.BeginTime AS DATE) = rw.ShtDate")
-    params: list[Any] = [mono, qc_seq, qc_stno]
+    params: list[Any] = [mono, qc_seq, *st_params]
     if from_date:
         where += " AND rw.ShtDate BETWEEN ? AND ?"
         params.extend([from_date, to_date])
@@ -800,25 +810,27 @@ def _kcs_bulk(mono: str, the_date: date, qc_filter: Optional[tuple] = None) -> d
 
     Replaces 4 separate queries: _output_kcs(cum), _output_kcs(today),
     last_day inline query, and _hourly_actual.
-    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền trạm cụm 6).
+    ``qc_filter`` = (SeqNo, StNo) override (TV-1 truyền bước cụm 6;
+    StNo=None → cộng mọi trạm).
     """
     qc_seq, qc_stno = qc_filter or _last_qc_filter(mono)
     if qc_seq is None:
         return {"cum": {"Qty": 0, "Def": 0}, "today": {"Qty": 0, "Def": 0},
                 "last_day_output": 0, "hourly": {i: 0 for i in range(1, 6)}}
+    st_sql, st_params = _station_clause(qc_stno)
     rows = db.query(
-        """
+        f"""
         SELECT rw.ShtDate, rw.BeginTime,
                SUM(rw.Qty) AS Qty, SUM(rw.DefectiveQty) AS DefQty
-        FROM {MES_DB}.dbo.tRecentWork rw
-        INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-        WHERE rw.SeqNo = ? AND st.StNo = ?
+        FROM {{MES_DB}}.dbo.tRecentWork rw
+        INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
+        WHERE rw.SeqNo = ?{st_sql}
           AND rw.MONo = ? AND rw.ShtDate <= ?
           AND rw.QcOdr = 0
           AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
         GROUP BY rw.ShtDate, rw.BeginTime
         """,
-        (qc_seq, qc_stno, mono, the_date),
+        (qc_seq, *st_params, mono, the_date),
     )
     cum_qty = 0
     cum_def = 0
@@ -1028,7 +1040,7 @@ def api_tv1(
     sam = plan["SAM"] or 0
     owe_target_pct = (plan["OWE_Target"] * 100) if plan["OWE_Target"] else 85.0
 
-    # Sản lượng TV-1 = trạm cụm 6 trong cấu hình (bước cuối của cụm, MAX(StNo)),
+    # Sản lượng TV-1 = bước cuối cụm 6 trong cấu hình, cộng mọi trạm (bàn QC song song),
     # không phụ thuộc StRole=13 / IsLastSeq. Bulk: 1 query thay vì 4.
     qc_filter = _tv1_qc_filter(mono, plan)
     kcs = _kcs_bulk(mono, the_date, qc_filter)
@@ -1432,8 +1444,8 @@ def _kcs_daily_for_me(nhu_cau_me_id: str, mono_list: list[str],
                       route_step_odr: int, from_date: date) -> dict[date, int]:
     """Sản lượng theo ngày (>= from_date) của TẤT CẢ con thuộc 1 NhuCauMe.
 
-    Mỗi MONo lấy theo trạm cụm 6 giống TV-1 (_cluster6_qc_filter: bước cuối
-    của cụm, MAX(StNo)); fallback StRole=13 nếu cụm 6 không trỏ route MES.
+    Mỗi MONo lấy theo bước cuối cụm 6 giống TV-1 (_cluster6_qc_filter, cộng
+    mọi trạm); fallback StRole=13 nếu cụm 6 không trỏ route MES.
     1 query / MONo cho cả khoảng ngày thay vì 1 query nặng / ngày.
     """
     daily: dict[date, int] = {}
@@ -1444,18 +1456,19 @@ def _kcs_daily_for_me(nhu_cau_me_id: str, mono_list: list[str],
             qc_seq, qc_stno = _last_qc_filter(mono)
         if qc_seq is None:
             continue
+        st_sql, st_params = _station_clause(qc_stno)
         rows = db.query(
-            """
+            f"""
             SELECT rw.ShtDate, ISNULL(SUM(rw.Qty), 0) AS Q
-            FROM {MES_DB}.dbo.tRecentWork rw
-            INNER JOIN {MES_DB}.dbo.tStation st ON rw.Station_guid = st.guid
-            WHERE rw.MONo = ? AND rw.SeqNo = ? AND st.StNo = ?
+            FROM {{MES_DB}}.dbo.tRecentWork rw
+            INNER JOIN {{MES_DB}}.dbo.tStation st ON rw.Station_guid = st.guid
+            WHERE rw.MONo = ? AND rw.SeqNo = ?{st_sql}
               AND rw.ShtDate >= ?
               AND rw.QcOdr = 0
               AND CAST(rw.BeginTime AS DATE) = rw.ShtDate
             GROUP BY rw.ShtDate
             """,
-            (mono, qc_seq, qc_stno, from_date),
+            (mono, qc_seq, *st_params, from_date),
         )
         for r in rows:
             d = _as_date(r["ShtDate"])
