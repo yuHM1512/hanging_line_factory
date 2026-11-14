@@ -44,7 +44,8 @@ def plans(line_no=None):
         dates = sorted({r['day'] for r in p['reports']})
         result.append(dict(MONo=PREFIX+p['demand'], SoDonHang=p['demand'],
             NhuCauMe=p['demand'], StyleNo=p['style'], LineNoOut=line,
-            Customer=p['customer'], SLKH=p['quantity'], FirstHangDate=p['first'],
+            Customer=p['customer'], SLKH=p['quantity'],
+            FirstHangDate=p['first'] or (dates[0] if dates else None),
             ClusterCount=6, DataFrom=dates[0] if dates else None,
             DataTo=dates[-1] if dates else None, IsFlat=True,
             IsActive=bool(dates and dates[-1] >= (date.today()-timedelta(days=7)).isoformat())))

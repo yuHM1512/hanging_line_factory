@@ -394,6 +394,10 @@ def quality(demand, day):
         return {'status': 'unavailable', 'message': 'Không đọc được QC qua API QLCL; kiểm tra URL, API key và phiên bản QLCL.'}
 
 
+def first_report_day(plan):
+    return min((r['day'] for r in plan['reports']), default=None)
+
+
 @router.get("/api/plans")
 def plans_api():
     state = snapshot()
@@ -414,6 +418,10 @@ def dashboard_api(demand: str, day: str = ""):
         raise HTTPException(422, "Ngày không hợp lệ")
     dates = sorted({r['day'] for r in p['reports'] if r['day'] <= requested.isoformat()})
     selected = dates[-1] if dates else requested.isoformat()
+    missing_first = not p['first']
+    if missing_first:
+        # Rải chuyền chưa nhập "Ngày rải chuyền": tạm lấy ngày đầu tiên có báo cáo để TV không lỗi 500.
+        p = {**p, 'first': first_report_day(p) or selected}
     reports = [r for r in p['reports'] if r['day'] == selected]
     cutoff = max((r['slot'] for r in reports), default=-1)
     minutes = sum(MINUTES[:cutoff+1])
@@ -485,6 +493,8 @@ def dashboard_api(demand: str, day: str = ""):
         warnings.append("Thiếu mốc báo cáo: sản lượng mốc thiếu gộp vào mốc kế tiếp có dữ liệu")
     if reports and any(r['quantities'][5] is None for r in reports):
         warnings.append("Có báo cáo thiếu KCS kiểm đạt; sản lượng chỉ tổng hợp các giá trị đã có")
+    if missing_first:
+        warnings.append(f"Thiếu Ngày rải chuyền trên Sheet; tạm tính từ ngày có sản lượng đầu tiên {p['first']}")
     if dates and dates[0] < p['first']:
         warnings.append("Có sản lượng trước ngày rải chuyền; vẫn tính vào lũy kế mẹ")
     return dict(plan={k:v for k,v in p.items() if k!='reports'}, unit=unit(), selected=selected, requested=requested.isoformat(),
