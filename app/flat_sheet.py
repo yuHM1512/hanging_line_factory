@@ -216,12 +216,14 @@ def hanging_quality(rows):
 
 
 def _upsert_demand_roots(plans: list[dict]) -> None:
+    active_demands: list[str] = []
     for p in plans:
         match = re.search(r'L\s*(\d+)', p['team'], re.I)
         if not match:
             continue
         line_no = int(match[1])
         demand = p['demand']
+        active_demands.append(demand)
         try:
             with db.get_conn() as conn:
                 cur = conn.cursor()
@@ -240,6 +242,39 @@ def _upsert_demand_roots(plans: list[dict]) -> None:
                 )
         except Exception:
             log.warning("Cannot upsert flat demand %s: %s", demand, __import__('traceback').format_exc().splitlines()[-1])
+
+    _cleanup_stale_flat_roots(active_demands)
+
+
+def _cleanup_stale_flat_roots(active_demands: list[str]) -> None:
+    """Xóa tDemandRoot Source='flat_sheet' không còn trong sheet bệt
+    và không có PlanMaster nào link đến."""
+    try:
+        with db.get_conn() as conn:
+            cur = conn.cursor()
+            if active_demands:
+                ph = ",".join(["?"] * len(active_demands))
+                cur.execute(
+                    f"DELETE FROM app.tDemandRoot "
+                    f"WHERE Source = 'flat_sheet' "
+                    f"AND NhuCauMe NOT IN ({ph}) "
+                    f"AND NOT EXISTS ("
+                    f"  SELECT 1 FROM app.tPlanMaster pm WHERE pm.NhuCauMe = tDemandRoot.NhuCauMe"
+                    f")",
+                    active_demands,
+                )
+            else:
+                cur.execute(
+                    "DELETE FROM app.tDemandRoot "
+                    "WHERE Source = 'flat_sheet' "
+                    "AND NOT EXISTS ("
+                    "  SELECT 1 FROM app.tPlanMaster pm WHERE pm.NhuCauMe = tDemandRoot.NhuCauMe"
+                    ")",
+                )
+            if cur.rowcount:
+                log.info("Cleaned up %d stale flat_sheet DemandRoot(s)", cur.rowcount)
+    except Exception:
+        log.warning("Cannot cleanup stale flat roots: %s", __import__('traceback').format_exc().splitlines()[-1])
 
 
 class SyncBusy(Exception):

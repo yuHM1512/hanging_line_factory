@@ -705,22 +705,38 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
             cur = conn.cursor()
             cur.execute("BEGIN TRAN")
             cur.execute(
-                "SELECT 1 FROM app.tDemandRoot WHERE NhuCauMe = ?",
+                "SELECT Source FROM app.tDemandRoot WHERE NhuCauMe = ?",
                 (body.nhu_cau_me,),
             )
-            if cur.fetchone():
-                cur.execute("ROLLBACK TRAN")
-                raise HTTPException(400, f"NhuCauMe `{body.nhu_cau_me}` da ton tai.")
-
-            cur.execute(
-                "INSERT INTO app.tDemandRoot "
-                "(NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], "
-                "LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy) "
-                "VALUES (?,?,?,?,?,?,?,?,?)",
-                (body.nhu_cau_me, body.style_no, body.dmkt, body.phan_loai_dh,
-                 body.line_no, body.ld_bien_che, body.luy_ke_chuyen_tiep,
-                 body.demand_notes, _actor_id(user)),
-            )
+            existing = cur.fetchone()
+            if existing:
+                has_children = cur.execute(
+                    "SELECT 1 FROM app.tPlanMaster WHERE NhuCauMe = ?",
+                    (body.nhu_cau_me,),
+                ).fetchone()
+                if has_children:
+                    cur.execute("ROLLBACK TRAN")
+                    raise HTTPException(400, f"NhuCauMe `{body.nhu_cau_me}` da ton tai.")
+                cur.execute(
+                    "UPDATE app.tDemandRoot SET "
+                    "StyleNo=?, DMKT=?, PhanLoaiDH=?, [LineNo]=?, "
+                    "LDBienChe=?, LuyKeChuyenTiep=?, Notes=?, "
+                    "Source=NULL, CreatedBy=?, UpdatedAt=SYSDATETIME() "
+                    "WHERE NhuCauMe=?",
+                    (body.style_no, body.dmkt, body.phan_loai_dh,
+                     body.line_no, body.ld_bien_che, body.luy_ke_chuyen_tiep,
+                     body.demand_notes, _actor_id(user), body.nhu_cau_me),
+                )
+            else:
+                cur.execute(
+                    "INSERT INTO app.tDemandRoot "
+                    "(NhuCauMe, StyleNo, DMKT, PhanLoaiDH, [LineNo], "
+                    "LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy) "
+                    "VALUES (?,?,?,?,?,?,?,?,?)",
+                    (body.nhu_cau_me, body.style_no, body.dmkt, body.phan_loai_dh,
+                     body.line_no, body.ld_bien_che, body.luy_ke_chuyen_tiep,
+                     body.demand_notes, _actor_id(user)),
+                )
             cur.execute(
                 "INSERT INTO app.tPlanMaster "
                 "(PlanMaster_guid, MONo, SoDonHang, StyleNo, [LineNo], "
