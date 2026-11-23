@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <title>TV-3 · Chất lượng cuối chuyền / Endline quality</title>
-<link rel="stylesheet" href="/static/css/tv/shared.css">
+<link rel="stylesheet" href="/static/css/tv/shared.css?v=20261123-labels">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 /* TV-3 chuyền bệt — layout chất lượng cũ của Sheet "3. Tx" (bỏ khối Máy hỏng).
@@ -127,6 +127,17 @@
 .dc-msg  { font-size: 28px; font-weight: 700; }
 .dc-sub  { font-size: 18px; opacity: .7; }
 </style>
+<style id="bilingual-labels">
+  /* Nhãn song ngữ 2 tầng (đặt trong trang để không phụ thuộc shared.css bị cache).
+     Dòng trên tiếng Việt, dòng dưới tiếng Anh nhỏ, nhạt → giá trị luôn thẳng hàng. */
+  .fld .k, .hdr-line .lk { line-height: 1.2; white-space: nowrap; }
+  .fld .k em, .hdr-line .lk em {
+    display: block; margin-top: 1px; font-style: normal; text-transform: none;
+    letter-spacing: .02em; font-weight: 500; font-size: 11px; opacity: .75;
+  }
+  /* Số đơn dài: tối đa 2 dòng, chỉ ngắt sau dấu '-' (xem demandHtml) */
+  .fld .v.demand { white-space: normal; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+</style>
 </head>
 <body class="tv">
 <div class="dc-overlay" id="dc-overlay">
@@ -239,6 +250,11 @@
 
 <script src="/static/js/tv-source.js"></script>
 <script>
+// Số đơn dài: chỉ cho xuống dòng ngay sau dấu '-' (không cắt giữa mã).
+function demandHtml(v) {
+  const s = String(v || '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return s.split('-').join('-<wbr>');
+}
 const INIT_MONO = {{ init_mono | tojson }};
 const INIT_DATE = {{ init_date | tojson }};
 const REFRESH_MS = 5 * 60 * 1000;
@@ -320,7 +336,7 @@ function render(d) {
   $('h-style').textContent   = h.StyleNo || '—';
   $('h-workers').textContent = h.Workers ?? '—';
   $('h-ld').textContent      = h.Workers ?? '—';
-  $('h-don').textContent     = h.MaDonKH || '—';
+  $('h-don').innerHTML       = demandHtml(h.MaDonKH);
   $('h-kh').textContent      = h.Customer || '—';
   $('h-loai').textContent    = h.LoaiHang || '—';
   if (h.FirstHangDate) {
