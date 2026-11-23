@@ -830,16 +830,14 @@ document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
   const adjustBtn = e.target.closest('[data-adjust]');
   if (adjustBtn) {
     document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
-    const rawQty = prompt('Tăng / giảm sản lượng cho nhu cầu mẹ gốc.
-Nhập số lượng thêm (+) hoặc bớt (-), ví dụ 300 hoặc -150:');
+    const rawQty = prompt('Tăng / giảm sản lượng cho nhu cầu mẹ gốc.\nNhập số lượng thêm (+) hoặc bớt (-), ví dụ 300 hoặc -150:');
     if (rawQty === null) return;
     const deltaQty = parseInt(rawQty, 10);
     if (!Number.isInteger(deltaQty) || deltaQty === 0) {
       Admin.toast('Số lượng điều chỉnh phải là số nguyên khác 0.', 'error');
       return;
     }
-    const reason = prompt('Lý do tăng / giảm (bắt buộc), ví dụ: bù hàng lỗi, khách cắt bớt.
-Lưu ý: thêm đơn mới thì dùng "Thêm nhu cầu con".', '');
+    const reason = prompt('Lý do tăng / giảm (bắt buộc), ví dụ: bù hàng lỗi, khách cắt bớt.\nLưu ý: thêm đơn mới thì dùng "Thêm nhu cầu con".', '');
     if (reason === null || !reason.trim()) return;
     try {
       await Admin.fetchJSON(`${API}/${adjustBtn.dataset.adjust}/adjustments`, {
