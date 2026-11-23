@@ -18,16 +18,16 @@
   background: linear-gradient(120deg, var(--brand-900) 0%, var(--brand-700) 62%, var(--brand-600) 100%);
   border-radius: var(--r-lg); box-shadow: var(--sh-2); color: #fff;
   display: grid; grid-template-columns: auto 1px 1fr auto; align-items: center;
-  gap: var(--s-6); padding: var(--s-4) var(--s-6); flex-shrink: 0; height: 100px;
+  gap: var(--s-6); padding: var(--s-4) var(--s-6); flex-shrink: 0; min-height: 104px;
 }
 .hdr-line { display: flex; flex-direction: column; gap: 2px; }
 .hdr-line .lk { font-size: 12px; letter-spacing: .12em; opacity: .75; text-transform: uppercase; font-weight: 600; }
 .hdr-line .lv { font-family: var(--font-mono); font-weight: 700; font-size: 40px; line-height: 1; }
-.hdr-line .style { margin-top: 2px; font-size: 15px; font-weight: 600; color: #BBF7D0; }
+.hdr-line .style { margin-top: 2px; font-size: 14px; font-weight: 600; color: #BBF7D0; white-space: nowrap; }
 .hdr-div { width: 1px; height: 64px; background: rgba(255,255,255,.18); }
 .hdr-fields { display: flex; justify-content: space-between; gap: var(--s-6); align-items: center; min-width: 0; }
 .fld { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.fld .k { font-size: 15px; letter-spacing: .02em; text-transform: uppercase; color: rgba(255,255,255,.7); font-weight: 600; }
+.fld .k { font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.78); font-weight: 700; }
 .fld .v { font-size: 24px; font-weight: 700; line-height: 1; white-space: nowrap; }
 .fld .v.mono { font-family: var(--font-mono); }
 .fld .v.demand { font-size: 21px; color: #C7DBFA; }
@@ -142,17 +142,17 @@
   <!-- ── HEADER ── -->
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">Tổ / Line</span>
+      <span class="lk">Tổ<em>Line</em></span>
       <span class="lv" id="h-line">—</span>
       <span class="style">Style <span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Số đơn hàng / Plan No</span><span class="v demand mono" id="h-don">—</span></div>
-      <div class="fld"><span class="k">Khách hàng / Customer</span><span class="v" id="h-kh">—</span></div>
-      <div class="fld"><span class="k">Loại hàng / Product type</span><span class="v" id="h-loai">—</span></div>
-      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-first">—</span></div>
-      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-ld">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng<em>Plan No</em></span><span class="v demand mono" id="h-don">—</span></div>
+      <div class="fld"><span class="k">Khách hàng<em>Customer</em></span><span class="v" id="h-kh">—</span></div>
+      <div class="fld"><span class="k">Loại hàng<em>Product type</em></span><span class="v" id="h-loai">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền<em>First day</em></span><span class="v mono" id="h-first">—</span></div>
+      <div class="fld"><span class="k">Lao động<em>Workers</em></span><span class="v mono" id="h-ld">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>

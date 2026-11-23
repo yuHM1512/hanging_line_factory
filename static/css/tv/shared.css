@@ -20,6 +20,13 @@
 .fld { display: flex; flex-direction: column; gap: 5px; }
 .fld .k { font-size: var(--fs-micro); letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.62); }
 .fld .v { font-size: 21px; font-weight: 700; line-height: 1; }
+/* Nhãn song ngữ 2 tầng: dòng trên tiếng Việt, dòng dưới tiếng Anh (nhỏ, nhạt).
+   Mọi nhãn đúng 2 dòng → giá trị bên dưới luôn thẳng hàng. */
+.fld .k, .hdr-line .lk { line-height: 1.2; white-space: nowrap; }
+.fld .k em, .hdr-line .lk em {
+  display: block; font-style: normal; text-transform: none;
+  letter-spacing: .02em; font-weight: 500; font-size: 11px; opacity: .75;
+}
 .fld .v.mono { font-family: var(--font-mono); }
 .fld .v.demand { font-size: 16px; color: #C7DBFA; letter-spacing: .01em; }
 .fld .v.ok { color: #BBF7D0; }

@@ -30,7 +30,8 @@
   .cl .cl-unit { font-size: var(--fs-micro); color: var(--ink-3); text-transform: uppercase; letter-spacing: .04em; }
   .cl .cl-chip { align-self: flex-start; }
   .cl .cl-sub { display: flex; justify-content: space-between; align-items: flex-end; padding-top: var(--s-2); border-top: 1px solid var(--divider-2); }
-  .cl .cl-sub .l { font-size: 14px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  .cl .cl-sub .l { font-size: 13px; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; line-height: 1.2; }
+  .cl .cl-sub .l em { display: block; font-style: normal; text-transform: none; font-weight: 500; font-size: 11px; letter-spacing: .02em; color: var(--ink-3); }
   .cl .cl-sub .v { font-family: var(--font-mono); font-weight: 800; font-size: 24px; color: var(--brand-ink); line-height: 1; }
 
   .chartcard { display: flex; flex-direction: column; min-height: 0; }
@@ -127,17 +128,17 @@
 
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">Tổ / Line</span>
+      <span class="lk">Tổ<em>Line</em></span>
       <span class="lv" id="h-line">—</span>
       <span class="style"><span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Số đơn hàng / Plan No</span><span class="v demand mono" id="h-demand">—</span></div>
-      <div class="fld"><span class="k">Khách hàng / Customer</span><span class="v" id="h-customer">—</span></div>
-      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-firstday">—</span></div>
-      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-workers2">—</span></div>
-      <div class="fld"><span class="k">Mục tiêu cụm / Cluster target</span><span class="v mono ok" id="h-target">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng<em>Plan No</em></span><span class="v demand mono" id="h-demand">—</span></div>
+      <div class="fld"><span class="k">Khách hàng<em>Customer</em></span><span class="v" id="h-customer">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền<em>First day</em></span><span class="v mono" id="h-firstday">—</span></div>
+      <div class="fld"><span class="k">Lao động<em>Workers</em></span><span class="v mono" id="h-workers2">—</span></div>
+      <div class="fld"><span class="k">Mục tiêu cụm<em>Cluster target</em></span><span class="v mono ok" id="h-target">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -278,7 +279,7 @@ function render(d) {
       </div>
       <span class="cl-chip pct-chip ${c.Pass == null ? '' : c.Pass ? 'fill-pass' : 'fill-fail'}">${c.Pass == null ? 'CHƯA CÓ DỮ LIỆU / NO DATA' : c.Pass ? 'ĐẠT / PASS' : 'CHƯA ĐẠT / FAIL'}</span>
       <div class="cl-sub">
-        <span class="l">Lũy kế / Cum.</span>
+        <span class="l">Lũy kế<em>Cumulative</em></span>
         <span class="v">${fmtNum(c.Cumulative)}</span>
       </div>
     </div>
