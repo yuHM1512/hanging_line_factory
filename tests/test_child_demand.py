@@ -121,6 +121,18 @@ class ChildDemandAdminTests(unittest.TestCase):
         with self.assertRaises(Exception):
             self.body(Qty=0)
 
+    def test_history_falls_back_before_migration(self):
+        old_rows = [{'Adjustment_guid': 'a', 'DeltaQty': 100, 'DemandNo': None, 'ProdDate': None}]
+        with patch.object(admin.db, 'query',
+                          side_effect=[RuntimeError("Invalid column name 'DemandNo'."), old_rows]) as q:
+            self.assertEqual(admin.api_plan_adjustment_list('guid-1'), old_rows)
+        self.assertIn('NULL AS DemandNo', q.call_args.args[0])
+
+    def test_history_reraises_other_errors(self):
+        with patch.object(admin.db, 'query', side_effect=RuntimeError('timeout')):
+            with self.assertRaises(RuntimeError):
+                admin.api_plan_adjustment_list('guid-1')
+
     def test_update_validation(self):
         self.assertEqual(admin._validate_child_fields(None, None, -5), (None, None))
         self.assertEqual(admin._validate_child_fields(' KH7 ', date(2026, 9, 8), 5), ('KH7', date(2026, 9, 8)))

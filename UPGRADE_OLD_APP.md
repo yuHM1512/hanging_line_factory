@@ -163,6 +163,9 @@ Voi flow moi, migration quan trong gom:
 
 - `009_plan_adjustments_setup_root.sql`
 - `010_plan_employee_assignment.sql`
+- `022_child_demand.sql` — them cot `DemandNo`, `ProdDate` cho chuc nang
+  "Them nhu cau con" (TV-1 "Nhu cau moi nhat" doi theo ngay san xuat).
+  Chua chay migration nay thi TV van chay, nhung chua them duoc nhu cau con.
 
 ## 7. Kiem tra app dang doc dung cau hinh
 

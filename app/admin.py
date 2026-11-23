@@ -876,15 +876,29 @@ def api_plan_delete(guid: str):
 
 @router.get("/api/plan/{guid}/adjustments")
 def api_plan_adjustment_list(guid: str):
-    return db.query(
-        "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, DemandNo, "
-        "CONVERT(varchar(10), ProdDate, 120) AS ProdDate, "
-        "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
-        "FROM app.tPlanAdjustment "
-        "WHERE PlanMaster_guid = ? "
-        "ORDER BY CreatedAt DESC, Adjustment_guid DESC",
-        (guid,),
-    )
+    try:
+        return db.query(
+            "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, DemandNo, "
+            "CONVERT(varchar(10), ProdDate, 120) AS ProdDate, "
+            "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
+            "FROM app.tPlanAdjustment "
+            "WHERE PlanMaster_guid = ? "
+            "ORDER BY CreatedAt DESC, Adjustment_guid DESC",
+            (guid,),
+        )
+    except Exception as exc:  # noqa: BLE001
+        # Máy chưa chạy migration 022 (thiếu DemandNo/ProdDate): vẫn trả lịch sử cũ.
+        if "DemandNo" not in str(exc) and "ProdDate" not in str(exc):
+            raise
+        return db.query(
+            "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, "
+            "NULL AS DemandNo, NULL AS ProdDate, "
+            "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
+            "FROM app.tPlanAdjustment "
+            "WHERE PlanMaster_guid = ? "
+            "ORDER BY CreatedAt DESC, Adjustment_guid DESC",
+            (guid,),
+        )
 
 
 @router.post("/api/plan/{guid}/adjustments")
