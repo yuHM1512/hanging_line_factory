@@ -49,6 +49,23 @@ class ChildDemandTVTests(unittest.TestCase):
         with patch.object(tv.db, 'query', side_effect=RuntimeError('Invalid column name DemandNo')):
             self.assertIsNone(tv._child_demand_for_date('MOTHER', date(2026, 9, 10)))
 
+    def test_missing_migration_warns_once(self):
+        err = RuntimeError("Invalid column name 'DemandNo'. Invalid column name 'ProdDate'.")
+        with patch.object(tv, '_child_demand_missing_warned', False), \
+                patch.object(tv.db, 'query', side_effect=err), \
+                patch('builtins.print') as out:
+            for _ in range(3):
+                self.assertIsNone(tv._child_demand_for_date('MOTHER', date(2026, 9, 10)))
+        self.assertEqual(out.call_count, 1)
+        self.assertIn('run.ps1 -Migrate', out.call_args.args[0])
+
+    def test_other_lookup_errors_still_logged(self):
+        with patch.object(tv.db, 'query', side_effect=RuntimeError('timeout')), \
+                patch('builtins.print') as out:
+            tv._child_demand_for_date('MOTHER', date(2026, 9, 10))
+            tv._child_demand_for_date('MOTHER', date(2026, 9, 10))
+        self.assertEqual(out.call_count, 2)
+
     def test_lookup_without_mother(self):
         with patch.object(tv.db, 'query') as q:
             self.assertIsNone(tv._child_demand_for_date(None, date(2026, 9, 10)))

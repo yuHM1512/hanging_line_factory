@@ -273,9 +273,22 @@ def _child_demand_for_date(nhu_cau_me: Optional[str], the_date: date) -> Optiona
             (nhu_cau_me, the_date),
         )
     except Exception as exc:  # noqa: BLE001 — thiếu cột thì TV vẫn chạy
-        print(f"[tv] child demand lookup failed: {exc}")
+        global _child_demand_missing_warned
+        if "DemandNo" in str(exc) or "ProdDate" in str(exc):
+            # DB chưa chạy migration 022: TV vẫn hiện nhu cầu cũ. Chỉ báo 1 lần,
+            # không in lại mỗi lần TV tự refresh. Migrate xong là tự chạy, không cần restart.
+            if not _child_demand_missing_warned:
+                _child_demand_missing_warned = True
+                # ASCII only: console Windows (cp1252) không in được tiếng Việt có dấu.
+                print("[tv] Missing columns DemandNo/ProdDate (migration 022_child_demand). "
+                      "TV still works but child demands are not shown. Fix: .\\run.ps1 -Migrate")
+        else:
+            print(f"[tv] child demand lookup failed: {exc!r}".encode("ascii", "replace").decode())
         return None
     return rows[0] if rows else None
+
+
+_child_demand_missing_warned = False
 
 
 def _resolve_plan_full(mono: str) -> dict:
