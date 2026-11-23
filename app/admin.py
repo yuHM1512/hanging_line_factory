@@ -584,6 +584,32 @@ class AdjustmentIn(AdminModel):
     delta_qty: int = Field(..., alias="DeltaQty")
     reason: str = Field(..., alias="Reason", min_length=1, max_length=100)
     notes: Optional[str] = Field(None, alias="Notes", max_length=500)
+    # Chỉ có ở dòng "nhu cầu con" (xem migration 022); tăng/giảm thường để None.
+    demand_no: Optional[str] = Field(None, alias="DemandNo", max_length=100)
+    prod_date: Optional[date] = Field(None, alias="ProdDate")
+
+
+class ChildDemandIn(AdminModel):
+    demand_no: str = Field(..., alias="DemandNo", min_length=1, max_length=100)
+    qty: int = Field(..., alias="Qty", gt=0)
+    prod_date: date = Field(..., alias="ProdDate")
+    notes: Optional[str] = Field(None, alias="Notes", max_length=500)
+
+
+CHILD_DEMAND_REASON = "Nhu cầu con"
+
+
+def _validate_child_fields(demand_no: Optional[str], prod_date: Optional[date],
+                           delta_qty: int) -> tuple[Optional[str], Optional[date]]:
+    """Nhu cầu con cần đủ tên + ngày SX và SL > 0; tăng/giảm thường thì cả hai trống."""
+    demand_no = (demand_no or "").strip() or None
+    if demand_no is None and prod_date is None:
+        return None, None
+    if demand_no is None or prod_date is None:
+        raise HTTPException(422, "Nhu cầu con cần nhập cả tên nhu cầu và ngày sản xuất.")
+    if delta_qty <= 0:
+        raise HTTPException(422, "Sản lượng nhu cầu con phải lớn hơn 0.")
+    return demand_no, prod_date
 
 def _enrich_plan_rows(rows: list[dict]) -> list[dict]:
     """Thêm EndDateExpected (computed) + PO count cho mỗi plan."""
@@ -851,7 +877,8 @@ def api_plan_delete(guid: str):
 @router.get("/api/plan/{guid}/adjustments")
 def api_plan_adjustment_list(guid: str):
     return db.query(
-        "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, "
+        "SELECT Adjustment_guid, DeltaQty, Reason, Notes, CreatedBy, DemandNo, "
+        "CONVERT(varchar(10), ProdDate, 120) AS ProdDate, "
         "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt "
         "FROM app.tPlanAdjustment "
         "WHERE PlanMaster_guid = ? "
@@ -878,6 +905,34 @@ def api_plan_adjustment_create(guid: str, body: AdjustmentIn, user: dict = Depen
     return {"ok": True}
 
 
+@router.post("/api/plan/{guid}/child-demands")
+def api_plan_child_demand_create(guid: str, body: ChildDemandIn,
+                                 user: dict = Depends(auth.require_admin)):
+    """Thêm nhu cầu con: cộng Qty vào SLKH, TV-1 đổi "Nhu cầu mới nhất" từ ProdDate."""
+    demand_no = body.demand_no.strip()
+    if not demand_no:
+        raise HTTPException(422, "Cần nhập tên nhu cầu con.")
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT 1 FROM app.tPlanMaster WHERE PlanMaster_guid = ?", (guid,))
+        if not cur.fetchone():
+            raise HTTPException(404, "Plan không tồn tại")
+        cur.execute(
+            "SELECT 1 FROM app.tPlanAdjustment WHERE PlanMaster_guid = ? AND DemandNo = ?",
+            (guid, demand_no),
+        )
+        if cur.fetchone():
+            raise HTTPException(400, f"Nhu cầu con `{demand_no}` đã có trong kế hoạch này.")
+        cur.execute(
+            "INSERT INTO app.tPlanAdjustment "
+            "(PlanMaster_guid, DeltaQty, Reason, Notes, DemandNo, ProdDate, CreatedBy) "
+            "VALUES (?,?,?,?,?,?,?)",
+            (guid, body.qty, CHILD_DEMAND_REASON, body.notes, demand_no,
+             body.prod_date, _actor_id(user)),
+        )
+    return {"ok": True}
+
+
 @router.delete("/api/plan-adjustments/{adjustment_guid}")
 def api_plan_adjustment_delete(adjustment_guid: str, user: dict = Depends(auth.require_admin)):
     with db.get_conn() as conn:
@@ -896,10 +951,13 @@ def api_plan_adjustment_update(adjustment_guid: str, body: AdjustmentIn,
                                user: dict = Depends(auth.require_admin)):
     if body.delta_qty == 0 or not body.reason.strip():
         raise HTTPException(422, "Số lượng phải khác 0 và cần nhập lý do.")
+    demand_no, prod_date = _validate_child_fields(body.demand_no, body.prod_date, body.delta_qty)
     with db.get_conn() as conn:
         cur = conn.cursor()
-        cur.execute("UPDATE app.tPlanAdjustment SET DeltaQty=?, Reason=?, Notes=? WHERE Adjustment_guid=?",
-                    (body.delta_qty, body.reason.strip(), body.notes, adjustment_guid))
+        cur.execute("UPDATE app.tPlanAdjustment SET DeltaQty=?, Reason=?, Notes=?, "
+                    "DemandNo=?, ProdDate=? WHERE Adjustment_guid=?",
+                    (body.delta_qty, body.reason.strip(), body.notes,
+                     demand_no, prod_date, adjustment_guid))
         if cur.rowcount == 0:
             raise HTTPException(404, "Không tìm thấy lần điều chỉnh.")
     return {"ok": True}

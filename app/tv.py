@@ -253,6 +253,31 @@ def api_tv_plan_lines():
     return [{"line_no": n} for n in sorted(lines)]
 
 
+def _child_demand_for_date(nhu_cau_me: Optional[str], the_date: date) -> Optional[dict]:
+    """Nhu cầu con đang áp dụng ở ngày `the_date`.
+
+    Lấy dòng tPlanAdjustment có DemandNo, ProdDate <= the_date, ProdDate lớn nhất
+    (trùng ngày → nhập sau thắng). Nhu cầu con có ngày SX ở tương lai chưa được hiện,
+    TV vẫn giữ nhu cầu con cũ cho tới đúng ngày đó. None nếu chưa có nhu cầu con nào
+    tới ngày (hoặc DB chưa chạy migration 022).
+    """
+    if not nhu_cau_me:
+        return None
+    try:
+        rows = db.query(
+            "SELECT TOP 1 pa.DemandNo, pa.ProdDate "
+            "FROM app.tPlanAdjustment pa "
+            "INNER JOIN app.tPlanMaster pm ON pm.PlanMaster_guid = pa.PlanMaster_guid "
+            "WHERE pm.NhuCauMe = ? AND pa.DemandNo IS NOT NULL AND pa.ProdDate <= ? "
+            "ORDER BY pa.ProdDate DESC, pa.CreatedAt DESC",
+            (nhu_cau_me, the_date),
+        )
+    except Exception as exc:  # noqa: BLE001 — thiếu cột thì TV vẫn chạy
+        print(f"[tv] child demand lookup failed: {exc}")
+        return None
+    return rows[0] if rows else None
+
+
 def _resolve_plan_full(mono: str) -> dict:
     """Trả về full info cho 1 plan (con + mẹ + 6 cụm).
 
@@ -1111,12 +1136,19 @@ def api_tv1(
 
     ma_don_kh = plan["SoDonHang"].lstrip("#")
     latest_demand = (plan.get("LatestDemand") or plan["SoDonHang"] or "").lstrip("#")
+    latest_demand_from = None
+    child = _child_demand_for_date(plan.get("NhuCauMe"), the_date)
+    if child:
+        latest_demand = (child["DemandNo"] or "").lstrip("#") or latest_demand
+        prod = child.get("ProdDate")
+        latest_demand_from = prod.isoformat() if hasattr(prod, "isoformat") else prod
 
     return {
         "header": {
             "Tổ": plan["LineNoOut"],
             "MaDonKH": ma_don_kh,
             "LatestDemand": latest_demand,
+            "LatestDemandFrom": latest_demand_from,
             "MONo": mono,
             "StyleNo": plan["StyleNo"],
             "Customer": plan["Customer"],

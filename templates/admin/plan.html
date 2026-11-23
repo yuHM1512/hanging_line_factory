@@ -421,10 +421,17 @@ function renderPlans(rows) {
               <span class="material-symbols-outlined" style="font-size:18px;">bar_chart</span>
               <span>Xem sản lượng theo ngày</span>
             </button>
-            <button type="button" class="btn btn-soft" data-adjust-history="${r.PlanMaster_guid}">Lịch sử / sửa tăng giảm SL</button>
+            <button type="button" data-child-demand="${r.PlanMaster_guid}" data-child-label="${Admin.escape(r.NhuCauMe || r.SoDonHang)}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">add_circle</span>
+              <span>Thêm nhu cầu con</span>
+            </button>
             <button type="button" data-adjust="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
               <span class="material-symbols-outlined" style="font-size:18px;">add_notes</span>
-              <span>Cập nhật thêm số lượng</span>
+              <span>Tăng / giảm sản lượng</span>
+            </button>
+            <button type="button" data-adjust-history="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;">
+              <span class="material-symbols-outlined" style="font-size:18px;">history</span>
+              <span>Lịch sử nhu cầu con / tăng giảm</span>
             </button>
             <button type="button" data-sync-employees="${r.PlanMaster_guid}" style="width:100%; display:flex; align-items:center; gap:10px; border:none; background:transparent; padding:10px 12px; border-radius:10px; text-align:left; cursor:pointer;" title="Đồng bộ nhân sự">
               <span class="material-symbols-outlined" style="font-size:18px;">group</span>
@@ -823,21 +830,23 @@ document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
   const adjustBtn = e.target.closest('[data-adjust]');
   if (adjustBtn) {
     document.querySelectorAll('[data-row-menu]').forEach(menu => menu.style.display = 'none');
-    const rawQty = prompt('Nhap so luong them/bot, vi du 300 hoac -150');
+    const rawQty = prompt('Tăng / giảm sản lượng cho nhu cầu mẹ gốc.
+Nhập số lượng thêm (+) hoặc bớt (-), ví dụ 300 hoặc -150:');
     if (rawQty === null) return;
     const deltaQty = parseInt(rawQty, 10);
     if (!Number.isInteger(deltaQty) || deltaQty === 0) {
-      Admin.toast('So luong dieu chinh phai la so nguyen khac 0.', 'error');
+      Admin.toast('Số lượng điều chỉnh phải là số nguyên khác 0.', 'error');
       return;
     }
-    const reason = prompt('Ly do/ghi chu ngan cho lan cap nhat', 'Nhu cau bo sung');
+    const reason = prompt('Lý do tăng / giảm (bắt buộc), ví dụ: bù hàng lỗi, khách cắt bớt.
+Lưu ý: thêm đơn mới thì dùng "Thêm nhu cầu con".', '');
     if (reason === null || !reason.trim()) return;
     try {
       await Admin.fetchJSON(`${API}/${adjustBtn.dataset.adjust}/adjustments`, {
         method: 'POST',
         body: JSON.stringify({ DeltaQty: deltaQty, Reason: reason.trim(), Notes: null }),
       });
-      Admin.toast('Da cap nhat so luong.', 'ok');
+      Admin.toast('Đã cập nhật số lượng.', 'ok');
       loadPlans();
     } catch (err) {
       Admin.toast(err.message, 'error');

@@ -27,6 +27,7 @@
   .fld .v { font-size: 26px; font-weight: 700; line-height: 1; }
   .fld .v.mono { font-family: var(--font-mono); letter-spacing: -.01em; }
   .fld .v.demand { font-size: 22px; color: #DDE7F8; letter-spacing: 0; }
+  .fld .latest-from { font-size: 12px; font-weight: 600; color: #BBF7D0; letter-spacing: .02em; margin-top: -2px; }
   .fld .v.latest-demand { font-size: 20px; color: #DDE7F8; letter-spacing: 0; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hdr-clock { text-align: right; display: flex; flex-direction: column; gap: 4px; padding-left: var(--s-4); border-left: 1px solid rgba(255,255,255,.18); }
   .hdr-clock .date { font-size: 14px; color: rgba(255,255,255,.78); letter-spacing: .04em; font-weight: 500; }
@@ -157,7 +158,7 @@
     <div class="hdr-div"></div>
     <div class="hdr-fields">
       <div class="fld"><span class="k">Số đơn hàng</span><span class="v demand mono" id="h-demand">—</span></div>
-      <div class="fld"><span class="k">Nhu cầu mới nhất</span><span class="v latest-demand mono" id="h-latest-demand" title="">—</span></div>
+      <div class="fld"><span class="k">Nhu cầu mới nhất</span><span class="v latest-demand mono" id="h-latest-demand" title="">—</span><span class="latest-from" id="h-latest-from" hidden></span></div>
       <div class="fld"><span class="k">K.Hàng / Customer</span><span class="v" id="h-customer">—</span></div>
       <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-firstday">—</span></div>
       <div class="fld"><span class="k">Hàng tồn / WIP</span><span class="v mono" id="h-wip">—</span></div>
@@ -383,6 +384,14 @@ function render(d) {
   const latestDemandEl = document.getElementById('h-latest-demand');
   latestDemandEl.textContent = latestDemand;
   latestDemandEl.title = latestDemand;
+  const latestFromEl = document.getElementById('h-latest-from');
+  if (h.LatestDemandFrom) {
+    const [, fm, fd] = h.LatestDemandFrom.split('-');
+    latestFromEl.textContent = `Từ ${fd}-${fm}`;
+    latestFromEl.hidden = false;
+  } else {
+    latestFromEl.hidden = true;
+  }
   document.getElementById('h-customer').textContent = h.Customer || '—';
   document.getElementById('h-firstday').textContent = h.FirstHangDate ? h.FirstHangDate.substring(5).replace('-', '-') : '—';
   document.getElementById('h-wip').textContent = fmtNum(h.WIP);
