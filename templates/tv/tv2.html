@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>TV-2 · Nang suat theo cum</title>
+<title>TV-2 · Năng suất theo cụm / Cluster output</title>
 <link rel="stylesheet" href="/static/css/tv/shared.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -44,6 +44,7 @@
     display: inline-flex; align-items: center;
     letter-spacing: .02em;
   }
+  .panel-title .pt-en { margin-left: 14px; font-size: 15px; font-weight: 600; opacity: .75; letter-spacing: .03em; text-transform: none; }
   .chart {
     flex: 1; padding: var(--s-4) var(--s-6) var(--s-4);
     display: grid; grid-template-columns: 56px 1fr; grid-template-rows: 1fr 78px;
@@ -126,17 +127,17 @@
 
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">To</span>
+      <span class="lk">Tổ / Line</span>
       <span class="lv" id="h-line">—</span>
-      <span class="style"><span id="h-style">—</span> · <span id="h-workers">—</span> LD</span>
+      <span class="style"><span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">So don hang</span><span class="v demand mono" id="h-demand">—</span></div>
-      <div class="fld"><span class="k">Khach hang / Customer</span><span class="v" id="h-customer">—</span></div>
-      <div class="fld"><span class="k">Rai chuyen / First day</span><span class="v mono" id="h-firstday">—</span></div>
-      <div class="fld"><span class="k">Lao dong / Workers</span><span class="v mono" id="h-workers2">—</span></div>
-      <div class="fld"><span class="k">Mục tiêu / Cụm</span><span class="v mono ok" id="h-target">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng / Plan No</span><span class="v demand mono" id="h-demand">—</span></div>
+      <div class="fld"><span class="k">Khách hàng / Customer</span><span class="v" id="h-customer">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-firstday">—</span></div>
+      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-workers2">—</span></div>
+      <div class="fld"><span class="k">Mục tiêu cụm / Cluster target</span><span class="v mono ok" id="h-target">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -148,7 +149,7 @@
     <div class="clusters" id="clusters-grid"></div>
 
     <div class="card chartcard">
-      <div class="panel-title">BIỂU ĐỒ THEO DÕI NĂNG SUẤT CỤM</div>
+      <div class="panel-title">BIỂU ĐỒ THEO DÕI NĂNG SUẤT CỤM<span class="pt-en">Cluster output chart</span></div>
       <div class="chart">
         <div class="yax" id="yax"></div>
         <div class="plot" id="plot"></div>
@@ -158,8 +159,8 @@
   </div>
 
   <div class="ftr">
-    <span class="l"><span class="refresh-dot"></span>Cap nhat <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
-    <span class="r">TV-2 · Nang suat theo cum cong doan</span>
+    <span class="l"><span class="refresh-dot"></span>Cập nhật / Updated <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
+    <span class="r">TV-2 · Năng suất theo cụm công đoạn / Output by process cluster</span>
   </div>
 
 </div>
@@ -254,7 +255,7 @@ async function loadData() {
 function render(d) {
   const esc = value => String(value ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   const h = d.header;
-  document.getElementById('h-line').textContent = 'To ' + h['Tổ'];
+  document.getElementById('h-line').textContent = h['Tổ'] ?? '—';
   document.getElementById('h-style').textContent = 'Style ' + (h.StyleNo || '—');
   document.getElementById('h-workers').textContent = h.Workers || '—';
   document.getElementById('h-workers2').textContent = h.Workers || '—';
@@ -263,10 +264,8 @@ function render(d) {
   document.getElementById('h-firstday').textContent = h.FirstHangDate ? h.FirstHangDate.substring(5) : '—';
   document.getElementById('h-target').textContent = fmtNum(h.Target);
 
-  const day = new Date(h.ReportDate || INIT_DATE);
-  const days = ['Chu Nhat', 'Thu Hai', 'Thu Ba', 'Thu Tu', 'Thu Nam', 'Thu Sau', 'Thu Bay'];
-  document.getElementById('h-date').textContent =
-    days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
+  const [yy, mm, dd] = (h.ReportDate || INIT_DATE).split('-');
+  document.getElementById('h-date').textContent = `${dd}/${mm}/${yy}`;
   document.getElementById('ftr-time').textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
   const cgrid = document.getElementById('clusters-grid');
@@ -275,11 +274,11 @@ function render(d) {
       <div class="cl-name" title="${esc(c.Label)}">${esc(c.Label)}</div>
       <div class="cl-mid">
         <span class="cl-big ${c.Pass ? 'c-pass' : 'c-fail'}">${fmtNum(c.QtyToday)}</span>
-        <span class="cl-unit">sp<br>/ngay</span>
+        <span class="cl-unit">sp/ngày<br>pcs/day</span>
       </div>
-      <span class="cl-chip pct-chip ${c.Pass == null ? '' : c.Pass ? 'fill-pass' : 'fill-fail'}">${c.Pass == null ? 'CHƯA CÓ DỮ LIỆU' : c.Pass ? 'DAT' : 'CHUA DAT'}</span>
+      <span class="cl-chip pct-chip ${c.Pass == null ? '' : c.Pass ? 'fill-pass' : 'fill-fail'}">${c.Pass == null ? 'CHƯA CÓ DỮ LIỆU / NO DATA' : c.Pass ? 'ĐẠT / PASS' : 'CHƯA ĐẠT / FAIL'}</span>
       <div class="cl-sub">
-        <span class="l">Luy ke</span>
+        <span class="l">Lũy kế / Cum.</span>
         <span class="v">${fmtNum(c.Cumulative)}</span>
       </div>
     </div>
@@ -295,9 +294,9 @@ function render(d) {
   for (const pct of [0, 33.3, 66.6, 100]) {
     html += `<div class="gl" style="bottom:${pct}%"></div>`;
   }
-  const targetLabel = d.target_cutoff_label ? ` đến ${d.target_cutoff_label}` : '';
+  const targetLabel = d.target_cutoff_label ? ` đến / until ${d.target_cutoff_label}` : '';
   html += `<div class="tline" style="bottom:${targetPct}%">
-             <span class="tlabel">[Mục tiêu${targetLabel}] ${fmtNum(d.target)}</span>
+             <span class="tlabel">[Mục tiêu / Target${targetLabel}] ${fmtNum(d.target)}</span>
            </div>`;
   html += '<div class="bars">';
   for (const c of d.clusters) {
@@ -321,7 +320,7 @@ function render(d) {
 
 const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
 const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
-document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút / 1 min' : '5 phút / 5 min';
 
 loadData();
 setInterval(loadData, ACTIVE_REFRESH_MS);

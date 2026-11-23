@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>TV-3 · Dashboard QC Chất lượng</title>
+<title>TV-3 · Chất lượng cuối chuyền / End-of-line quality</title>
 <link rel="stylesheet" href="/static/css/tv/shared.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -214,7 +214,7 @@
 
 /* Combo table */
 .combo-wrap { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
-.combo-hdr  { display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 44px; flex-shrink: 0; }
+.combo-hdr  { display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 72px; flex-shrink: 0; }
 .combo-hdr span {
   font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
   color: var(--ink-3); padding: var(--s-2) var(--s-3);
@@ -227,7 +227,7 @@
 .combo-body::-webkit-scrollbar-track { background: var(--surface-2); }
 .combo-body::-webkit-scrollbar-thumb { background: var(--divider); border-radius: 3px; }
 .crow {
-  display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 44px;
+  display: grid; grid-template-columns: 1.1fr 1.1fr 1.5fr 72px;
   border-bottom: 1px solid var(--divider); align-items: center; flex-shrink: 0;
 }
 .crow:nth-child(even) { background: var(--surface-2); }
@@ -287,8 +287,8 @@
 <!-- Mất kết nối overlay -->
 <div class="dc-overlay" id="dc-overlay">
   <div class="dc-icon">⚠</div>
-  <div class="dc-msg">Mất kết nối dữ liệu</div>
-  <div class="dc-sub" id="dc-sub">Đang thử lại...</div>
+  <div class="dc-msg">Mất kết nối dữ liệu / Connection lost</div>
+  <div class="dc-sub" id="dc-sub">Đang thử lại... / Retrying...</div>
 </div>
 
 <div class="stage-wrap">
@@ -298,17 +298,17 @@
   <!-- ── HEADER ── -->
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">Tổ</span>
+      <span class="lk">Tổ / Line</span>
       <span class="lv" id="h-line">—</span>
       <span class="style">Style <span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Số đơn hàng</span><span class="v small mono" id="h-don">—</span></div>
-      <div class="fld"><span class="k">Khách hàng</span><span class="v" id="h-kh">—</span></div>
-      <div class="fld"><span class="k">Loại hàng</span><span class="v" id="h-loai">—</span></div>
-      <div class="fld"><span class="k">Rải chuyền</span><span class="v mono" id="h-first">—</span></div>
-      <div class="fld"><span class="k">Lao động</span><span class="v mono" id="h-ld">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng / Plan No</span><span class="v small mono" id="h-don">—</span></div>
+      <div class="fld"><span class="k">Khách hàng / Customer</span><span class="v" id="h-kh">—</span></div>
+      <div class="fld"><span class="k">Loại hàng / Product type</span><span class="v" id="h-loai">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-first">—</span></div>
+      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-ld">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -319,34 +319,34 @@
   <!-- ── KPI ROW ── -->
   <div class="kpis">
     <div class="card kp">
-      <div class="kp-head"><div class="k" id="qc-output-label">Tổng kiểm (Đạt + Lỗi)</div><div class="en" id="qc-output-description">Đạt từ MSD + sản phẩm lỗi QLCL</div></div>
+      <div class="kp-head"><div class="k" id="qc-output-label">Tổng kiểm (Đạt + Lỗi)</div><div class="en" id="qc-output-description">Total inspected · passed (MSD) + defects (QC)</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-kiem">—</span>
-        <div class="kp-meta"><span class="chip neu" id="kpi-dat">Đạt: —</span></div>
+        <div class="kp-meta"><span class="chip neu" id="kpi-dat">Đạt / Pass: —</span></div>
       </div>
     </div>
     <div class="card kp">
-      <div class="kp-head"><div class="k">Tổng lỗi (SP)</div><div class="en">Defective garments · QLCL theo ngày chọn</div></div>
+      <div class="kp-head"><div class="k">Tổng lỗi (SP)</div><div class="en">Total defective pcs · QC</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-loi" style="color:var(--fail-solid)">—</span>
-        <div class="kp-meta"><span class="chip fail">LỖI</span></div>
+        <div class="kp-meta"><span class="chip fail">LỖI / DEFECT</span></div>
       </div>
     </div>
     <div class="card kp">
-      <div class="kp-head"><div class="k">Tỉ lệ lỗi</div><div class="en">Defect rate vs target</div></div>
+      <div class="kp-head"><div class="k">Tỷ lệ lỗi</div><div class="en">Defect rate vs target</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-ty-le">—</span>
         <div class="kp-meta">
           <span class="chip pass" id="kpi-status-chip">—</span>
-          <span class="kp-sub">Target <span id="kpi-target">5.0%</span></span>
+          <span class="kp-sub">Mục tiêu / Target <span id="kpi-target">5.0%</span></span>
         </div>
       </div>
     </div>
     <div class="card kp">
-      <div class="kp-head"><div class="k">Cảnh báo hàng loạt</div><div class="en">≥3 sản phẩm liên tiếp cùng loại lỗi</div></div>
+      <div class="kp-head"><div class="k">Cảnh báo hàng loạt</div><div class="en">Batch alert · ≥3 consecutive pcs, same defect</div></div>
       <div class="kp-mid">
         <span class="kp-big" id="kpi-canh-bao" style="color:var(--warn-solid)">—</span>
-        <div class="kp-meta"><span class="chip warn" id="kpi-canh-bao-chip">—</span><span class="kp-sub">≥3 SP liên tiếp cùng lỗi</span></div>
+        <div class="kp-meta"><span class="chip warn" id="kpi-canh-bao-chip">—</span><span class="kp-sub">≥3 SP liên tiếp / in a row</span></div>
       </div>
     </div>
   </div>
@@ -357,8 +357,8 @@
     <!-- LEFT: Tỉ lệ lỗi theo giờ -->
     <div class="card" style="display:flex;flex-direction:column;">
       <div class="panel-title">
-        Tỉ lệ lỗi theo mốc giờ
-        <span class="pt-en" id="qc-slot-source">Lỗi / (Đạt MSD + Lỗi QLCL) từng mốc</span>
+        Tỷ lệ lỗi theo mốc giờ
+        <span class="pt-en" id="qc-slot-source">Hourly defect rate · defects / (passed + defects)</span>
       </div>
       <div class="left-body">
         <div class="bar-area">
@@ -382,16 +382,16 @@
         <div class="x-labels" id="x-labels"></div>
         <div class="bottom-row">
           <div class="summary">
-            <div class="sb"><span class="l">Kiểm</span><span class="v" id="sb-kiem">—</span></div>
+            <div class="sb"><span class="l">Kiểm / Inspected</span><span class="v" id="sb-kiem">—</span></div>
             <div class="sb-div"></div>
-            <div class="sb"><span class="l">Lỗi</span><span class="v fail" id="sb-loi">—</span></div>
+            <div class="sb"><span class="l">Lỗi / Defects</span><span class="v fail" id="sb-loi">—</span></div>
             <div class="sb-div"></div>
-            <div class="sb"><span class="l">Target</span><span class="v warn" id="sb-target">5.0%</span></div>
+            <div class="sb"><span class="l">Mục tiêu / Target</span><span class="v warn" id="sb-target">5.0%</span></div>
             <div class="sb-div"></div>
-            <div class="sb"><span class="l">Tỉ lệ ngày</span><span class="v" id="sb-rate">—</span></div>
+            <div class="sb"><span class="l">Tỷ lệ ngày / Day rate</span><span class="v" id="sb-rate">—</span></div>
           </div>
           <div class="alert-area" id="alert-area">
-            <span class="al-lbl">⚠ Hàng loạt:</span>
+            <span class="al-lbl">⚠ Hàng loạt / Batch:</span>
           </div>
         </div>
       </div>
@@ -401,7 +401,7 @@
     <div class="card" style="display:flex;flex-direction:column;">
       <div class="panel-title danger">
         Phân tích lỗi <span class="src-badge" id="src-badge"></span>
-        <span class="pt-en">Phân bổ theo bộ phận · Top 3 · Chi tiết</span>
+        <span class="pt-en">Defect analysis · by part · Top 3 · Details</span>
       </div>
       <div class="right-body">
 
@@ -410,13 +410,13 @@
 
           <!-- Donut: bộ phận -->
           <div class="donut-half">
-            <div class="sec-title">Phân bổ lỗi theo bộ phận</div>
+            <div class="sec-title">Phân bổ lỗi theo bộ phận / Defects by part</div>
             <div class="donut-row">
               <div class="donut-svg-wrap">
                 <svg id="donut-svg" width="210" height="210" viewBox="0 0 210 210"></svg>
                 <div class="donut-center">
                   <span class="dc-n" id="donut-total">—</span>
-                  <span class="dc-l">Tổng lỗi</span>
+                  <span class="dc-l">Tổng lỗi / Total</span>
                 </div>
               </div>
               <div class="donut-legend" id="donut-legend"></div>
@@ -426,10 +426,10 @@
           <!-- Top 3 + filter chips -->
           <div class="top3-half">
             <div class="filter-row" id="filter-row">
-              <span class="f-lbl">Lọc bộ phận:</span>
+              <span class="f-lbl">Lọc bộ phận / Filter:</span>
             </div>
             <div class="top3-area">
-              <div class="top3-title">Top 3 dạng lỗi · <span id="top3-lbl" style="font-weight:500;color:var(--ink-3);text-transform:none;letter-spacing:0;">tất cả bộ phận</span></div>
+              <div class="top3-title">Top 3 dạng lỗi / Top 3 defects · <span id="top3-lbl" style="font-weight:500;color:var(--ink-3);text-transform:none;letter-spacing:0;">tất cả / all parts</span></div>
               <div class="top3-bars" id="top3-bars"></div>
             </div>
           </div>
@@ -438,10 +438,10 @@
         <!-- Combo table: bp + ct + ma_loi -->
         <div class="combo-wrap">
           <div class="combo-hdr">
-            <span>Bộ phận</span>
-            <span>Chi tiết</span>
-            <span>Mã · Loại lỗi</span>
-            <span class="r">SL</span>
+            <span>Bộ phận / Part</span>
+            <span>Chi tiết / Detail</span>
+            <span>Mã · Loại lỗi / Defect code</span>
+            <span class="r">SL/Qty</span>
           </div>
           <div class="combo-body" id="combo-body"></div>
         </div>
@@ -454,10 +454,10 @@
   <!-- ── FOOTER ── -->
   <div class="ftr">
     <span class="l">
-      <span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span>
+      <span class="rdot"></span>&nbsp;Cập nhật / Updated <span id="ftr-time">—</span>
       · Auto refresh <span id="ftr-interval">—</span>
     </span>
-    <span class="r">TV-3 · Chất lượng sản phẩm cuối chuyền</span>
+    <span class="r">TV-3 · Chất lượng sản phẩm cuối chuyền / End-of-line quality</span>
   </div>
 
 </div><!-- /si -->
@@ -503,8 +503,7 @@ function parseDateInput(value) {
 
 function formatSelectedDate(value) {
   const d = parseDateInput(value) || new Date();
-  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  return days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
+  return pad(d.getDate()) + '/' + pad(d.getMonth()+1) + '/' + d.getFullYear();
 }
 
 /* ── Scaling ── */
@@ -551,7 +550,7 @@ async function loadData() {
     _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
     setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
     $('dc-overlay').classList.add('show');
-    $('dc-sub').textContent = 'Lỗi: ' + e.message + ' · Thử lại sau 30 giây';
+    $('dc-sub').textContent = 'Lỗi / Error: ' + e.message + ' · Thử lại sau 30 giây / Retry in 30s';
     setTimeout(loadData, 30000);
   }
 }
@@ -573,7 +572,7 @@ function render(d) {
 
   /* Source badge */
   const badge  = $('src-badge');
-  badge.textContent = 'Dữ liệu QC';
+  badge.textContent = 'Dữ liệu QC / QC data';
   badge.style.background = 'rgba(89,199,140,.25)';
 }
 
@@ -597,7 +596,7 @@ function renderKPI(k) {
   const isPass = k.DefectStatus === 'pass';
 
   $('kpi-kiem').textContent = k.TongKiem != null ? k.TongKiem : '—';
-  $('kpi-dat').textContent = 'Đạt: ' + (k.TongDat != null ? k.TongDat : '—');
+  $('kpi-dat').textContent = 'Đạt / Pass: ' + (k.TongDat != null ? k.TongDat : '—');
   $('kpi-loi').textContent  = k.TongLoi  != null ? k.TongLoi  : '—';
 
   const rateEl = $('kpi-ty-le');
@@ -605,14 +604,14 @@ function renderKPI(k) {
   rateEl.style.color = k.TyLeLoi == null ? 'var(--ink-2)' : isPass ? 'var(--pass-ink)' : 'var(--fail-ink)';
 
   const chip = $('kpi-status-chip');
-  chip.textContent = k.TyLeLoi == null ? 'CHƯA CÓ DỮ LIỆU' : isPass ? 'ĐẠT MỤC TIÊU' : 'DƯỚI TARGET';
+  chip.textContent = k.TyLeLoi == null ? 'CHƯA CÓ DỮ LIỆU / NO DATA' : isPass ? 'ĐẠT / PASS' : 'VƯỢT MỤC TIÊU / OVER TARGET';
   chip.className   = 'chip ' + (k.TyLeLoi == null ? 'neu' : isPass ? 'pass' : 'fail');
 
   $('kpi-target').textContent = (k.DefectTarget ?? 5.0) + '%';
 
   const n = k.CanhBaoCount ?? 0;
   $('kpi-canh-bao').textContent = n;
-  $('kpi-canh-bao-chip').textContent = n > 0 ? 'CẢNH BÁO' : 'BÌNH THƯỜNG';
+  $('kpi-canh-bao-chip').textContent = n > 0 ? 'CẢNH BÁO / ALERT' : 'BÌNH THƯỜNG / NORMAL';
   $('kpi-canh-bao-chip').className   = 'chip ' + (n > 0 ? 'warn' : 'pass');
 
   /* KCS summary bar */
@@ -641,7 +640,7 @@ function renderBars(slots, kpi) {
   bi.innerHTML = xl.innerHTML = '';
 
   if (!slots.length) {
-    bi.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu QC theo ngày chọn</div>';
+    bi.innerHTML = '<div class="no-data-msg">Chưa có dữ liệu QC theo ngày chọn · No QC data for this day</div>';
     return;
   }
 
@@ -683,7 +682,7 @@ function renderAlerts(list) {
   if (!list.length) {
     const el = document.createElement('span');
     el.style.cssText = 'font-size:11px;color:var(--ink-3);';
-    el.textContent = 'Không có cảnh báo';
+    el.textContent = 'Không có cảnh báo / No alerts';
     area.appendChild(el);
     return;
   }
@@ -763,7 +762,7 @@ function renderFilters(boPhanList) {
 
   const allBtn = document.createElement('button');
   allBtn.className = 'fc' + (activeFilter === null ? ' active' : '');
-  allBtn.textContent = 'Tất cả';
+  allBtn.textContent = 'Tất cả / All';
   allBtn.onclick = () => setFilter(null);
   row.appendChild(allBtn);
 
@@ -798,7 +797,7 @@ function setFilter(bp) {
 
 /* ── Top 3 column chart ── */
 function renderTop3(top3Data) {
-  $('top3-lbl').textContent = activeFilter || 'tất cả bộ phận';
+  $('top3-lbl').textContent = activeFilter || 'tất cả / all parts';
   const el   = $('top3-bars');
   el.innerHTML = '';
   const maxN = top3Data.length ? top3Data[0].n : 1;
@@ -828,7 +827,7 @@ function renderCombo(bp) {
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.style.cssText = 'padding:12px 16px;font-size:13px;color:var(--ink-3);';
-    empty.textContent = 'Chưa có dữ liệu lỗi theo ngày chọn';
+    empty.textContent = 'Chưa có dữ liệu lỗi theo ngày chọn · No defect data for this day';
     body.appendChild(empty);
     return;
   }
@@ -848,7 +847,7 @@ function renderCombo(bp) {
 /* ══ Init ════════════════════════════════════════════════════════════ */
 const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
 const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
-$('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+$('ftr-interval').textContent = IS_TODAY ? '1 phút / 1 min' : '5 phút / 5 min';
 
 loadData();
 setInterval(loadData, ACTIVE_REFRESH_MS);

@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>TV-3 · Chất lượng cuối chuyền</title>
+<title>TV-3 · Chất lượng cuối chuyền / Endline quality</title>
 <link rel="stylesheet" href="/static/css/tv/shared.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -131,8 +131,8 @@
 <body class="tv">
 <div class="dc-overlay" id="dc-overlay">
   <div class="dc-icon">⚠</div>
-  <div class="dc-msg">Mất kết nối dữ liệu</div>
-  <div class="dc-sub" id="dc-sub">Đang thử lại...</div>
+  <div class="dc-msg">Mất kết nối dữ liệu / Connection lost</div>
+  <div class="dc-sub" id="dc-sub">Đang thử lại... / Retrying...</div>
 </div>
 
 <div class="stage-wrap">
@@ -142,17 +142,17 @@
   <!-- ── HEADER ── -->
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">Tổ</span>
+      <span class="lk">Tổ / Line</span>
       <span class="lv" id="h-line">—</span>
       <span class="style">Style <span id="h-style">—</span> · <span id="h-workers">—</span> LĐ</span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Nhu cầu</span><span class="v demand mono" id="h-don">—</span></div>
-      <div class="fld"><span class="k">Khách hàng</span><span class="v" id="h-kh">—</span></div>
-      <div class="fld"><span class="k">Loại hàng</span><span class="v" id="h-loai">—</span></div>
-      <div class="fld"><span class="k">Rải chuyền</span><span class="v mono" id="h-first">—</span></div>
-      <div class="fld"><span class="k">Lao động</span><span class="v mono" id="h-ld">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng / Plan No</span><span class="v demand mono" id="h-don">—</span></div>
+      <div class="fld"><span class="k">Khách hàng / Customer</span><span class="v" id="h-kh">—</span></div>
+      <div class="fld"><span class="k">Loại hàng / Product type</span><span class="v" id="h-loai">—</span></div>
+      <div class="fld"><span class="k">Rải chuyền / First day</span><span class="v mono" id="h-first">—</span></div>
+      <div class="fld"><span class="k">Lao động / Workers</span><span class="v mono" id="h-ld">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -175,7 +175,7 @@
           <tr>
             <th>Loại lỗi<span class="en">Type of defect</span></th>
             <th>Vị trí<span class="en">Work station</span></th>
-            <th>Số lượng<span class="en">Number</span></th>
+            <th>Số lượng<span class="en">Qty</span></th>
             <th>HĐKP<span class="en">CAP</span></th>
           </tr>
         </thead>
@@ -184,7 +184,7 @@
     </div>
 
     <div class="card qcard">
-      <div class="panel-title">Top 3 dạng lỗi thường gặp <span class="pt-en">Lũy kế ngày · Accumulate</span></div>
+      <div class="panel-title">Top 3 dạng lỗi thường gặp <span class="pt-en">Top 3 defects · Day accumulated</span></div>
       <div class="chart">
         <div class="plot">
           <div class="yax" id="t3-y"></div>
@@ -211,7 +211,7 @@
       </div>
     </div>
     <div class="card bk">
-      <div class="bk-head">Lũy kế ngày<span class="en">Accumulate · ngày báo cáo</span></div>
+      <div class="bk-head">Lũy kế ngày<span class="en">Day accumulated</span></div>
       <div class="bk-body">
         <div class="bk-cell"><span class="l">Tổng lỗi · Total</span><span class="v fail" id="b-loi-day">—</span></div>
         <div class="bk-cell"><span class="l">Kiểm lại đạt · Re-inspect PASS</span><span class="v pass" id="b-kl-day">—</span></div>
@@ -222,8 +222,8 @@
 
   <!-- ── FOOTER ── -->
   <div class="ftr">
-    <span class="l"><span class="rdot"></span>&nbsp;Cập nhật lúc <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
-    <span class="r">TV-3 · Chất lượng cuối chuyền · Nguồn: Sheet báo cáo 2H<span id="ftr-demand"></span></span>
+    <span class="l"><span class="rdot"></span>&nbsp;Cập nhật / Updated <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
+    <span class="r">TV-3 · Chất lượng cuối chuyền / Endline quality · Nguồn / Source: Sheet báo cáo 2H<span id="ftr-demand"></span></span>
   </div>
 
 </div>
@@ -244,9 +244,9 @@ const INIT_DATE = {{ init_date | tojson }};
 const REFRESH_MS = 5 * 60 * 1000;
 const TABLE_ROWS = 5;
 const WINDOW_LABEL = {
-  '09H30': 'Mốc 09H30 · 07H30 – 09H30', '11H30': 'Mốc 11H30 · 09H30 – 11H30',
-  '14H30': 'Mốc 14H30 · 12H30 – 14H30', '16H30': 'Mốc 16H30 · 14H30 – 16H30',
-  'Sau 16H30': 'Mốc 16H30 + Sau 16H30 · 14H30 – hết ca',
+  '09H30': 'Mốc / Slot 09H30 · 07H30 – 09H30', '11H30': 'Mốc / Slot 11H30 · 09H30 – 11H30',
+  '14H30': 'Mốc / Slot 14H30 · 12H30 – 14H30', '16H30': 'Mốc / Slot 16H30 · 14H30 – 16H30',
+  'Sau 16H30': 'Mốc / Slot 16H30 + Sau 16H30 · 14H30 – hết ca / end of shift',
 };
 
 const BACK_TO_LATEST_MS = 3 * 60 * 1000;  // TV không người trực: tự quay về mốc mới nhất
@@ -266,8 +266,7 @@ function parseDateInput(value) {
 }
 function formatSelectedDate(value) {
   const d = parseDateInput(value) || new Date();
-  const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
-  return days[d.getDay()] + ' · ' + pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+  return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
 }
 
 function fit() {
@@ -309,7 +308,7 @@ async function loadData() {
     _btnState('✕ Lỗi', false, 'rgba(255,80,80,.7)');
     setTimeout(() => _btnState('↺ Refresh', false, 'rgba(255,255,255,.3)'), 2000);
     $('dc-overlay').classList.add('show');
-    $('dc-sub').textContent = 'Lỗi: ' + e.message + ' · Thử lại sau 30 giây';
+    $('dc-sub').textContent = 'Lỗi / Error: ' + e.message + ' · Thử lại sau 30 giây / Retry in 30s';
     setTimeout(loadData, 30000);
   }
 }
@@ -363,11 +362,11 @@ function renderWindow(d) {
 
   const win = w.window;
   const past = latest && w !== latest;
-  $('q-window').textContent = (win ? (WINDOW_LABEL[win] || 'Mốc ' + win) : 'Chưa có mốc báo cáo')
-    + (past ? ' · đang xem lại' : '');
+  $('q-window').textContent = (win ? (WINDOW_LABEL[win] || 'Mốc / Slot ' + win) : 'Chưa có mốc báo cáo / No report yet')
+    + (past ? ' · đang xem lại / reviewing' : '');
   $('b-2h-title').textContent = past ? 'Mốc ' + win + ' (xem lại)' : '2 giờ gần nhất';
   $('b-2h-en').textContent  = win ? (past ? 'Selected · ' : 'Last 2H · ') + (WINDOW_LABEL[win] || win) : 'Last 2H';
-  $('q-more').textContent   = w.more_rows ? `+${w.more_rows} dạng lỗi khác` : '';
+  $('q-more').textContent   = w.more_rows ? `+${w.more_rows} dạng lỗi khác / more` : '';
 
   renderTable(w.rows || [], win, w.defects_2h, d.qc_message);
   renderBottom(Object.assign({}, k, { Loi2H: w.defects_2h, KiemLaiDat2H: w.reinspect_2h, TyLeKiemLai: w.reinspect_rate }));
@@ -377,9 +376,9 @@ function renderTable(rows, win, reported, message) {
   const body = $('q-body');
   let html = '';
   if (!rows.length) {
-    const msg = !win ? (message || 'Chưa có dữ liệu chất lượng')
-      : reported ? `Đã báo ${fmt(reported)} lỗi nhưng chưa nhập dạng lỗi / vị trí cho mốc này`
-      : 'Không có lỗi ghi nhận ở mốc này';
+    const msg = !win ? (message || 'Chưa có dữ liệu chất lượng · No quality data')
+      : reported ? `Đã báo ${fmt(reported)} lỗi nhưng chưa nhập dạng lỗi / vị trí cho mốc này · ${fmt(reported)} defects reported, type / station not entered`
+      : 'Không có lỗi ghi nhận ở mốc này · No defects in this slot';
     html += `<tr><td colspan="4" class="tbl-empty">${esc(msg)}</td></tr>`;
   }
   for (const r of rows) {
@@ -404,7 +403,7 @@ function renderTop3(top3) {
   yax.innerHTML = [0, 1, 2, 3, 4].map(i => `<span>${i * step}</span>`).join('');
   let html = [1, 2, 3].map(i => `<div class="grid" style="bottom:${i * 25}%"></div>`).join('');
   if (!top3.length) {
-    html += '<div class="no-data">Chưa có dạng lỗi trong ngày</div>';
+    html += '<div class="no-data">Chưa có dạng lỗi trong ngày · No defect types entered yet</div>';
     xl.innerHTML = '';
   } else {
     html += '<div class="cols">' + top3.map((t, i) =>
@@ -438,13 +437,13 @@ function renderBottom(k) {
   setValue('b-loi-day', k.LoiNgay, 'fail');
   setValue('b-kl-day', k.KiemLaiDatNgay, 'pass');
   $('b-rate-note').textContent = k.TyLeLoi != null
-    ? `Tỷ lệ lỗi ngày: ${k.TyLeLoi}% (lỗi / (đạt + lỗi)) · mục tiêu ≤ ${k.DefectTarget}%`
+    ? `Tỷ lệ lỗi ngày / Day defect rate: ${k.TyLeLoi}% (lỗi / (đạt + lỗi)) · mục tiêu / target ≤ ${k.DefectTarget}%`
     : '';
 }
 
 const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
 const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
-$('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+$('ftr-interval').textContent = IS_TODAY ? '1 phút / 1 min' : '5 phút / 5 min';
 loadData();
 setInterval(loadData, ACTIVE_REFRESH_MS);
 </script>

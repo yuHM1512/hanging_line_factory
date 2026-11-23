@@ -17,7 +17,7 @@ window.TVSource = {
       if (footer) footer.appendChild(note);
     }
     const day = d.report_date.split('-').reverse().join('/');
-    note.textContent = ` · Báo cáo ${day} · ${d.cutoff || 'Chưa có mốc'}${d.sync_error ? ' · Đồng bộ lỗi' : ''}`;
+    note.textContent = ` · Báo cáo / Report ${day} · ${d.cutoff || 'Chưa có mốc / No slot'}${d.sync_error ? ' · Đồng bộ lỗi / Sync error' : ''}`;
     note.title = [...(d.warnings || []), d.sync_error || ''].filter(Boolean).join('\n');
     if (d.stats) {
       for (const [key, id] of [['DayQty','day'],['Takt','takt'],['OWE','owe'],['DefectRate','def']]) {

@@ -2,10 +2,11 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>TV-4 · Tiến độ kế hoạch theo ngày</title>
+<title>TV-4 · Tiến độ kế hoạch theo ngày / Daily plan progress</title>
 <link rel="stylesheet" href="/static/css/tv/shared.css">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
+  .hdr-fields .fld .k { white-space: nowrap; }
   .hdr-line .lk { font-size: 12px; letter-spacing: .12em; opacity: .75; font-weight: 600; }
   .hdr-line .lv { font-size: 44px; }
   .hdr-line .style { font-size: 15px; margin-top: 3px; }
@@ -165,18 +166,18 @@
 
   <div class="hdr">
     <div class="hdr-line">
-      <span class="lk">Tổ sản xuất</span>
+      <span class="lk">Tổ / Line</span>
       <span class="lv" id="h-line">—</span>
       <span class="style"><span id="h-style">—</span> · <span id="h-customer">—</span></span>
     </div>
     <div class="hdr-div"></div>
     <div class="hdr-fields">
-      <div class="fld"><span class="k">Số đơn hàng (mẹ)</span><span class="v demand mono" id="h-demand">—</span></div>
+      <div class="fld"><span class="k">Số đơn hàng (mẹ) / Plan No</span><span class="v demand mono" id="h-demand">—</span></div>
       <div class="fld"><span class="k">SLKH / Plan qty</span><span class="v mono" id="h-slkh">—</span></div>
-      <div class="fld"><span class="k">ĐMKT</span><span class="v mono" id="h-dmkt">—</span></div>
-      <div class="fld"><span class="k">Phân loại ĐH</span><span class="v" id="h-phanloai">—</span></div>
-      <div class="fld"><span class="k">Số ngày KH</span><span class="v mono" id="h-soca">—</span></div>
-      <div class="fld"><span class="k">Ngày đạt 100%</span><span class="v gold" id="h-day100">—</span></div>
+      <div class="fld"><span class="k">ĐMKT / SAM</span><span class="v mono" id="h-dmkt">—</span></div>
+      <div class="fld"><span class="k">Phân loại ĐH / Order type</span><span class="v" id="h-phanloai">—</span></div>
+      <div class="fld"><span class="k">Số ngày KH / Plan days</span><span class="v mono" id="h-soca">—</span></div>
+      <div class="fld"><span class="k">Ngày đạt 100% / Day 100%</span><span class="v gold" id="h-day100">—</span></div>
     </div>
     <div class="hdr-clock">
       <span class="date" id="h-date">—</span>
@@ -187,12 +188,12 @@
   <div class="body">
 
     <div class="card legend">
-      <span class="lh">Chú thích</span>
-      <span class="li"><span class="sw pass"></span>Đạt mục tiêu (≥ 100%)</span>
-      <span class="li"><span class="sw fail"></span>Chưa đạt (&lt; 100%)</span>
-      <span class="li"><span class="sw gold"></span>★ Mốc ngày đạt 100% ratio</span>
-      <span class="li"><span class="sw current"></span>Ngày đang xem</span>
-      <span class="li" style="margin-left:auto;"><span class="sw future"></span>Ngày tương lai (chưa SX)</span>
+      <span class="lh">Chú thích / Legend</span>
+      <span class="li"><span class="sw pass"></span>Đạt / Pass (≥ 100%)</span>
+      <span class="li"><span class="sw fail"></span>Chưa đạt / Fail (&lt; 100%)</span>
+      <span class="li"><span class="sw gold"></span>★ Ngày đạt 100% / Day reaching 100%</span>
+      <span class="li"><span class="sw current"></span>Ngày đang xem / Selected day</span>
+      <span class="li" style="margin-left:auto;"><span class="sw future"></span>Ngày tương lai / Future day</span>
     </div>
 
     <div class="card day-card">
@@ -209,8 +210,8 @@
   </div>
 
   <div class="ftr">
-    <span class="l"><span class="refresh-dot"></span>Cập nhật <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
-    <span class="r">TV-4 · Tiến độ kế hoạch theo ngày</span>
+    <span class="l"><span class="refresh-dot"></span>Cập nhật / Updated <span id="ftr-time">—</span> · Auto refresh <span id="ftr-interval">—</span></span>
+    <span class="r">TV-4 · Tiến độ kế hoạch theo ngày / Daily plan progress</span>
   </div>
 
 </div>
@@ -299,20 +300,18 @@ async function loadData() {
 
 function render(d) {
   const h = d.header;
-  document.getElementById('h-line').textContent = 'Tổ ' + h['Tổ'];
+  document.getElementById('h-line').textContent = h['Tổ'] ?? '—';
   document.getElementById('h-style').textContent = 'Style ' + (h.StyleNo || '—');
   document.getElementById('h-customer').textContent = h.Customer || '—';
   document.getElementById('h-demand').textContent = h.MaDonKH || '—';
   document.getElementById('h-slkh').textContent = fmtNum(h.SLKH);
   document.getElementById('h-dmkt').textContent = h.DMKT || '—';
   document.getElementById('h-phanloai').textContent = h.PhanLoaiDH || '—';
-  document.getElementById('h-soca').textContent = h.SoCaKH ? h.SoCaKH + ' ngày' : '—';
-  document.getElementById('h-day100').textContent = h.DayRatio1 ? 'Ngày ' + h.DayRatio1 : '—';
+  document.getElementById('h-soca').textContent = h.SoCaKH ? String(h.SoCaKH) : '—';
+  document.getElementById('h-day100').textContent = h.DayRatio1 ? String(h.DayRatio1) : '—';
 
-  const day = new Date(h.ReportDate || INIT_DATE);
-  const days = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
-  document.getElementById('h-date').textContent =
-    days[day.getDay()] + ' · ' + day.getDate() + '-' + (day.getMonth() + 1) + '-' + day.getFullYear();
+  const [yy, mm, dd] = (h.ReportDate || INIT_DATE).split('-');
+  document.getElementById('h-date').textContent = `${dd}/${mm}/${yy}`;
   document.getElementById('ftr-time').textContent = new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
 
   // Build table headers + rows
@@ -321,7 +320,7 @@ function render(d) {
   const soca = h.SoCaKH;          // ngày cumulative chạm SLKH (tham khảo header, không tô bảng)
 
   // Header row: rowhead "Phân loại / Ngày" + N day cols
-  let thead = '<th class="rowhead">Phân loại / Ngày</th>';
+  let thead = '<th class="rowhead">Phân loại / Ngày · Item / Day</th>';
   for (const day of dayCols) {
     const cls = [];
     if (day.DayN === dayRatio1) cls.push('d100');
@@ -331,7 +330,7 @@ function render(d) {
   document.getElementById('tr-header').innerHTML = thead;
 
   // Row: Số lao động
-  let rowWorkers = '<td class="rowname">Số lao động</td>';
+  let rowWorkers = '<td class="rowname">Số lao động <small>Workers</small></td>';
   for (const day of dayCols) {
     const cls = [];
     if (day.DayN === dayRatio1) cls.push('d100col');
@@ -343,7 +342,7 @@ function render(d) {
   document.getElementById('row-workers').innerHTML = rowWorkers;
 
   // Row: Ra chuyền / Năng suất + % đạt
-  let rowMix = '<td class="rowname">Ra chuyền / Năng suất <small>Actual / target · % đạt</small></td>';
+  let rowMix = '<td class="rowname">Ra chuyền / Năng suất <small>Actual / Target · % đạt / % achieved</small></td>';
   for (const day of dayCols) {
     const cls = ['target'];
     if (day.DayN === dayRatio1) cls.push('d100col');
@@ -373,7 +372,7 @@ function render(d) {
 
 const IS_TODAY = INIT_DATE === new Date().toISOString().slice(0, 10);
 const ACTIVE_REFRESH_MS = IS_TODAY ? 60_000 : REFRESH_MS;
-document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút' : '5 phút';
+document.getElementById('ftr-interval').textContent = IS_TODAY ? '1 phút / 1 min' : '5 phút / 5 min';
 
 loadData();
 setInterval(loadData, ACTIVE_REFRESH_MS);
