@@ -140,20 +140,49 @@ async function syncToQlcl() {
   btn.textContent = 'Đang đồng bộ...';
   status.textContent = 'Đang gửi dữ liệu sang QLCL...';
   status.style.color = '#3b82f6';
+
   try {
-    const data = await Admin.fetchJSON('/admin/api/sync-to-qlcl', { method: 'POST' });
-    const { inserted = 0, updated = 0, skipped = 0, warnings = [] } = data;
-    status.textContent = `✓ Xong — thêm mới: ${inserted}, cập nhật: ${updated}, bỏ qua: ${skipped}` +
-      (warnings.length ? ` | ⚠ ${warnings.length} cảnh báo` : '');
-    status.style.color = '#16a34a';
-    if (warnings.length) console.warn('Sync warnings:', warnings);
+    await Admin.fetchJSON('/admin/api/sync-to-qlcl', { method: 'POST' });
   } catch (err) {
     status.textContent = `✗ Lỗi: ${Admin.escape(err.message)}`;
     status.style.color = '#ef4444';
-  } finally {
     btn.disabled = false;
     btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
+    return;
   }
+
+  const poll = setInterval(async () => {
+    try {
+      const data = await Admin.fetchJSON('/admin/api/sync-to-qlcl/status');
+      if (data.sync_status === 'done' || data.status === 'done') {
+        clearInterval(poll);
+        const { inserted = 0, updated = 0, skipped = 0, warnings = [], elapsed_s } = data;
+        status.textContent = `✓ Xong (${elapsed_s ?? '?'}s) — thêm mới: ${inserted}, cập nhật: ${updated}, bỏ qua: ${skipped}` +
+          (warnings.length ? ` | ⚠ ${warnings.length} cảnh báo` : '');
+        status.style.color = '#16a34a';
+        if (warnings.length) console.warn('Sync warnings:', warnings);
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
+      } else if (data.status === 'error') {
+        clearInterval(poll);
+        const stepInfo = data.step ? ` [tại: ${data.step}]` : '';
+        status.textContent = `✗ Lỗi${stepInfo}: ${Admin.escape(data.detail || 'Không xác định')}`;
+        status.style.color = '#ef4444';
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
+      } else if (data.status === 'running') {
+        const elapsed = data.elapsed_s != null ? ` (${data.elapsed_s}s)` : '';
+        const step = data.step || 'Đang xử lý...';
+        status.textContent = `⏳ ${step}${elapsed}`;
+      }
+    } catch (err) {
+      clearInterval(poll);
+      status.textContent = `✗ Lỗi poll: ${Admin.escape(err.message)}`;
+      status.style.color = '#ef4444';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">cloud_upload</span> Đồng bộ ngay';
+    }
+  }, 3000);
 }
 
 </script>

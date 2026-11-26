@@ -8,6 +8,7 @@ import logging
 import math
 import os
 import re
+import threading
 import time
 import urllib.request
 import uuid
@@ -17,7 +18,7 @@ from typing import Any, Optional
 
 logger = logging.getLogger(__name__)
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel, ConfigDict, Field
@@ -34,6 +35,27 @@ QLCL_USER_AGENT = (
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/126.0.0.0 Safari/537.36"
 )
+
+_qlcl_sync_state: dict = {"status": "idle"}
+
+
+def _background_sync_plan_to_qlcl(plan_master_guid: str | None = None) -> None:
+    """Fire-and-forget: push plan to QLCL + refresh QC employee assignments.
+
+    Runs in a daemon thread so the user request returns immediately.
+    Errors are logged, never raised back to the caller.
+    """
+    def _run() -> None:
+        try:
+            _do_sync_to_qlcl()
+        except Exception:
+            logger.warning("Background plan→QLCL sync failed", exc_info=True)
+        try:
+            _do_sync_qc_employees_to_qlcl(plan_master_guid)
+        except Exception:
+            logger.warning("Background QC employee sync failed", exc_info=True)
+    threading.Thread(target=_run, name="bg-plan-sync", daemon=True).start()
+
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "templates"))
@@ -718,6 +740,7 @@ def api_plan_create(body: PlanIn, user: dict = Depends(auth.require_admin)):
     except Exception as exc:  # noqa: BLE001
         raise HTTPException(400, f"Lưu thất bại: {exc}") from exc
     _clear_plan_candidate_cache()
+    _background_sync_plan_to_qlcl(str(new_guid))
     return {"ok": True, "guid": str(new_guid)}
 
 
@@ -791,6 +814,7 @@ def api_plan_setup_root(body: DemandPlanIn, user: dict = Depends(auth.require_ad
             pass
         raise HTTPException(400, f"Luu that bai: {exc}") from exc
     _clear_plan_candidate_cache()
+    _background_sync_plan_to_qlcl(str(new_guid))
     return {"ok": True, "guid": str(new_guid), "NhuCauMe": body.nhu_cau_me}
 
 
@@ -857,6 +881,7 @@ def api_plan_update(guid: str, body: PlanUpdate, user: dict = Depends(auth.requi
             apply_config(cur, current_nhu_cau_me, body.flat_line)
         conn.commit()
     _clear_plan_candidate_cache()
+    _background_sync_plan_to_qlcl(guid)
     return {"ok": True}
 
 
@@ -869,6 +894,7 @@ def api_plan_delete(guid: str):
         if cur.rowcount == 0:
             raise HTTPException(404, "Plan không tồn tại")
     _clear_plan_candidate_cache()
+    _background_sync_plan_to_qlcl()
     return {"ok": True}
 
 
@@ -1240,12 +1266,6 @@ def _do_sync_to_qlcl() -> dict:
     with urllib.request.urlopen(req, timeout=15) as resp:
         result = json.loads(resp.read())
 
-    # Push daily MES output alongside plan sync
-    try:
-        _push_daily_output_to_qlcl([p["mono"] for p in plans if p.get("mono")])
-    except Exception:
-        logger.exception("Failed to push daily output to QLCL")
-
     return result
 
 
@@ -1446,16 +1466,57 @@ def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
     return result
 
 
-@router.post("/api/sync-to-qlcl")
-def api_sync_to_qlcl():
-    """Push kế hoạch từ SQL Server XN sang QLCL server — gọi từ admin UI."""
+def _run_sync_in_background() -> None:
+    global _qlcl_sync_state
+    started = datetime.now()
+    _qlcl_sync_state = {"status": "running", "step": "Khởi động...", "started_at": started.isoformat()}
     try:
-        return _do_sync_to_qlcl()
+        _qlcl_sync_state["step"] = "Đang push kế hoạch sang QLCL..."
+        result = _do_sync_to_qlcl()
+        elapsed = round((datetime.now() - started).total_seconds(), 1)
+        _qlcl_sync_state = {"status": "done", "result": result, "elapsed_s": elapsed}
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", errors="replace")[:300]
-        raise HTTPException(status_code=502, detail=f"QLCL trả lỗi {exc.code}: {detail}")
+        elapsed = round((datetime.now() - started).total_seconds(), 1)
+        _qlcl_sync_state = {
+            "status": "error",
+            "detail": f"QLCL trả lỗi {exc.code}: {detail}",
+            "step": _qlcl_sync_state.get("step", ""),
+            "elapsed_s": elapsed,
+        }
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Không kết nối được QLCL: {exc}")
+        elapsed = round((datetime.now() - started).total_seconds(), 1)
+        _qlcl_sync_state = {
+            "status": "error",
+            "detail": f"{type(exc).__name__}: {exc}",
+            "step": _qlcl_sync_state.get("step", ""),
+            "elapsed_s": elapsed,
+        }
+
+
+@router.post("/api/sync-to-qlcl")
+def api_sync_to_qlcl(background_tasks: BackgroundTasks):
+    global _qlcl_sync_state
+    if _qlcl_sync_state.get("status") == "running":
+        return JSONResponse({"status": "running", "message": "Đang đồng bộ, vui lòng chờ..."})
+    background_tasks.add_task(_run_sync_in_background)
+    _qlcl_sync_state = {"status": "running", "started_at": datetime.now().isoformat()}
+    return JSONResponse({"status": "running", "message": "Đang đồng bộ..."}, status_code=202)
+
+
+@router.get("/api/sync-to-qlcl/status")
+def api_sync_to_qlcl_status():
+    state = dict(_qlcl_sync_state)
+    if state.get("status") == "running" and state.get("started_at"):
+        try:
+            started = datetime.fromisoformat(state["started_at"])
+            state["elapsed_s"] = round((datetime.now() - started).total_seconds(), 1)
+        except Exception:
+            pass
+    if state.get("status") == "done":
+        result = state.get("result", {})
+        return {**result, "sync_status": "done", "elapsed_s": state.get("elapsed_s")}
+    return state
 
 
 @router.post("/api/backfill-output-to-qlcl")

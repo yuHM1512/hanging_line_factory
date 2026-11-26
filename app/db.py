@@ -20,6 +20,7 @@ SERVER = os.environ.get("HANGING_SQL_SERVER", r".\SQLEXPRESS")
 APP_DB = os.environ.get("HANGING_APP_DB") or os.environ.get("HANGING_SQL_DB", "hanging_app")
 MES_DB = os.environ.get("HANGING_MES_DB", "MSD")
 DRIVER = os.environ.get("HANGING_SQL_DRIVER", "ODBC Driver 17 for SQL Server")
+QUERY_TIMEOUT = int(os.environ.get("HANGING_SQL_QUERY_TIMEOUT", "90"))
 
 # Legacy alias — một số chỗ đọc db.DATABASE
 DATABASE = APP_DB
@@ -51,9 +52,10 @@ def _expand(sql: str) -> str:
     return sql.replace("{MES_DB}", MES_DB)
 
 
-def query(sql: str, params: Iterable[Any] | None = None) -> list[dict]:
+def query(sql: str, params: Iterable[Any] | None = None, *, timeout: int | None = None) -> list[dict]:
     """Run a parameterised query and return list of dict rows."""
     with get_conn() as conn:
+        conn.timeout = timeout if timeout is not None else QUERY_TIMEOUT
         cur = conn.cursor()
         cur.execute(_expand(sql), tuple(params) if params else ())
         cols = [c[0] for c in cur.description] if cur.description else []

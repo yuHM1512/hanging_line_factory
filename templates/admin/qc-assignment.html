@@ -86,6 +86,11 @@
   <h3 class="panel-title">
     <span class="material-symbols-outlined">groups</span>
     Danh sách phân công
+    <button id="btn-refresh" class="btn btn-sm" style="margin-left:auto"
+      onclick="refreshAssignments()">
+      <span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;">sync</span>
+      Làm mới dữ liệu
+    </button>
   </h3>
   <div class="summary-row" id="summary" hidden>
     <div class="summary-chip"><strong id="s-total">0</strong> nhân sự</div>
@@ -204,6 +209,22 @@ selLine.addEventListener('change', () => {
   loadAssignments();
 });
 selMono.addEventListener('change', loadAssignments);
+
+async function refreshAssignments() {
+  const btn = document.getElementById('btn-refresh');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;">hourglass_top</span> Đang làm mới...';
+  try {
+    const r = await Admin.fetchJSON('/admin/api/sync-qc-employees-to-qlcl', { method: 'POST', body: '{}' });
+    Admin.toast(`Đã làm mới: ${r.plans || 0} plan, ${r.assignments || 0} phân công.`, 'ok');
+    await loadAssignments();
+  } catch (err) {
+    Admin.toast(`Lỗi làm mới: ${Admin.escape(err.message)}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px;">sync</span> Làm mới dữ liệu';
+  }
+}
 
 loadLines().then(() => loadMonos().then(loadAssignments));
 </script>
