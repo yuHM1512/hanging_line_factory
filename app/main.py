@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from . import admin, auth, db, entry, queries, tv, flat_line, flat_sheet, hanging_sheet
+from . import admin, auth, db, entry, queries, tv, flat_line, flat_sheet, hanging_sheet, qlcl_output_api
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +102,7 @@ app.include_router(entry.router)
 app.include_router(flat_line.router)
 app.include_router(flat_sheet.router)
 app.include_router(hanging_sheet.router)
+app.include_router(qlcl_output_api.router)
 
 
 @app.on_event("startup")
