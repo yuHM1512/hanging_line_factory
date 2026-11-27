@@ -37,25 +37,32 @@ QLCL_API_URL = os.getenv("QLCL_API_URL", "http://localhost:8008")
 QLCL_TIMEOUT = 5.0  # seconds — TV không được chờ lâu
 
 
-def _fetch_qlcl_tv3(mono: str, the_date: date) -> dict:
-    """Gọi QLCL /api/tv3/qc-data with TTL cache. Nếu lỗi → {"found": False}."""
-    cache_key = f"{mono}|{the_date}"
+def _fetch_qlcl_tv3(mono: str, the_date: date, odrs: Optional[list[int]] = None) -> dict:
+    """Gọi QLCL /api/tv3/qc-data with TTL cache. odrs → chỉ các trạm "Odr N - ...".
+
+    Không gọi được QLCL → {"found": False, "error": True}.
+    """
+    odrs_param = ",".join(str(n) for n in odrs) if odrs else None
+    cache_key = f"{mono}|{the_date}|{odrs_param or ''}"
     now = datetime.now().timestamp()
     with _qlcl_lock:
         cached = _qlcl_cache.get(cache_key)
         if cached and (now - cached[0]) < _QLCL_CACHE_TTL:
             return cached[1]
+    params = {"mono": mono, "date": str(the_date)}
+    if odrs_param:
+        params["odrs"] = odrs_param
     try:
         resp = httpx.get(
             f"{QLCL_API_URL}/api/tv3/qc-data",
-            params={"mono": mono, "date": str(the_date)},
+            params=params,
             headers={"X-API-Key": os.getenv("QLCL_API_KEY", "")},
             timeout=QLCL_TIMEOUT,
         )
         resp.raise_for_status()
         result = resp.json()
     except Exception:
-        result = {"found": False}
+        result = {"found": False, "error": True}
     with _qlcl_lock:
         _qlcl_cache[cache_key] = (now, result)
         if len(_qlcl_cache) > 100:
@@ -158,14 +165,21 @@ def page_tv3(
     request: Request,
     mono: Optional[str] = None,
     date: Optional[date] = None,
+    src: Optional[str] = None,
 ):
     from .flat_tv import PREFIX
-    # QLCL tạm tắt: cả chuyền bệt và chuyền treo dùng layout chất lượng cũ đọc từ Sheet.
-    # Khi bật lại QLCL cho chuyền treo: template = "tv/tv3_sheet.html" if (mono or "").startswith(PREFIX) else "tv/tv3.html"
-    template = "tv/tv3_sheet.html"
+    # Mặc định đọc Sheet. Chuyền treo có thể xem thử dữ liệu QLCL (trạm cụm 6) bằng ?src=qlcl —
+    # nút icon nhỏ trên TV-3 dùng để chuyển qua lại.
+    hanging = not (mono or "").startswith(PREFIX)
+    use_qlcl = hanging and src == "qlcl"
     return templates.TemplateResponse(
-        template,
-        {"request": request, "init_mono": mono or "", "init_date": str(date) if date else ""},
+        "tv/tv3.html" if use_qlcl else "tv/tv3_sheet.html",
+        {
+            "request": request,
+            "init_mono": mono or "",
+            "init_date": str(date) if date else "",
+            "qlcl_toggle": hanging,
+        },
     )
 
 
@@ -445,6 +459,50 @@ def _configured_last_cluster(plan: dict) -> Optional[dict]:
         or next((c for c in clusters if c["Role"] == "last"), None)
         or (clusters[-1] if clusters else None)
     )
+
+
+def _last_cluster_route_odrs(plan: dict, mono: str) -> list[int]:
+    """Các Odr route thuộc cụm cuối (cụm 6) — dùng lọc trạm QC "Odr N - ..." bên QLCL.
+
+    Cụm cấu hình theo RouteStepOdr = Odr bước đầu nhóm; các bước gộp (IsCombine=1)
+    phía sau cùng thuộc cụm. Cụm Role=last không có RouteStepOdr → lấy Odr của
+    bước QC cuối (StRole=13) giống công thức KCS.
+    """
+    last_cluster = _configured_last_cluster(plan)
+    route_step_odr = int(last_cluster["RouteStepOdr"] or 0) if last_cluster else 0
+    if route_step_odr > 0:
+        rows = db.query(
+            """
+            ;WITH Steps AS (
+              SELECT ds.Odr,
+                     MAX(CASE WHEN ds.IsCombine = 0 THEN ds.Odr END)
+                       OVER (ORDER BY ds.Odr ROWS UNBOUNDED PRECEDING) AS HeadOdr
+              FROM {MES_DB}.dbo.tRouteDS ds
+              JOIN {MES_DB}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
+              JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
+              WHERE mm.MONo = ?
+            )
+            SELECT DISTINCT Odr FROM Steps WHERE HeadOdr = ?
+            """,
+            (mono, route_step_odr),
+        )
+        return sorted(int(r["Odr"]) for r in rows) or [route_step_odr]
+    if route_step_odr < 0:
+        return []  # cụm cuối là công đoạn chuyền bệt, không có trạm QC chuyền treo
+    qc_seq, _ = _last_qc_filter(mono)
+    if qc_seq is None:
+        return []
+    rows = db.query(
+        """
+        SELECT DISTINCT ds.Odr
+        FROM {MES_DB}.dbo.tRouteDS ds
+        JOIN {MES_DB}.dbo.tRouteM rm ON ds.RouteM_guid = rm.guid
+        JOIN {MES_DB}.dbo.tMOM mm ON rm.MOM_guid = mm.guid
+        WHERE mm.MONo = ? AND ds.SeqNo = ?
+        """,
+        (mono, qc_seq),
+    )
+    return sorted(int(r["Odr"]) for r in rows)
 
 
 def _daily_output_for_configured_last_cluster(plan: dict, mono: str, the_date: date) -> int:
@@ -1321,14 +1379,14 @@ def api_tv2(
 def api_tv3(
     mono: str = Query(..., description="MONo full string"),
     the_date: date = Query(..., alias="date"),
+    source: Optional[str] = Query(None, description="qlcl = dữ liệu QC từ QLCL (trạm cụm 6)"),
 ):
     from .flat_tv import PREFIX, dashboard, _tv3_sheet
     if mono.startswith(PREFIX):
         return dashboard(3, mono, the_date)
-    # QLCL tạm tắt (module QLCL chưa có dữ liệu): chuyền treo đọc chất lượng từ Sheet báo cáo 2H
-    # theo Nhu cầu mẹ gán tay ở /admin/sheet-demand-map. Khi QLCL sẵn sàng, bật lại dòng dưới
-    # (và đổi template trong page_tv3 về tv/tv3.html), bỏ phần Sheet phía sau.
-    # return _api_tv3_qlcl(mono, the_date)
+    if source == "qlcl":
+        return _api_tv3_qlcl(mono, the_date)
+    # Mặc định: chất lượng từ Sheet báo cáo 2H theo Nhu cầu mẹ gán tay ở /admin/sheet-demand-map.
     from .hanging_sheet import tv3_quality
     plan = _resolve_plan_full(mono)
     first_hang = plan["FirstHangDate"]
@@ -1358,7 +1416,7 @@ def api_tv3(
 
 
 def _api_tv3_qlcl(mono: str, the_date: date):
-    """TV-3 chuyền treo theo QLCL — tạm không dùng, giữ lại để bật khi module QLCL hoàn thiện."""
+    """TV-3 chuyền treo theo QLCL (?source=qlcl): chỉ lỗi do QC trạm cụm 6 (cuối chuyền) báo."""
     plan = _resolve_plan_full(mono)
     # FirstHangDate có thể là datetime.date, datetime.datetime, hoặc None
     first_hang_raw = plan["FirstHangDate"]
@@ -1391,19 +1449,22 @@ def _api_tv3_qlcl(mono: str, the_date: date):
     last_scan_bt = recent_scan_row[0]["BT"] if recent_scan_row else None
     current_slot = _slot_from_time(last_scan_bt)
 
-    # ── QLCL: Defect data từ QC PostgreSQL ──────────────────────────
-    # Gọi HTTP tới QLCL app cùng máy; timeout 5s.
-    qc = _fetch_qlcl_tv3(mono, the_date)
+    # ── QLCL: lỗi do QC trạm cụm 6 báo (trạm "Odr N - ..." với N thuộc cụm 6) ──
+    station_odrs = _last_cluster_route_odrs(plan, mono)
+    qc_message = None
+    if not station_odrs:
+        qc = {"found": False}
+        qc_message = "Chưa xác định được công đoạn cụm 6 trên route MES"
+    else:
+        qc = _fetch_qlcl_tv3(mono, the_date, station_odrs)
+        if qc.get("error"):
+            raise HTTPException(status_code=502, detail="Không kết nối được QLCL /api/tv3/qc-data")
+        if not qc.get("found"):
+            qc_message = "QLCL chưa có kế hoạch của MONo này"
     qc_found = qc.get("found", False)
 
-    if not qc_found:
-        raise HTTPException(
-            status_code=502,
-            detail="Không lấy được dữ liệu QC thật từ QLCL /api/tv3/qc-data",
-        )
-
     from .quality import inspection
-    counts = inspection(final_cluster_qty, qc.get("total_loi"))
+    counts = inspection(final_cluster_qty, qc.get("total_loi") if qc_found else None)
     total_kiem, total_loi, ty_le_loi = counts['kiem'], counts['loi'], counts['pct']
 
     # Determine defect KPI status
@@ -1422,7 +1483,7 @@ def _api_tv3_qlcl(mono: str, the_date: date):
     slots = []
     for i, (label, _) in enumerate(SLOT_LABELS, start=1):
         dat = int(final_cluster_slots.get(i, 0) or 0)
-        loi = int(qc_slot_errors.get(i, 0) or 0)
+        loi = int(qc_slot_errors.get(i, 0) or 0) if qc_found else None
         slots.append({
             "slot": i,
             "label": label,
@@ -1469,6 +1530,8 @@ def _api_tv3_qlcl(mono: str, the_date: date):
         "canh_bao": canh_bao_list,
         # Meta
         "qc_source": "qlcl",
+        "qc_stations": [f"Odr {n}" for n in station_odrs],
+        "qc_message": qc_message,
     }
 
 

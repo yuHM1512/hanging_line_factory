@@ -484,6 +484,7 @@
 
 <script src="/static/js/tv-source.js"></script>
 <script src="/static/js/tv-tooltips.js"></script>
+{% if qlcl_toggle %}<script src="/static/js/tv3-source-toggle.js"></script>{% endif %}
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    TV-3 — Data init từ Jinja2
@@ -552,7 +553,7 @@ async function loadData() {
   if (!INIT_MONO || !INIT_DATE) return;
   _btnState('⏳ Đang tải...', true, 'rgba(255,255,255,.3)');
   try {
-    const resp = await fetch(`/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}`);
+    const resp = await fetch(`/tv/api/tv3?mono=${encodeURIComponent(INIT_MONO)}&date=${INIT_DATE}&source=qlcl`);
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     $('dc-overlay').classList.remove('show');
@@ -586,10 +587,11 @@ function render(d) {
   renderTop3(lastTop3);
   renderCombo(null);
 
-  /* Source badge */
+  /* Source badge — QLCL, chỉ trạm cụm 6 */
   const badge  = $('src-badge');
-  badge.textContent = 'Dữ liệu QC / QC data';
-  badge.style.background = 'rgba(89,199,140,.25)';
+  const stations = (d.qc_stations || []).join(', ');
+  badge.textContent = d.qc_message || `QLCL · Cụm 6${stations ? ' (' + stations + ')' : ''}`;
+  badge.style.background = d.qc_message ? 'rgba(255,190,80,.25)' : 'rgba(89,199,140,.25)';
 }
 
 /* ── Header ── */
