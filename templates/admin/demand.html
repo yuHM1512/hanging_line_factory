@@ -2,111 +2,195 @@
 {% set active = 'demand' %}
 {% block header_breadcrumb %}Nhu cầu mẹ{% endblock %}
 {% block heading %}Nhu cầu mẹ{% endblock %}
-{% block subheading %}Chọn 1 Nhu cầu con làm mẹ. Tổ + Mã hàng auto-lấy từ con.{% endblock %}
+{% block subheading %}Quản lý nhu cầu tổng hợp — khai báo mới hoặc theo dõi nhu cầu đã đăng ký.{% endblock %}
 
 {% block body %}
-<div class="panel">
-  <h3 class="panel-title">
-    <span class="material-symbols-outlined">list_alt</span>
-    Chọn Nhu cầu con chưa có mẹ
-  </h3>
-  <p class="muted small">List dưới chỉ hiện các con (tPlanMaster) chưa được gán làm NhuCauMe nào. Tạo NhuCauCon trước ở <a href="/admin/plan">trang Nhu cầu con</a>.</p>
-  <table class="data-table" id="tbl-cands">
-    <thead>
-      <tr>
-        <th>Số đơn hàng (sẽ thành NhuCauMe)</th>
-        <th>Mã hàng</th>
-        <th>Tổ</th>
-        <th>Ngày bắt đầu</th>
-        <th>SLKH con</th>
-        <th>Customer</th>
-        <th class="col-action">Chọn</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="7" class="muted">Đang tải...</td></tr>
-    </tbody>
-  </table>
+<style>
+  .status-badge {
+    display: inline-flex; align-items: center; gap: 0.25rem;
+    font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.6rem;
+    border-radius: 9999px; white-space: nowrap;
+  }
+  .status-badge.active  { background: #dcfce7; color: #16a34a; }
+  .status-badge.finished { background: #eceef4; color: #64748b; }
+  .filter-row { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; align-items: end; }
+  .filter-row .field { min-width: 160px; }
+  .btn-finish {
+    font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem; border: none; cursor: pointer;
+    background: #fef3c7; color: #92400e;
+    transition: background 0.15s;
+  }
+  .btn-finish:hover { background: #fde68a; }
+  .btn-reactivate {
+    font-size: 0.72rem; font-weight: 600; padding: 0.2rem 0.5rem;
+    border-radius: 0.375rem; border: none; cursor: pointer;
+    background: #dcfce7; color: #16a34a;
+    transition: background 0.15s;
+  }
+  .btn-reactivate:hover { background: #bbf7d0; }
+</style>
+
+<div class="tab-bar">
+  <button class="tab-btn active" data-tab="declare">Khai báo</button>
+  <button class="tab-btn" data-tab="declared">Đã khai báo</button>
 </div>
 
-<div class="panel" id="form-panel" hidden>
-  <h3 class="panel-title">
-    <span class="material-symbols-outlined">add_circle</span>
-    Đăng ký Nhu cầu mẹ
-  </h3>
-  <form id="form-demand" class="grid-form">
-    <label class="field">
-      <span class="field-label">NhuCauMe (= Số đơn hàng con đầu)</span>
-      <input type="text" name="NhuCauMe" required readonly />
-    </label>
-    <label class="field">
-      <span class="field-label">Mã hàng (auto)</span>
-      <input type="text" name="StyleNo" readonly />
-    </label>
-    <label class="field">
-      <span class="field-label">Tổ (auto)</span>
-      <input type="text" name="LineNo" readonly />
-    </label>
-    <label class="field">
-      <span class="field-label">ĐMKT (định mức kỹ thuật)</span>
-      <input type="number" name="DMKT" required min="0.001" step="0.001" placeholder="VD: 10.5" />
-    </label>
-    <label class="field">
-      <span class="field-label">Phân loại ĐH</span>
-      <select name="PhanLoaiDH" required>
-        <option value="">— chọn —</option>
-        <option value="Đặc biệt">Đặc biệt</option>
-        <option value="Mới">Mới</option>
-        <option value="Lặp lại">Lặp lại</option>
-        <option value="Vest">Vest</option>
-      </select>
-    </label>
-    <label class="field">
-      <span class="field-label">LĐ biên chế</span>
-      <input type="number" name="LDBienChe" required min="1" step="1" placeholder="VD: 65" />
-    </label>
-    <label class="field full-row">
-      <span class="field-label">Ghi chú</span>
-      <input type="text" name="Notes" maxlength="500" />
-    </label>
-    <div class="full-row form-actions">
-      <button type="button" class="btn btn-tertiary" id="btn-cancel">Huỷ</button>
-      <button type="submit" class="btn btn-primary">Lưu Nhu cầu mẹ</button>
+<!-- ==================== TAB 1: Khai báo ==================== -->
+<div id="tab-declare">
+  <div class="panel">
+    <h3 class="panel-title">
+      <span class="material-symbols-outlined">list_alt</span>
+      Chọn Nhu cầu con chưa có mẹ
+    </h3>
+    <p class="muted small">List dưới chỉ hiện các con (tPlanMaster) chưa được gán làm NhuCauMe nào. Tạo NhuCauCon trước ở <a href="/admin/plan">trang Nhu cầu con</a>.</p>
+    <table class="data-table" id="tbl-cands">
+      <thead>
+        <tr>
+          <th>Số đơn hàng (sẽ thành NhuCauMe)</th>
+          <th>Mã hàng</th>
+          <th>Tổ</th>
+          <th>Ngày bắt đầu</th>
+          <th>SLKH con</th>
+          <th>Customer</th>
+          <th class="col-action">Chọn</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="7" class="muted">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="form-panel" hidden>
+    <h3 class="panel-title">
+      <span class="material-symbols-outlined">add_circle</span>
+      <span id="form-title">Đăng ký Nhu cầu mẹ</span>
+    </h3>
+    <form id="form-demand" class="grid-form">
+      <label class="field">
+        <span class="field-label">NhuCauMe (= Số đơn hàng con đầu)</span>
+        <input type="text" name="NhuCauMe" required readonly />
+      </label>
+      <label class="field">
+        <span class="field-label">Mã hàng (auto)</span>
+        <input type="text" name="StyleNo" readonly />
+      </label>
+      <label class="field">
+        <span class="field-label">Tổ (auto)</span>
+        <input type="text" name="LineNo" readonly />
+      </label>
+      <label class="field">
+        <span class="field-label">ĐMKT (định mức kỹ thuật)</span>
+        <input type="number" name="DMKT" required min="0.001" step="0.001" placeholder="VD: 10.5" />
+      </label>
+      <label class="field">
+        <span class="field-label">Phân loại ĐH</span>
+        <select name="PhanLoaiDH" required>
+          <option value="">— chọn —</option>
+          <option value="Đặc biệt">Đặc biệt</option>
+          <option value="Mới">Mới</option>
+          <option value="Lặp lại">Lặp lại</option>
+          <option value="Vest">Vest</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">LĐ biên chế</span>
+        <input type="number" name="LDBienChe" required min="1" step="1" placeholder="VD: 65" />
+      </label>
+      <label class="field full-row">
+        <span class="field-label">Ghi chú</span>
+        <input type="text" name="Notes" maxlength="500" />
+      </label>
+      <div class="full-row form-actions">
+        <button type="button" class="btn btn-tertiary" id="btn-cancel">Huỷ</button>
+        <button type="submit" class="btn btn-primary" id="btn-submit">Lưu Nhu cầu mẹ</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ==================== TAB 2: Đã khai báo ==================== -->
+<div id="tab-declared" hidden>
+  <div class="panel">
+    <h3 class="panel-title">
+      <span class="material-symbols-outlined">filter_alt</span>
+      Bộ lọc
+    </h3>
+    <div class="filter-row">
+      <label class="field">
+        <span class="field-label">Trạng thái</span>
+        <select id="fil-status">
+          <option value="">Tất cả</option>
+          <option value="active" selected>Đang hoạt động</option>
+          <option value="finished">Đã kết thúc</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Tổ</span>
+        <select id="fil-line">
+          <option value="">Tất cả</option>
+          <option value="1">Tổ 1</option>
+          <option value="6">Tổ 6</option>
+        </select>
+      </label>
+      <label class="field">
+        <span class="field-label">Mã hàng</span>
+        <input type="text" id="fil-style" placeholder="Nhập mã hàng..." />
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="loadDemand()" style="height:fit-content">
+        <span class="material-symbols-outlined" style="font-size:16px;vertical-align:-3px">search</span>
+        Lọc
+      </button>
     </div>
-  </form>
-</div>
+  </div>
 
-<div class="panel">
-  <h3 class="panel-title">
-    <span class="material-symbols-outlined">check_circle</span>
-    Đã đăng ký
-  </h3>
-  <table class="data-table" id="tbl-demand">
-    <thead>
-      <tr>
-        <th>NhuCauMe</th>
-        <th>Mã</th>
-        <th>Tổ</th>
-        <th>SLKH (auto = Σ con)</th>
-        <th>Số con</th>
-        <th>ĐMKT</th>
-        <th>Phân loại</th>
-        <th>LĐ</th>
-        <th class="col-action">Hành động</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr><td colspan="10" class="muted">Đang tải...</td></tr>
-    </tbody>
-  </table>
+  <div class="panel">
+    <h3 class="panel-title">
+      <span class="material-symbols-outlined">check_circle</span>
+      Đã đăng ký
+    </h3>
+    <table class="data-table" id="tbl-demand">
+      <thead>
+        <tr>
+          <th>NhuCauMe</th>
+          <th>Mã</th>
+          <th>Tổ</th>
+          <th>SLKH (Σ con)</th>
+          <th>Số con</th>
+          <th>ĐMKT</th>
+          <th>Phân loại</th>
+          <th>LĐ</th>
+          <th>Trạng thái</th>
+          <th class="col-action">Hành động</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td colspan="10" class="muted">Đang tải...</td></tr>
+      </tbody>
+    </table>
+  </div>
 </div>
 {% endblock %}
 
 {% block page_scripts %}
 <script>
 const API = '/admin/api/demand';
-let editingKey = null;  // null = create mode; string = NhuCauMe being edited
+let editingKey = null;
 
+/* ---------- Tab switching ---------- */
+document.querySelectorAll('.tab-bar .tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const target = btn.dataset.tab;
+    document.getElementById('tab-declare').hidden  = target !== 'declare';
+    document.getElementById('tab-declared').hidden = target !== 'declared';
+    if (target === 'declared') loadDemand();
+  });
+});
+
+/* ---------- Candidates table ---------- */
 function renderCands(rows) {
   const tbody = document.querySelector('#tbl-cands tbody');
   if (!rows.length) {
@@ -136,16 +220,33 @@ async function loadCands() {
   renderCands(await Admin.fetchJSON(`${API}/candidates`));
 }
 
+/* ---------- Demand table (tab 2) ---------- */
 async function loadDemand() {
   const tbody = document.querySelector('#tbl-demand tbody');
-  tbody.innerHTML = '<tr><td colspan="9" class="muted">Đang tải...</td></tr>';
-  const rows = await Admin.fetchJSON(API);
+  tbody.innerHTML = '<tr><td colspan="10" class="muted">Đang tải...</td></tr>';
+  const params = new URLSearchParams();
+  const status = document.getElementById('fil-status').value;
+  const lineNo = document.getElementById('fil-line').value;
+  const style  = document.getElementById('fil-style').value.trim();
+  if (status)  params.set('status', status);
+  if (lineNo)  params.set('line_no', lineNo);
+  if (style)   params.set('style_no', style);
+  const qs = params.toString();
+  const rows = await Admin.fetchJSON(`${API}${qs ? '?' + qs : ''}`);
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="9" class="muted">Chưa có Nhu cầu mẹ.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="muted">Không có dữ liệu phù hợp.</td></tr>';
     return;
   }
-  tbody.innerHTML = rows.map(r => `
-    <tr>
+  tbody.innerHTML = rows.map(r => {
+    const st = r.Status || 'active';
+    const isFinished = st === 'finished';
+    const statusBadge = isFinished
+      ? '<span class="status-badge finished">Kết thúc</span>'
+      : '<span class="status-badge active">Hoạt động</span>';
+    const toggleBtn = isFinished
+      ? `<button class="btn-reactivate" data-toggle-status="${Admin.escape(r.NhuCauMe)}" data-new-status="active" title="Mở lại">Mở lại</button>`
+      : `<button class="btn-finish" data-toggle-status="${Admin.escape(r.NhuCauMe)}" data-new-status="finished" title="Kết thúc">Kết thúc</button>`;
+    return `<tr${isFinished ? ' style="opacity:0.6"' : ''}>
       <td><strong>${Admin.escape(r.NhuCauMe)}</strong></td>
       <td>${Admin.escape(r.StyleNo)}</td>
       <td>Tổ ${r.LineNoOut}</td>
@@ -154,18 +255,21 @@ async function loadDemand() {
       <td>${r.DMKT}</td>
       <td>${Admin.escape(r.PhanLoaiDH)}</td>
       <td>${r.LDBienChe}</td>
-      <td class="col-action">
-        <button class="btn-icon" data-edit='${JSON.stringify(r).replace(/&#39;/g, "&#39;")}' title="Sửa">
+      <td>${statusBadge}</td>
+      <td class="col-action" style="white-space:nowrap">
+        ${toggleBtn}
+        <button class="btn-icon" data-edit='${JSON.stringify(r).replace(/'/g, "&#39;")}' title="Sửa">
           <span class="material-symbols-outlined">edit</span>
         </button>
         <button class="btn-icon btn-icon-danger" data-del="${Admin.escape(r.NhuCauMe)}" title="Xoá">
           <span class="material-symbols-outlined">delete</span>
         </button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
 }
 
+/* ---------- Form: create / edit ---------- */
 function openCreate(r) {
   editingKey = null;
   const f = document.querySelector('#form-demand');
@@ -173,10 +277,10 @@ function openCreate(r) {
   f.NhuCauMe.value = r.SoDonHang;
   f.StyleNo.value = r.StyleNo;
   f.LineNo.value = r.LineNoOut;
-  document.querySelector('#form-panel h3').textContent = 'Đăng ký Nhu cầu mẹ';
-  document.querySelector('#form-demand button[type="submit"]').textContent = 'Lưu Nhu cầu mẹ';
-  document.querySelector('#form-panel').hidden = false;
-  document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('form-title').textContent = 'Đăng ký Nhu cầu mẹ';
+  document.getElementById('btn-submit').textContent = 'Lưu Nhu cầu mẹ';
+  document.getElementById('form-panel').hidden = false;
+  document.getElementById('form-panel').scrollIntoView({ behavior: 'smooth' });
 }
 
 function openEdit(r) {
@@ -190,23 +294,31 @@ function openEdit(r) {
   f.PhanLoaiDH.value = r.PhanLoaiDH;
   f.LDBienChe.value = r.LDBienChe;
   f.Notes.value = r.Notes || '';
-  document.querySelector('#form-panel h3').textContent = 'Sửa Nhu cầu mẹ: ' + r.NhuCauMe;
-  document.querySelector('#form-demand button[type="submit"]').textContent = 'Cập nhật';
-  document.querySelector('#form-panel').hidden = false;
-  document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
+  document.getElementById('form-title').textContent = 'Sửa Nhu cầu mẹ: ' + r.NhuCauMe;
+  document.getElementById('btn-submit').textContent = 'Cập nhật';
+  // Switch to Khai báo tab so form is visible
+  document.querySelectorAll('.tab-bar .tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector('.tab-btn[data-tab="declare"]').classList.add('active');
+  document.getElementById('tab-declare').hidden = false;
+  document.getElementById('tab-declared').hidden = true;
+  document.getElementById('form-panel').hidden = false;
+  document.getElementById('form-panel').scrollIntoView({ behavior: 'smooth' });
 }
 
+/* ---------- Event: pick candidate ---------- */
 document.querySelector('#tbl-cands').addEventListener('click', (e) => {
   const btn = e.target.closest('[data-pick]');
   if (!btn) return;
   openCreate(JSON.parse(btn.dataset.pick.replace(/&#39;/g, "'")));
 });
 
-document.querySelector('#btn-cancel').addEventListener('click', () => {
+/* ---------- Event: cancel form ---------- */
+document.getElementById('btn-cancel').addEventListener('click', () => {
   editingKey = null;
-  document.querySelector('#form-panel').hidden = true;
+  document.getElementById('form-panel').hidden = true;
 });
 
+/* ---------- Event: submit form ---------- */
 document.querySelector('#form-demand').addEventListener('submit', async (e) => {
   e.preventDefault();
   if (!Admin.validateForm(e.target)) return;
@@ -229,22 +341,47 @@ document.querySelector('#form-demand').addEventListener('submit', async (e) => {
       Admin.toast('Đã lưu Nhu cầu mẹ. Quay lại trang Nhu cầu con để gắn mẹ vào con.', 'ok');
     }
     editingKey = null;
-    document.querySelector('#form-panel').hidden = true;
+    document.getElementById('form-panel').hidden = true;
     e.target.reset();
     loadCands();
-    loadDemand();
   } catch (err) {
     Admin.toast(err.message, 'error');
   }
 });
 
+/* ---------- Event: demand table actions ---------- */
 document.querySelector('#tbl-demand').addEventListener('click', async (e) => {
+  /* Toggle status (Kết thúc / Mở lại) */
+  const toggleBtn = e.target.closest('[data-toggle-status]');
+  if (toggleBtn) {
+    const key = toggleBtn.dataset.toggleStatus;
+    const newStatus = toggleBtn.dataset.newStatus;
+    const label = newStatus === 'finished' ? 'Kết thúc' : 'Mở lại';
+    if (!confirm(`${label} nhu cầu mẹ "${key}"?`)) return;
+    toggleBtn.disabled = true;
+    toggleBtn.textContent = 'Đang xử lý...';
+    try {
+      await Admin.fetchJSON(`${API}/${encodeURIComponent(key)}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: newStatus }),
+      });
+      Admin.toast(`Đã ${label.toLowerCase()} "${key}".`, 'ok');
+      loadDemand();
+    } catch (err) {
+      Admin.toast(err.message, 'error');
+      toggleBtn.disabled = false;
+      toggleBtn.textContent = label;
+    }
+    return;
+  }
+
   /* Edit button */
   const editBtn = e.target.closest('[data-edit]');
   if (editBtn) {
     openEdit(JSON.parse(editBtn.dataset.edit.replace(/&#39;/g, "'")));
     return;
   }
+
   /* Delete button */
   const btn = e.target.closest('[data-del]');
   if (!btn) return;
@@ -260,7 +397,12 @@ document.querySelector('#tbl-demand').addEventListener('click', async (e) => {
   }
 });
 
+/* ---------- Filter on Enter ---------- */
+document.getElementById('fil-style').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') { e.preventDefault(); loadDemand(); }
+});
+
+/* ---------- Init ---------- */
 loadCands();
-loadDemand();
 </script>
 {% endblock %}

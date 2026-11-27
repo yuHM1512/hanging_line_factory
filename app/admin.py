@@ -337,14 +337,32 @@ def api_demand_candidates():
 
 
 @router.get("/api/demand")
-def api_demand_list():
+def api_demand_list(
+    status: str | None = Query(None),
+    line_no: int | None = Query(None, alias="line_no"),
+    style_no: str | None = Query(None, alias="style_no"),
+):
+    where_parts: list[str] = []
+    params: list[Any] = []
+    if status:
+        where_parts.append("ISNULL([Status], 'active') = ?")
+        params.append(status)
+    if line_no is not None:
+        where_parts.append("[LineNo] = ?")
+        params.append(line_no)
+    if style_no:
+        where_parts.append("StyleNo LIKE ?")
+        params.append(f"%{style_no}%")
+    where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
     return db.query(
         "SELECT NhuCauMe, StyleNo, SLKH, ChildCount, DMKT, PhanLoaiDH, "
         "[LineNo] AS LineNoOut, LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy, "
+        "ISNULL([Status], 'active') AS Status, "
         "CONVERT(varchar(10), EarliestFirstHangDate, 120) AS EarliestFirstHangDate, "
         "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt, "
         "CONVERT(varchar(19), UpdatedAt, 120) AS UpdatedAt "
-        "FROM app.vDemandRoot ORDER BY StyleNo, NhuCauMe"
+        f"FROM app.vDemandRoot {where} ORDER BY StyleNo, NhuCauMe",
+        params or None,
     )
 
 
@@ -436,6 +454,24 @@ def api_demand_delete(nhu_cau_me: str, user: dict = Depends(auth.require_admin))
         if cur.rowcount == 0:
             raise HTTPException(404, "Không tìm thấy Nhu cầu mẹ")
     return {"ok": True}
+
+
+class DemandStatusIn(AdminModel):
+    status: str = Field(..., pattern=r"^(active|finished)$")
+
+@router.put("/api/demand/{nhu_cau_me}/status")
+def api_demand_status(nhu_cau_me: str, body: DemandStatusIn, user: dict = Depends(auth.require_admin)):
+    with db.get_conn() as conn:
+        cur = conn.cursor()
+        cur.execute(
+            "UPDATE app.tDemandRoot SET [Status] = ?, "
+            "UpdatedAt = SYSDATETIME(), UpdatedBy = ? WHERE NhuCauMe = ?",
+            (body.status, _actor_id(user), nhu_cau_me),
+        )
+        if cur.rowcount == 0:
+            raise HTTPException(404, "Không tìm thấy Nhu cầu mẹ")
+    _background_sync_plan_to_qlcl()
+    return {"ok": True, "status": body.status}
 
 
 # ============================================================
@@ -1230,8 +1266,10 @@ def _do_sync_to_qlcl() -> dict:
                     ELSE pm.SLKH + ISNULL(adj.AdjustmentQty, 0) END AS EffectiveSLKH,
                pm.Customer,
                ISNULL((SELECT SUM(Qty) FROM app.tPlanPO po
-                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid), 0) AS TotalPOQty
+                        WHERE po.PlanMaster_guid = pm.PlanMaster_guid), 0) AS TotalPOQty,
+               ISNULL(dr.[Status], 'active') AS DemandStatus
         FROM app.tPlanMaster pm
+        LEFT JOIN app.tDemandRoot dr ON dr.NhuCauMe = pm.NhuCauMe
         OUTER APPLY (
             SELECT SUM(DeltaQty) AS AdjustmentQty
             FROM app.tPlanAdjustment pa
@@ -1247,15 +1285,16 @@ def _do_sync_to_qlcl() -> dict:
         if not mono:
             continue
         plans.append({
-            "guid":       str(r["guid"]),
-            "mono":       mono,
-            "ke_hoach":   f"HL-{mono}",
-            "line_no":    r.get("LineNo") or 0,
-            "style_no":   str(r.get("StyleNo") or "").strip(),
-            "customer":   str(r.get("Customer") or "").strip(),
-            "loai_hang":  str(r.get("LoaiHang") or "").strip() or None,
-            "first_hang": r.get("FirstHangDate"),
-            "san_luong":  int(r.get("EffectiveSLKH") or 0),
+            "guid":        str(r["guid"]),
+            "mono":        mono,
+            "ke_hoach":    f"HL-{mono}",
+            "line_no":     r.get("LineNo") or 0,
+            "style_no":    str(r.get("StyleNo") or "").strip(),
+            "customer":    str(r.get("Customer") or "").strip(),
+            "loai_hang":   str(r.get("LoaiHang") or "").strip() or None,
+            "first_hang":  r.get("FirstHangDate"),
+            "san_luong":   int(r.get("EffectiveSLKH") or 0),
+            "is_finished": r.get("DemandStatus") == "finished",
         })
 
     if not plans:
