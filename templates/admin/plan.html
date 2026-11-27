@@ -5,6 +5,25 @@
 {% block subheading %}Chọn MONo để khai báo một nhu cầu mẹ xuyên suốt, gồm thông tin kế hoạch, sản lượng, PO/EHD và các lần cập nhật tăng giảm SLKH.{% endblock %}
 
 {% block body %}
+<style>
+  .status-badge { display:inline-block; font-size:0.72rem; font-weight:600; padding:0.2rem 0.6rem; border-radius:9999px; white-space:nowrap; }
+  .status-badge.active { background:#dcfce7; color:#16a34a; }
+  .status-badge.finished { background:#eceef4; color:#64748b; }
+  .btn-status { font-size:0.72rem; font-weight:600; padding:0.25rem 0.6rem; border-radius:0.375rem; border:none; cursor:pointer; white-space:nowrap; }
+  .btn-status.finish { background:#fef3c7; color:#92400e; }
+  .btn-status.finish:hover { background:#fde68a; }
+  .btn-status.reopen { background:#dcfce7; color:#16a34a; }
+  .btn-status.reopen:hover { background:#bbf7d0; }
+  tr.row-finished td { opacity:0.55; }
+  tr.row-finished td.col-action { opacity:1; }
+</style>
+
+<div class="tab-bar">
+  <button type="button" class="tab-btn active" data-tab="declare">Khai báo</button>
+  <button type="button" class="tab-btn" data-tab="declared">Đã khai báo <span id="declared-count" class="muted"></span></button>
+</div>
+
+<div id="tab-declare">
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">search</span>
@@ -41,27 +60,6 @@
     <div style="display:flex; gap:8px; align-items:center;">
       <button class="btn btn-tertiary btn-sm" id="cand-prev" type="button">‹ Trước</button>
       <button class="btn btn-tertiary btn-sm" id="cand-next" type="button">Sau ›</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal: sản lượng theo ngày -->
-<div id="modal-daily" style="display:none; position:fixed; inset:0; z-index:1000;
-     background:rgba(0,0,0,.45); align-items:center; justify-content:center;">
-  <div style="background:#fff; border-radius:1rem; padding:1.5rem 2rem;
-              min-width:340px; max-width:480px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.2);">
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
-      <h3 style="margin:0; font-family:Manrope,sans-serif; font-size:1.05rem; color:#0b1c30;" id="modal-daily-title">
-        Sản lượng theo ngày
-      </h3>
-      <button onclick="closeDailyModal()"
-              style="background:none; border:none; cursor:pointer; font-size:1.4rem; color:#44464f; line-height:1;">✕</button>
-    </div>
-    <div id="modal-daily-body" style="max-height:380px; overflow-y:auto;">
-      <p class="muted">Đang tải...</p>
-    </div>
-    <div style="margin-top:1rem; text-align:right;">
-      <button class="btn btn-tertiary" onclick="closeDailyModal()">Đóng</button>
     </div>
   </div>
 </div>
@@ -198,12 +196,34 @@
     </div>
   </form>
 </div>
+</div>
 
+<div id="tab-declared" hidden>
 <div class="panel">
   <h3 class="panel-title">
     <span class="material-symbols-outlined">check_circle</span>
     Đã khai báo
   </h3>
+  <div class="row-flex">
+    <label class="field" style="min-width:180px; margin:0;">
+      <span class="field-label">Trạng thái</span>
+      <select id="plan-status-filter">
+        <option value="active" selected>Đang chạy</option>
+        <option value="finished">Đã kết thúc</option>
+        <option value="">Tất cả</option>
+      </select>
+    </label>
+    <label class="field" style="min-width:140px; margin:0;">
+      <span class="field-label">Tổ</span>
+      <select id="plan-line-filter">
+        <option value="">Tất cả tổ</option>
+      </select>
+    </label>
+    <label class="field" style="min-width:240px; margin:0;">
+      <span class="field-label">Mã hàng / Số đơn hàng</span>
+      <input type="search" id="plan-style-filter" placeholder="Nhập mã hàng hoặc số đơn..." autocomplete="off" />
+    </label>
+  </div>
   <table class="data-table" id="tbl-plans">
     <thead>
       <tr>
@@ -220,13 +240,36 @@
         <th>Aim/ngày</th>
         <th>POs</th>
         <th>NhuCauMe</th>
+        <th>Trạng thái</th>
         <th class="col-action">Hành động</th>
       </tr>
     </thead>
     <tbody>
-      <tr><td colspan="14" class="muted">Đang tải...</td></tr>
+      <tr><td colspan="15" class="muted">Đang tải...</td></tr>
     </tbody>
   </table>
+</div>
+</div>
+
+<!-- Modal: sản lượng theo ngày -->
+<div id="modal-daily" style="display:none; position:fixed; inset:0; z-index:1000;
+     background:rgba(0,0,0,.45); align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:1rem; padding:1.5rem 2rem;
+              min-width:340px; max-width:480px; width:90%; box-shadow:0 8px 32px rgba(0,0,0,.2);">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
+      <h3 style="margin:0; font-family:Manrope,sans-serif; font-size:1.05rem; color:#0b1c30;" id="modal-daily-title">
+        Sản lượng theo ngày
+      </h3>
+      <button onclick="closeDailyModal()"
+              style="background:none; border:none; cursor:pointer; font-size:1.4rem; color:#44464f; line-height:1;">✕</button>
+    </div>
+    <div id="modal-daily-body" style="max-height:380px; overflow-y:auto;">
+      <p class="muted">Đang tải...</p>
+    </div>
+    <div style="margin-top:1rem; text-align:right;">
+      <button class="btn btn-tertiary" onclick="closeDailyModal()">Đóng</button>
+    </div>
+  </div>
 </div>
 {% endblock %}
 
@@ -386,18 +429,65 @@ async function loadCands(forceRefresh = false) {
   renderCandidatePagination(data);
 }
 
+let allPlans = [];
+
+function switchTab(name) {
+  document.querySelectorAll('.tab-bar .tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === name);
+  });
+  document.getElementById('tab-declare').hidden = name !== 'declare';
+  document.getElementById('tab-declared').hidden = name !== 'declared';
+}
+
+document.querySelectorAll('.tab-bar .tab-btn').forEach(b => {
+  b.addEventListener('click', () => switchTab(b.dataset.tab));
+});
+
+function fillLineFilter(rows) {
+  const sel = document.getElementById('plan-line-filter');
+  const current = sel.value;
+  const lines = [...new Set(rows.map(r => r.LineNoOut).filter(v => v != null))].sort((a, b) => a - b);
+  sel.innerHTML = '<option value="">Tất cả tổ</option>' +
+    lines.map(n => `<option value="${n}">Tổ ${n}</option>`).join('');
+  if (lines.map(String).includes(current)) sel.value = current;
+}
+
+function filteredPlans() {
+  const status = document.getElementById('plan-status-filter').value;
+  const line = document.getElementById('plan-line-filter').value;
+  const q = document.getElementById('plan-style-filter').value.trim().toLowerCase();
+  return allPlans.filter(r => {
+    if (status && (r.DemandStatus || 'active') !== status) return false;
+    if (line && String(r.LineNoOut) !== line) return false;
+    if (q) {
+      const hay = `${r.StyleNo || ''} ${r.SoDonHang || ''} ${r.MONo || ''}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+}
+
 function renderPlans(rows) {
   const tbody = document.querySelector('#tbl-plans tbody');
+  const activeCount = allPlans.filter(r => (r.DemandStatus || 'active') === 'active').length;
+  document.getElementById('declared-count').textContent = `(${activeCount})`;
   if (!rows.length) {
-    tbody.innerHTML = '<tr><td colspan="14" class="muted">Chưa có Nhu cầu mẹ.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="15" class="muted">Không có dữ liệu phù hợp.</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => {
     const meBadge = r.NhuCauMe
       ? `<span class="badge-mom">${Admin.escape(r.NhuCauMe)}</span>`
       : '<span class="muted small">— chưa gắn —</span>';
+    const finished = (r.DemandStatus || 'active') === 'finished';
+    const statusBadge = finished
+      ? '<span class="status-badge finished">Kết thúc</span>'
+      : '<span class="status-badge active">Đang chạy</span>';
+    const statusBtn = !r.NhuCauMe ? '' : finished
+      ? `<button type="button" class="btn-status reopen" data-demand-status="active" data-demand="${Admin.escape(r.NhuCauMe)}">Mở lại</button>`
+      : `<button type="button" class="btn-status finish" data-demand-status="finished" data-demand="${Admin.escape(r.NhuCauMe)}">Kết thúc</button>`;
     return `
-      <tr>
+      <tr class="${finished ? 'row-finished' : ''}">
         <td><strong>${Admin.escape(r.SoDonHang)}</strong>
             <div class="muted small">${Admin.escape(r.MONo)}</div></td>
         <td>${Admin.escape(r.StyleNo)}</td>
@@ -412,7 +502,9 @@ function renderPlans(rows) {
         <td>${r.DailyAim || '<span class="muted">—</span>'}</td>
         <td>${r.POCount} (${r.POQtySum.toLocaleString('vi-VN')})</td>
         <td>${meBadge}</td>
-        <td class="col-action" style="position:relative;">
+        <td>${statusBadge}</td>
+        <td class="col-action" style="position:relative; white-space:nowrap;">
+          ${statusBtn}
           <button class="btn-icon" data-row-menu-toggle="${r.PlanMaster_guid}" title="Thao tac">
             <span class="material-symbols-outlined">more_horiz</span>
           </button>
@@ -453,9 +545,16 @@ function renderPlans(rows) {
 
 async function loadPlans() {
   const tbody = document.querySelector('#tbl-plans tbody');
-  tbody.innerHTML = '<tr><td colspan="14" class="muted">Đang tải...</td></tr>';
-  renderPlans(await Admin.fetchJSON(API));
+  tbody.innerHTML = '<tr><td colspan="15" class="muted">Đang tải...</td></tr>';
+  allPlans = await Admin.fetchJSON(API);
+  fillLineFilter(allPlans);
+  renderPlans(filteredPlans());
 }
+
+['plan-status-filter', 'plan-line-filter'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => renderPlans(filteredPlans()));
+});
+document.getElementById('plan-style-filter').addEventListener('input', () => renderPlans(filteredPlans()));
 
 function renderPOs() {
   const tbody = document.querySelector('#po-rows');
@@ -637,6 +736,7 @@ async function openEdit(guid) {
   renderPOs();
   await loadMothersInto(p.NhuCauMe);
   document.querySelector('#btn-submit').textContent = 'Cập nhật';
+  switchTab('declare');
   document.querySelector('#form-panel').hidden = false;
   document.querySelector('#form-panel').scrollIntoView({ behavior: 'smooth' });
 }
@@ -802,13 +902,35 @@ document.querySelector('#form-plan').addEventListener('submit', async (e) => {
     e.target.reset();
     pendingPOs = [];
     loadCands();
-    loadPlans();
+    await loadPlans();
+    switchTab('declared');
   } catch (err) {
     Admin.toast(err.message, 'error');
   }
 });
 
 document.querySelector('#tbl-plans').addEventListener('click', async (e) => {
+  const statusBtn = e.target.closest('[data-demand-status]');
+  if (statusBtn) {
+    const demand = statusBtn.dataset.demand;
+    const next = statusBtn.dataset.demandStatus;
+    const msg = next === 'finished'
+      ? `Kết thúc nhu cầu mẹ "${demand}"?\nTất cả MONo thuộc nhu cầu này sẽ bị ẩn khỏi danh sách chọn kế hoạch bên QLCL.`
+      : `Mở lại nhu cầu mẹ "${demand}"? Các MONo sẽ hiện lại bên QLCL.`;
+    if (!confirm(msg)) return;
+    statusBtn.disabled = true;
+    try {
+      await Admin.fetchJSON(`${API_DEMAND}/${encodeURIComponent(demand)}/status`, {
+        method: 'PUT', body: JSON.stringify({ status: next }),
+      });
+      Admin.toast(next === 'finished' ? `Đã kết thúc "${demand}".` : `Đã mở lại "${demand}".`, 'ok');
+      loadPlans();
+    } catch (err) {
+      Admin.toast(err.message, 'error');
+      statusBtn.disabled = false;
+    }
+    return;
+  }
   const rowMenuToggle = e.target.closest('[data-row-menu-toggle]');
   if (rowMenuToggle) {
     const guid = rowMenuToggle.dataset.rowMenuToggle;

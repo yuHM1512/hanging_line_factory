@@ -337,23 +337,7 @@ def api_demand_candidates():
 
 
 @router.get("/api/demand")
-def api_demand_list(
-    status: str | None = Query(None),
-    line_no: int | None = Query(None, alias="line_no"),
-    style_no: str | None = Query(None, alias="style_no"),
-):
-    where_parts: list[str] = []
-    params: list[Any] = []
-    if status:
-        where_parts.append("ISNULL([Status], 'active') = ?")
-        params.append(status)
-    if line_no is not None:
-        where_parts.append("[LineNo] = ?")
-        params.append(line_no)
-    if style_no:
-        where_parts.append("StyleNo LIKE ?")
-        params.append(f"%{style_no}%")
-    where = ("WHERE " + " AND ".join(where_parts)) if where_parts else ""
+def api_demand_list():
     return db.query(
         "SELECT NhuCauMe, StyleNo, SLKH, ChildCount, DMKT, PhanLoaiDH, "
         "[LineNo] AS LineNoOut, LDBienChe, LuyKeChuyenTiep, Notes, CreatedBy, "
@@ -361,8 +345,7 @@ def api_demand_list(
         "CONVERT(varchar(10), EarliestFirstHangDate, 120) AS EarliestFirstHangDate, "
         "CONVERT(varchar(19), CreatedAt, 120) AS CreatedAt, "
         "CONVERT(varchar(19), UpdatedAt, 120) AS UpdatedAt "
-        f"FROM app.vDemandRoot {where} ORDER BY StyleNo, NhuCauMe",
-        params or None,
+        "FROM app.vDemandRoot ORDER BY StyleNo, NhuCauMe"
     )
 
 
@@ -719,6 +702,7 @@ def api_plan_list():
         "pm.[LineNo] AS LineNoOut, pm.FirstHangDate, pm.SLKH, pm.DailyAim, "
         "pm.Customer, pm.NhuCauMe, pm.LoaiHang, pm.Notes, "
         "dr.DMKT, dr.PhanLoaiDH, dr.LDBienChe, dr.LuyKeChuyenTiep, dr.Notes AS DemandNotes, "
+        "ISNULL(dr.[Status], 'active') AS DemandStatus, "
         "pm.CreatedBy, "
         "CONVERT(varchar(19), pm.CreatedAt, 120) AS CreatedAt "
         "FROM app.tPlanMaster pm "
