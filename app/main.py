@@ -55,6 +55,15 @@ def _auto_sync_loop() -> None:
             )
         except Exception:
             logger.exception("QLCL auto-sync failed")
+        try:
+            result = admin._do_sync_qc_employees_to_qlcl()
+            logger.info(
+                "QLCL QC employee sync ok — employees=%s plan_station_rows=%s",
+                result.get("employees", 0),
+                result.get("plan_station_rows", 0),
+            )
+        except Exception:
+            logger.exception("QLCL QC employee sync failed")
 
 
 def _output_sync_loop() -> None:

@@ -1395,25 +1395,31 @@ def _refresh_plan_employee_assignments(plan_master_guid: str | None = None) -> d
                 )
             refreshed += len(rows)
 
-    assignment_filter = "WHERE PlanMaster_guid = ?" if plan_master_guid else ""
-    assignment_params = (plan_master_guid,) if plan_master_guid else ()
+    # Toàn bộ cache (mọi kế hoạch) để danh sách trạm gộp / tổ của NV không bị
+    # ghi đè chỉ bằng dữ liệu của kế hoạch vừa đồng bộ.
     assignment_rows = db.query(
-        f"""
-        SELECT DonVi, BoPhan, EmpID, EmpName, Odr, SeqName, SUM(Qty) AS Qty
+        """
+        SELECT DonVi, BoPhan, RootMONo, EmpID, EmpName, Odr, SeqName,
+               SUM(Qty) AS Qty, MAX(LastWorkDate) AS LastWorkDate
         FROM app.tPlanEmployeeAssignment
-        {assignment_filter}
-        GROUP BY DonVi, BoPhan, EmpID, EmpName, Odr, SeqName
+        WHERE DonVi = ?
+        GROUP BY DonVi, BoPhan, RootMONo, EmpID, EmpName, Odr, SeqName
         """,
-        assignment_params,
+        (APP_UNIT,),
     )
+    plan_monos = sorted({
+        str(p.get("MONo") or "").strip() for p in plan_rows if str(p.get("MONo") or "").strip()
+    })
     return {
         "plans": len(plan_rows),
         "assignments": refreshed,
+        "plan_monos": plan_monos,
         "employee_rows": assignment_rows,
     }
 
 
-def _build_qc_employee_payload(employee_rows: list[dict]) -> list[dict]:
+def _build_qc_employee_payload(employee_rows: list[dict], scope_monos: set[str] | None = None) -> list[dict]:
+    """Gom theo NV. scope_monos=None → mọi NV/MONo; ngược lại chỉ NV có mặt ở các MONo đó."""
     employees: dict[str, dict] = {}
     for row in employee_rows:
         emp_id = str(row.get("EmpID") or "").strip()
@@ -1422,24 +1428,33 @@ def _build_qc_employee_payload(employee_rows: list[dict]) -> list[dict]:
             continue
         target = employees.setdefault(
             emp_id,
-            {
-                "ma_nv": emp_id,
-                "ho_ten": emp_name,
-                "bo_phan": row.get("BoPhan") or "",
-                "station": set(),
-            },
+            {"ma_nv": emp_id, "ho_ten": emp_name, "bo_phan": "", "_last": None,
+             "station": set(), "plans": {}},
         )
-        if not target.get("bo_phan") and row.get("BoPhan"):
+        last = row.get("LastWorkDate")
+        if row.get("BoPhan") and (target["_last"] is None or (last is not None and last > target["_last"])):
             target["bo_phan"] = row.get("BoPhan")
+            target["_last"] = last
         odr = row.get("Odr")
         seq_name = str(row.get("SeqName") or "").strip()
-        if odr and seq_name:
-            target["station"].add(f"Odr {odr} - {seq_name}")
+        if not (odr and seq_name):
+            continue
+        station = f"Odr {odr} - {seq_name}"
+        target["station"].add(station)
+        mono = str(row.get("RootMONo") or "").strip()
+        if mono:
+            target["plans"].setdefault(mono, set()).add(station)
 
     out = []
     for item in employees.values():
-        station = sorted(item.pop("station"))
-        item["station"] = station
+        plans = item.pop("plans")
+        item.pop("_last")
+        if scope_monos is not None:
+            plans = {m: s for m, s in plans.items() if m in scope_monos}
+            if not plans:
+                continue
+        item["station"] = sorted(item["station"])
+        item["plans"] = [{"mono": m, "station": sorted(s)} for m, s in sorted(plans.items())]
         out.append(item)
     out.sort(key=lambda x: x["ma_nv"])
     return out
@@ -1447,8 +1462,13 @@ def _build_qc_employee_payload(employee_rows: list[dict]) -> list[dict]:
 
 def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
     refreshed = _refresh_plan_employee_assignments(plan_master_guid)
-    employees = _build_qc_employee_payload(refreshed["employee_rows"])
-    if not employees:
+    full = plan_master_guid is None
+    plan_monos = refreshed["plan_monos"]
+    employees = _build_qc_employee_payload(
+        refreshed["employee_rows"], None if full else set(plan_monos)
+    )
+    # Vẫn gửi khi không còn NV để QLCL xoá phân công cũ của các MONo này.
+    if not employees and not plan_monos:
         return {
             "status": "ok",
             "message": "Không có nhân viên/công đoạn để đồng bộ",
@@ -1461,9 +1481,10 @@ def _do_sync_qc_employees_to_qlcl(plan_master_guid: str | None = None) -> dict:
 
     body = json.dumps({
         "don_vi": APP_UNIT,
-        "replace_station_scope": plan_master_guid is None,
+        "replace_station_scope": full,
+        "plan_monos": plan_monos,
         "employees": employees,
-    }).encode()
+    }, default=str).encode()
     req = _qlcl_request("/api/qc/employees/push-from-hl", data=body, method="POST")
     with urllib.request.urlopen(req, timeout=30) as resp:
         result = json.loads(resp.read())
